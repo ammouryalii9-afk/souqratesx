@@ -20,6 +20,7 @@ type VaultContextType = {
   claimEarnings: () => void;
   upgradeMiningLevel: (cost: number, newLevel: number) => void;
   expandBattery: (cost: number) => void;
+  tapMine: () => number;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -107,6 +108,23 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Tap to mine — each tap adds points and costs 1 energy
+  // Returns the points earned (0 if no energy), used by UI for floating animation
+  const tapMine = (): number => {
+    let earned = 0;
+    setEnergy(prev => {
+      if (prev <= 0) return prev;
+      const pts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+      earned = pts;
+      setTempMiningPoints(p => {
+        const cap = miningLevel === 1 ? 360 : miningLevel === 2 ? 1800 : miningLevel === 3 ? 7200 : 36000;
+        return Math.min(p + pts, cap);
+      });
+      return prev - 1;
+    });
+    return earned;
+  };
+
   return (
     <VaultContext.Provider
       value={{
@@ -126,7 +144,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMaxEnergy,
         claimEarnings,
         upgradeMiningLevel,
-        expandBattery
+        expandBattery,
+        tapMine
       }}
     >
       {children}
