@@ -22,18 +22,13 @@ export const GamesTab = () => {
   const gameStateRef = useRef<GameState>('idle');
   const scoreRef = useRef(0);
   const sessionEarnedRef = useRef(0);
-  const miningCapRef = useRef(360);
 
   // Keep refs in sync
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-  useEffect(() => {
-    const cap = miningLevel === 1 ? 360 : miningLevel === 2 ? 1800 : miningLevel === 3 ? 7200 : 36000;
-    miningCapRef.current = cap;
-  }, [miningLevel]);
 
-  // Add game points to vault balance in real-time
+  // Add game points to vault balance in real-time — no cap on game earnings
   const addPointsToVault = useCallback((pts: number) => {
-    setTempMiningPoints(prev => Math.min(prev + pts, miningCapRef.current));
+    setTempMiningPoints(prev => prev + pts);
     setSessionEarned(prev => { sessionEarnedRef.current = prev + pts; return prev + pts; });
   }, [setTempMiningPoints]);
 

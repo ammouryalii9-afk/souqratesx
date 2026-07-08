@@ -31,8 +31,9 @@ export const VaultTab = () => {
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const [isTapping, setIsTapping] = useState(false);
 
-  const miningCap = miningLevel === 1 ? 360 : miningLevel === 2 ? 1800 : miningLevel === 3 ? 7200 : 36000;
-  const isCapped = tempMiningPoints >= miningCap;
+  // Idle-mining cap (3h × rate) — tapping is NOT limited by this, only auto-mining is
+  const idleCap = miningLevel === 1 ? 10800 : miningLevel === 2 ? 54000 : miningLevel === 3 ? 216000 : 1080000;
+  const isCapped = tempMiningPoints >= idleCap;
   const pointsPerTap = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
 
   const handleWithdraw = () => {
@@ -42,8 +43,9 @@ export const VaultTab = () => {
     });
   };
 
+  // Tapping is only blocked by energy, never by the idle cap
   const handleTap = useCallback((e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
-    if (energy <= 0 || isCapped) return;
+    if (energy <= 0) return;
 
     // Get tap position relative to the button
     let x = 50, y = 50;
@@ -125,23 +127,23 @@ export const VaultTab = () => {
 
         {/* Hint text */}
         <p className="text-xs text-primary/50 uppercase tracking-widest mb-4 font-medium">
-          {energy > 0 && !isCapped ? 'Tap the Vault to Mine' : isCapped ? 'Vault Full — Claim Earnings' : 'No Energy — Recharging...'}
+          {energy > 0 ? 'Tap the Vault to Mine' : 'No Energy — Recharging...'}
         </p>
 
-        {/* Tappable mining core */}
+        {/* Tappable mining core — only blocked by energy */}
         <button
           data-testid="button-tap-mine"
           onClick={handleTap}
           onTouchStart={handleTap}
-          disabled={energy <= 0 || isCapped}
+          disabled={energy <= 0}
           className="relative w-52 h-52 rounded-full focus:outline-none disabled:cursor-not-allowed"
           style={{ transform: isTapping ? 'scale(0.94)' : 'scale(1)', transition: 'transform 0.1s ease' }}
         >
           {/* Outer glow ring */}
-          <div className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${energy > 0 && !isCapped ? 'border-primary/40' : 'border-white/10'}`} />
+          <div className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${energy > 0 ? 'border-primary/40' : 'border-white/10'}`} />
 
           {/* Spinning orbit ring */}
-          <div className={`absolute inset-2 rounded-full border border-primary/20 ${energy > 0 && !isCapped ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
+          <div className={`absolute inset-2 rounded-full border border-primary/20 ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
 
           {/* Glow shadow when active */}
           {energy > 0 && !isCapped && (

@@ -29,7 +29,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [userId] = useState('user_123');
   const [username] = useState('CryptoMiner');
   const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 12.45);
-  const [tempMiningPoints, setTempMiningPoints] = useState(() => Number(localStorage.getItem('tempMiningPoints')) || 14850);
+  const [tempMiningPoints, setTempMiningPoints] = useState(() => {
+    const saved = localStorage.getItem('tempMiningPoints');
+    // Reset any legacy demo value so points start fresh and game earnings are visible
+    const val = saved ? Number(saved) : 0;
+    const levelSaved = Number(localStorage.getItem('miningLevel')) || 1;
+    const freshCap = levelSaved === 1 ? 10800 : levelSaved === 2 ? 54000 : levelSaved === 3 ? 216000 : 1080000;
+    return val > freshCap ? 0 : val;
+  });
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 85);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
@@ -45,26 +52,25 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('maxEnergy', maxEnergy.toString());
   }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy]);
 
-  // Mining logic
+  // Auto-mining logic — runs every 30s, costs 1 energy, awards points by level
+  // Cap only applies to idle auto-mining (not game/tap earnings)
   useEffect(() => {
-    const miningCap = miningLevel === 1 ? 360 : miningLevel === 2 ? 1800 : miningLevel === 3 ? 7200 : 36000;
+    const idleCap = miningLevel === 1 ? 10800 : miningLevel === 2 ? 54000 : miningLevel === 3 ? 216000 : 1080000;
     
     const interval = setInterval(() => {
       setEnergy((prevEnergy) => {
+        if (prevEnergy <= 0) return prevEnergy;
         setTempMiningPoints((prevPoints) => {
-          if (prevEnergy > 0 && prevPoints < miningCap) {
-            const addedPoints = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-            return Math.min(prevPoints + addedPoints, miningCap);
-          }
-          return prevPoints;
+          if (prevPoints >= idleCap) return prevPoints;
+          const addedPoints = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+          return Math.min(prevPoints + addedPoints, idleCap);
         });
-        
-        return prevEnergy > 0 && tempMiningPoints < miningCap ? prevEnergy - 1 : prevEnergy;
+        return prevEnergy - 1;
       });
-    }, 30000); // 30s
+    }, 30000);
     
     return () => clearInterval(interval);
-  }, [miningLevel, tempMiningPoints]);
+  }, [miningLevel]);
 
   // Energy regen
   useEffect(() => {
@@ -108,18 +114,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Tap to mine — each tap adds points and costs 1 energy
-  // Returns the points earned (0 if no energy), used by UI for floating animation
+  // Tap to mine — each tap adds points and costs 1 energy (no upper cap; energy is the limiter)
   const tapMine = (): number => {
     let earned = 0;
     setEnergy(prev => {
       if (prev <= 0) return prev;
       const pts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
       earned = pts;
-      setTempMiningPoints(p => {
-        const cap = miningLevel === 1 ? 360 : miningLevel === 2 ? 1800 : miningLevel === 3 ? 7200 : 36000;
-        return Math.min(p + pts, cap);
-      });
+      setTempMiningPoints(p => p + pts);
       return prev - 1;
     });
     return earned;
