@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { VaultProvider, useVault } from "./context/VaultContext";
+import { VaultProvider, useVault, getLeague } from "./context/VaultContext";
 import { BottomNav } from "./components/BottomNav";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
@@ -9,7 +9,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Coins } from "lucide-react";
 
 function Header() {
-  const { totalBalanceUSD } = useVault();
+  const { totalBalanceUSD, lifetimePoints, profitPerHour } = useVault();
+  const league = getLeague(lifetimePoints);
   
   return (
     <header className="sticky top-0 z-40 bg-[#0D0D0F]/90 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between">
@@ -18,10 +19,16 @@ function Header() {
           <Coins className="w-5 h-5 text-black" />
         </div>
         <span className="font-bold tracking-tight text-lg text-white">VaultX</span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: league.color, color: '#000'}}>
+          {league.name}
+        </span>
       </div>
-      <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-        <span className="text-xs text-muted-foreground font-medium">Bal</span>
-        <span className="text-sm font-bold text-primary">${totalBalanceUSD.toFixed(2)}</span>
+      <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex flex-col items-end justify-center">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground font-medium uppercase">Bal</span>
+          <span className="text-sm font-bold text-primary leading-none">${totalBalanceUSD.toFixed(2)}</span>
+        </div>
+        <span className="text-[10px] text-emerald-400 font-bold leading-none mt-0.5">+{profitPerHour}/hr</span>
       </div>
     </header>
   );

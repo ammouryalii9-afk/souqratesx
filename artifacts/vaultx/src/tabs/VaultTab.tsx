@@ -6,10 +6,10 @@
 // [Telegram Stars & Fragment API] — in-app purchases for premium upgrades
 // [Sentry.io SDK] — error tracking and performance monitoring
 
-import { useState, useCallback } from 'react';
-import { useVault } from '../context/VaultContext';
+import { useState, useCallback, useEffect } from 'react';
+import { useVault, getLeague } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Zap, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
@@ -23,15 +23,52 @@ interface FloatingPoint {
 let floatId = 0;
 
 export const VaultTab = () => {
-  const { totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, claimEarnings, tapMine } = useVault();
+  const { 
+    totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, claimEarnings, tapMine,
+    activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo,
+    rechargeUsesToday, rechargeEnergy,
+    farmState, farmStartTime, startFarming, claimFarming,
+    lifetimePoints, profitPerHour
+  } = useVault();
   const { toast } = useToast();
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState(0);
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const [isTapping, setIsTapping] = useState(false);
+  
+  const [turboRemaining, setTurboRemaining] = useState(0);
+  const [farmProgress, setFarmProgress] = useState(0);
+  const [farmYield, setFarmYield] = useState(0);
 
-  // Idle-mining cap (3h × rate) — tapping is NOT limited by this, only auto-mining is
+  const league = getLeague(lifetimePoints);
+
+  useEffect(() => {
+    let timer: any;
+    if (activeTurbo) {
+      timer = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((turboExpiresAt - Date.now()) / 1000));
+        setTurboRemaining(remaining);
+      }, 1000);
+    } else {
+      setTurboRemaining(0);
+    }
+    return () => clearInterval(timer);
+  }, [activeTurbo, turboExpiresAt]);
+
+  useEffect(() => {
+    let timer: any;
+    if (farmState === 'farming') {
+      timer = setInterval(() => {
+        const elapsed = Date.now() - farmStartTime;
+        const total = 8 * 3600 * 1000;
+        setFarmProgress(Math.min(100, (elapsed / total) * 100));
+        setFarmYield(Math.min(4000, Math.floor((elapsed / total) * 4000)));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [farmState, farmStartTime]);
+
   const idleCap = miningLevel === 1 ? 10800 : miningLevel === 2 ? 54000 : miningLevel === 3 ? 216000 : 1080000;
   const isCapped = tempMiningPoints >= idleCap;
   const pointsPerTap = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
@@ -43,11 +80,9 @@ export const VaultTab = () => {
     });
   };
 
-  // Tapping is only blocked by energy, never by the idle cap
   const handleTap = useCallback((e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
     if (energy <= 0) return;
 
-    // Get tap position relative to the button
     let x = 50, y = 50;
     if ('touches' in e && e.touches.length > 0) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -59,26 +94,23 @@ export const VaultTab = () => {
       y = ((e.clientY - rect.top) / rect.height) * 100;
     }
 
-    tapMine();
+    const earned = tapMine();
 
-    // Pulse animation
     setIsTapping(true);
     setTimeout(() => setIsTapping(false), 120);
 
-    // Spawn floating number
     const id = floatId++;
-    setFloatingPoints(prev => [...prev, { id, x, y, value: pointsPerTap }]);
+    setFloatingPoints(prev => [...prev, { id, x, y, value: earned }]);
     setTimeout(() => {
       setFloatingPoints(prev => prev.filter(p => p.id !== id));
     }, 900);
-  }, [energy, isCapped, tapMine, pointsPerTap]);
+  }, [energy, tapMine]);
 
   const handleClaim = () => {
     if (tempMiningPoints === 0) return;
     setIsClaiming(true);
     setClaimProgress(0);
 
-    // AdsGram SDK Hook — Future: AdController.show() integration
     const duration = 15000;
     const interval = 100;
     const steps = duration / interval;
@@ -122,15 +154,25 @@ export const VaultTab = () => {
         </div>
       </div>
 
+      {/* Info Row */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: league.color, color: '#000' }}>
+            {league.icon} {league.name} Miner
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-xs font-medium bg-black/40 border border-white/5 rounded-lg px-4 py-2">
+          <span className="text-emerald-400">Profit: +{profitPerHour.toLocaleString()} pts/hr</span>
+          <span className="text-primary">Total: {lifetimePoints.toLocaleString()} pts</span>
+        </div>
+      </div>
+
       {/* ── TAP TO MINE CORE ── */}
       <div className="flex flex-col items-center justify-center py-4 relative select-none">
-
-        {/* Hint text */}
         <p className="text-xs text-primary/50 uppercase tracking-widest mb-4 font-medium">
           {energy > 0 ? 'Tap the Vault to Mine' : 'No Energy — Recharging...'}
         </p>
 
-        {/* Tappable mining core — only blocked by energy */}
         <button
           data-testid="button-tap-mine"
           onClick={handleTap}
@@ -139,49 +181,51 @@ export const VaultTab = () => {
           className="relative w-52 h-52 rounded-full focus:outline-none disabled:cursor-not-allowed"
           style={{ transform: isTapping ? 'scale(0.94)' : 'scale(1)', transition: 'transform 0.1s ease' }}
         >
-          {/* Outer glow ring */}
-          <div className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${energy > 0 ? 'border-primary/40' : 'border-white/10'}`} />
+          <div className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${activeTurbo ? 'border-cyan-400/80 animate-pulse' : energy > 0 ? 'border-primary/40' : 'border-white/10'}`} />
+          <div className={`absolute inset-2 rounded-full border border-primary/20 ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''} ${activeTurbo ? 'border-cyan-400/50' : ''}`} />
 
-          {/* Spinning orbit ring */}
-          <div className={`absolute inset-2 rounded-full border border-primary/20 ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''}`} />
-
-          {/* Glow shadow when active */}
-          {energy > 0 && !isCapped && (
+          {energy > 0 && !isCapped && !activeTurbo && (
             <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(245,197,24,0.18)] animate-pulse" />
           )}
+          {activeTurbo && (
+            <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(34,211,238,0.4)] animate-pulse" />
+          )}
 
-          {/* Core face */}
-          <div className="absolute inset-4 rounded-full bg-gradient-to-b from-[#2A2205] to-[#0A0900] flex flex-col items-center justify-center border border-primary/40 shadow-inner overflow-hidden">
-            {/* Inner shimmer */}
+          <div className={`absolute inset-4 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-[#002b36] to-[#0A0900] border-cyan-400/60' : 'from-[#2A2205] to-[#0A0900] border-primary/40'} flex flex-col items-center justify-center border shadow-inner overflow-hidden`}>
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`} />
             <span className="text-[10px] text-primary/60 font-medium uppercase tracking-widest mb-1">Mined</span>
             <span className="text-3xl font-bold text-white tabular-nums leading-none">
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
             <span className="text-[10px] text-primary/40 mt-1">pts</span>
-            <span className="text-[10px] text-primary/50 mt-2 font-semibold">
-              +{pointsPerTap} / tap
+            <span className={`text-[10px] mt-2 font-semibold ${activeTurbo ? 'text-cyan-400' : 'text-primary/50'}`}>
+              +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
             </span>
+            {activeTurbo && (
+              <span className="absolute bottom-4 text-xs font-bold text-red-500 animate-pulse">TURBO x5 ({turboRemaining}s)</span>
+            )}
           </div>
 
-          {/* Floating +N animations */}
           {floatingPoints.map(fp => (
-            <span
+            <div
               key={fp.id}
-              className="absolute pointer-events-none font-bold text-primary text-lg leading-none"
-              style={{
-                left: `${fp.x}%`,
-                top: `${fp.y}%`,
-                transform: 'translate(-50%, -50%)',
-                animation: 'floatUp 0.9s ease-out forwards',
-              }}
+              className="absolute pointer-events-none"
+              style={{ left: `${fp.x}%`, top: `${fp.y}%`, transform: 'translate(-50%, -50%)' }}
             >
-              +{fp.value}
-            </span>
+              <span
+                className="font-bold text-primary text-lg leading-none absolute"
+                style={{ animation: 'floatUp 0.9s ease-out forwards' }}
+              >
+                +{fp.value}
+              </span>
+              <div className="dot burst-1" />
+              <div className="dot burst-2" />
+              <div className="dot burst-3" />
+              <div className="dot burst-4" />
+            </div>
           ))}
         </button>
 
-        {/* Energy bar */}
         <div className="mt-6 w-full max-w-xs">
           <div className="flex justify-between text-xs font-medium mb-2">
             <span className="text-muted-foreground flex items-center gap-1">
@@ -192,21 +236,67 @@ export const VaultTab = () => {
             </span>
           </div>
           <Progress value={(energy / maxEnergy) * 100} className="h-2 bg-white/5" />
-
-          {energy === 0 && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-destructive text-xs font-medium bg-destructive/10 py-2 rounded-lg">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              Vault Depleted — Recharge needed (+5 energy / 15 min)
-            </div>
-          )}
-
-          {isCapped && energy > 0 && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-primary text-xs font-medium bg-primary/10 py-2 rounded-lg border border-primary/20">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Vault Full — Claim your earnings below!
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* Boosts Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          data-testid="button-turbo"
+          onClick={activateTurbo}
+          disabled={turboUsesToday >= 3 || activeTurbo}
+          className="bg-card border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-50"
+        >
+          <FastForward className="w-5 h-5 text-cyan-400" />
+          <span className="text-xs font-bold text-white">Turbo Tap</span>
+          <span className="text-[10px] text-muted-foreground">{3 - turboUsesToday} left</span>
+        </button>
+        <button
+          data-testid="button-recharge"
+          onClick={rechargeEnergy}
+          disabled={rechargeUsesToday >= 3}
+          className="bg-card border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-50"
+        >
+          <Battery className="w-5 h-5 text-emerald-400" />
+          <span className="text-xs font-bold text-white">Full Recharge</span>
+          <span className="text-[10px] text-muted-foreground">{3 - rechargeUsesToday} left</span>
+        </button>
+      </div>
+
+      {/* Farming Section */}
+      <div className="bg-card border border-white/5 rounded-xl p-4 flex flex-col gap-3">
+        {farmState === 'idle' && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-500/10 p-2 rounded-lg"><Sprout className="w-5 h-5 text-emerald-500" /></div>
+              <div>
+                <h3 className="text-sm font-bold text-white">Start Farming</h3>
+                <p className="text-xs text-muted-foreground">Farm 500 pts/hr for up to 8 hours</p>
+              </div>
+            </div>
+            <button data-testid="button-farm-start" onClick={startFarming} className="bg-emerald-500 text-black px-4 py-2 rounded-lg text-xs font-bold active:scale-95">Start Farm</button>
+          </div>
+        )}
+        {farmState === 'farming' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-white font-bold flex items-center gap-1"><Sprout className="w-4 h-4 text-emerald-500"/> Harvesting...</span>
+              <span className="text-primary font-bold">{farmYield.toLocaleString()} pts</span>
+            </div>
+            <Progress value={farmProgress} className="h-2 bg-white/5 [&>div]:bg-emerald-500" />
+          </div>
+        )}
+        {farmState === 'ready' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Sprout className="w-5 h-5 text-emerald-500 animate-pulse" />
+              <span className="text-emerald-500 font-bold">Farm Ready!</span>
+            </div>
+            <button data-testid="button-farm-claim" onClick={claimFarming} className="w-full bg-emerald-500 text-black font-bold py-3 rounded-lg animate-pulse active:scale-95 text-sm">
+              Claim 4,000 pts
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Claim Button */}
@@ -220,7 +310,6 @@ export const VaultTab = () => {
         Transfer Earnings to Vault
       </button>
 
-      {/* Ad Modal */}
       <Dialog open={isClaiming} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md border-white/10 bg-[#0D0D0F]">
           <DialogTitle className="text-center text-xl">Watching Reward Video</DialogTitle>
@@ -236,12 +325,39 @@ export const VaultTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Float-up keyframe */}
       <style>{`
         @keyframes floatUp {
           0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
           60%  { opacity: 1; transform: translate(-50%, calc(-50% - 40px)) scale(1); }
           100% { opacity: 0; transform: translate(-50%, calc(-50% - 70px)) scale(0.8); }
+        }
+        .dot {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          background: #F5C518;
+          border-radius: 50%;
+          opacity: 0;
+        }
+        .burst-1 { animation: burst1 0.6s ease-out forwards; }
+        .burst-2 { animation: burst2 0.6s ease-out forwards; }
+        .burst-3 { animation: burst3 0.6s ease-out forwards; }
+        .burst-4 { animation: burst4 0.6s ease-out forwards; }
+        @keyframes burst1 {
+          0% { opacity: 1; transform: translate(0, 0); }
+          100% { opacity: 0; transform: translate(-20px, -20px); }
+        }
+        @keyframes burst2 {
+          0% { opacity: 1; transform: translate(0, 0); }
+          100% { opacity: 0; transform: translate(20px, -15px); }
+        }
+        @keyframes burst3 {
+          0% { opacity: 1; transform: translate(0, 0); }
+          100% { opacity: 0; transform: translate(-15px, 20px); }
+        }
+        @keyframes burst4 {
+          0% { opacity: 1; transform: translate(0, 0); }
+          100% { opacity: 0; transform: translate(20px, 20px); }
         }
       `}</style>
     </div>

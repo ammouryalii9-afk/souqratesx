@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink } from 'lucide-react';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift } from 'lucide-react';
 
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
 
@@ -11,8 +11,17 @@ const SPONSORED_TASKS = [
   { id: 't3', title: 'Complete Survey via Monlix', reward: 2000, isSurvey: true },
 ];
 
+const COMBO_ICONS = [
+  { id: 'cpu', icon: Cpu },
+  { id: 'flame', icon: Flame },
+  { id: 'globe', icon: Globe },
+  { id: 'leaf', icon: Leaf },
+  { id: 'star', icon: Star },
+  { id: 'gem', icon: Gem },
+];
+
 export const TasksTab = () => {
-  const { setTempMiningPoints } = useVault();
+  const { setTempMiningPoints, addLifetimePoints } = useVault();
   const { toast } = useToast();
 
   const [currentStreak, setCurrentStreak] = useState(() => Number(localStorage.getItem('currentStreak')) || 0);
@@ -24,31 +33,58 @@ export const TasksTab = () => {
   const [taskStates, setTaskStates] = useState<Record<string, 'idle' | 'loading' | 'verify'>>({});
   const [showSurveyModal, setShowSurveyModal] = useState(false);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  
+  const [comboResult, setComboResult] = useState<'none' | 'success' | 'failed'>(() => {
+    const savedDate = localStorage.getItem('dailyComboDate');
+    return savedDate === todayStr ? (localStorage.getItem('dailyComboResult') as any) || 'none' : 'none';
+  });
+  const [selectedCombo, setSelectedCombo] = useState<string[]>([]);
+  
+  // Deterministic target combo based on date
+  const targetCombo = ['star', 'globe', 'gem']; // Hardcoded for simplicity in demo
+  
+  const [airdropTime, setAirdropTime] = useState({ d: 0, h: 0, m: 0, s: 0 });
+
   useEffect(() => {
     localStorage.setItem('currentStreak', currentStreak.toString());
     localStorage.setItem('lastLoginDate', lastLoginDate);
     localStorage.setItem('claimedTasks', JSON.stringify(claimedTasks));
   }, [currentStreak, lastLoginDate, claimedTasks]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  useEffect(() => {
+    const target = new Date('2025-09-01T00:00:00Z').getTime();
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = Math.max(0, target - now);
+      setAirdropTime({
+        d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        h: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        s: Math.floor((diff % (1000 * 60)) / 1000)
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const canClaimDaily = lastLoginDate !== todayStr;
 
   const handleClaimDaily = () => {
     if (!canClaimDaily) return;
     
     let newStreak = currentStreak;
-    // Check if missed a day
     if (lastLoginDate) {
       const lastDate = new Date(lastLoginDate);
       const today = new Date(todayStr);
       const diffTime = Math.abs(today.getTime() - lastDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      if (diffDays > 1) newStreak = 0; // reset
+      if (diffDays > 1) newStreak = 0;
     }
 
     const reward = DAILY_REWARDS[Math.min(newStreak, 6)];
     setTempMiningPoints(prev => prev + reward);
+    addLifetimePoints(reward);
     setCurrentStreak(Math.min(newStreak + 1, 7));
     setLastLoginDate(todayStr);
     
@@ -73,23 +109,130 @@ export const TasksTab = () => {
       setTaskStates(prev => ({ ...prev, [taskId]: 'loading' }));
       setTimeout(() => {
         setClaimedTasks(prev => [...prev, taskId]);
-        if (reward) setTempMiningPoints(prev => prev + reward);
+        if (reward) {
+          setTempMiningPoints(prev => prev + reward);
+          addLifetimePoints(reward);
+        }
         toast({ title: "Task Complete", description: `+${reward?.toLocaleString()} points` });
-      }, 3000); // Fake verification
+      }, 3000);
     }
   };
 
   const completeFakeSurvey = () => {
     const pts = Math.floor(Math.random() * 1500) + 500;
     setTempMiningPoints(prev => prev + pts);
+    addLifetimePoints(pts);
     setClaimedTasks(prev => [...prev, 't3']);
     setShowSurveyModal(false);
     toast({ title: "Survey Complete", description: `+${pts.toLocaleString()} points earned from Monlix.` });
   };
 
+  const toggleCombo = (id: string) => {
+    if (comboResult !== 'none') return;
+    setSelectedCombo(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length < 3) return [...prev, id];
+      return prev;
+    });
+  };
+
+  const checkCombo = () => {
+    if (selectedCombo.length !== 3) return;
+    const isCorrect = selectedCombo.every(id => targetCombo.includes(id));
+    if (isCorrect) {
+      setComboResult('success');
+      setTempMiningPoints(p => p + 50000);
+      addLifetimePoints(50000);
+      toast({ title: "Combo Correct!", description: "+50,000 points added!" });
+    } else {
+      setComboResult('failed');
+      toast({ title: "Wrong Combo", description: "Try again tomorrow.", variant: "destructive" });
+    }
+    localStorage.setItem('dailyComboDate', todayStr);
+    localStorage.setItem('dailyComboResult', isCorrect ? 'success' : 'failed');
+  };
+
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
       
+      {/* Daily Combo */}
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Daily Combo</h2>
+          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+50,000 pts</span>
+        </div>
+        <div className="bg-card border border-white/5 rounded-xl p-4">
+          {comboResult === 'success' ? (
+            <div className="text-center py-4 text-emerald-400 font-bold flex flex-col items-center gap-2">
+              <Check className="w-8 h-8" />
+              Combo Solved! Come back tomorrow.
+            </div>
+          ) : comboResult === 'failed' ? (
+            <div className="text-center py-4 text-red-400 font-bold flex flex-col items-center gap-2">
+              <Lock className="w-8 h-8" />
+              Wrong combo. Try again tomorrow.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-center gap-3">
+                {[0,1,2].map(i => {
+                  const sel = selectedCombo[i];
+                  const Icon = sel ? COMBO_ICONS.find(c => c.id === sel)?.icon : null;
+                  return (
+                    <div key={i} className="w-14 h-14 rounded-xl border-2 border-white/10 bg-white/5 flex items-center justify-center">
+                      {Icon && <Icon className="w-6 h-6 text-primary" />}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {COMBO_ICONS.map(({id, icon: Icon}) => (
+                  <button 
+                    key={id} 
+                    onClick={() => toggleCombo(id)}
+                    className={`p-3 rounded-xl border flex items-center justify-center transition-colors ${selectedCombo.includes(id) ? 'bg-primary/20 border-primary' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                  >
+                    <Icon className={`w-6 h-6 ${selectedCombo.includes(id) ? 'text-primary' : 'text-white'}`} />
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={checkCombo} 
+                disabled={selectedCombo.length !== 3}
+                className="w-full bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50"
+              >
+                Check Combo
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Airdrop Banner */}
+      <section>
+        <div className="bg-gradient-to-r from-primary/20 to-transparent border border-primary/40 rounded-xl p-4 relative overflow-hidden shadow-[0_0_20px_rgba(245,197,24,0.1)]">
+          <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3 mb-2">
+            <Gift className="w-6 h-6 text-primary animate-bounce" />
+            <h2 className="text-lg font-bold text-white">VaultX Airdrop</h2>
+          </div>
+          <p className="text-xs text-primary/80 mb-4">Accumulate more points before the snapshot!</p>
+          <div className="flex gap-2">
+            {[
+              { l: 'Days', v: airdropTime.d },
+              { l: 'Hours', v: airdropTime.h },
+              { l: 'Mins', v: airdropTime.m },
+              { l: 'Secs', v: airdropTime.s }
+            ].map((t,i) => (
+              <div key={i} className="flex-1 bg-black/40 border border-primary/20 rounded-lg p-2 flex flex-col items-center">
+                <span className="text-xl font-bold text-white tabular-nums">{t.v.toString().padStart(2, '0')}</span>
+                <span className="text-[10px] text-primary uppercase">{t.l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Daily Streak */}
       <section>
         <h2 className="text-xl font-bold text-white mb-4">Daily Check-in</h2>

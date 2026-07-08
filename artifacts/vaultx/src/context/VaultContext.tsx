@@ -1,4 +1,20 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+
+export type PassiveCard = {
+  id: string;
+  name: string;
+  level: number;
+  ptsPerHour: number;
+};
+
+export const getLeague = (pts: number) => {
+  if (pts >= 100000000) return { name: 'Master', color: '#ff4d4d', icon: '👑' };
+  if (pts >= 10000000) return { name: 'Diamond', color: '#b9f2ff', icon: '💎' };
+  if (pts >= 1000000) return { name: 'Platinum', color: '#e5e4e2', icon: '💠' };
+  if (pts >= 100000) return { name: 'Gold', color: '#ffd700', icon: '🏆' };
+  if (pts >= 10000) return { name: 'Silver', color: '#c0c0c0', icon: '🥈' };
+  return { name: 'Bronze', color: '#cd7f32', icon: '🥉' };
+};
 
 type VaultContextType = {
   userId: string;
@@ -11,6 +27,16 @@ type VaultContextType = {
   totalReferrals: number;
   referralEarnings: number;
   
+  lifetimePoints: number;
+  profitPerHour: number;
+  activeTurbo: boolean;
+  turboExpiresAt: number;
+  turboUsesToday: number;
+  rechargeUsesToday: number;
+  farmState: 'idle' | 'farming' | 'ready';
+  farmStartTime: number;
+  passiveCards: PassiveCard[];
+
   setTotalBalanceUSD: (val: number | ((prev: number) => number)) => void;
   setTempMiningPoints: (val: number | ((prev: number) => number)) => void;
   setMiningLevel: (val: number | ((prev: number) => number)) => void;
@@ -21,6 +47,13 @@ type VaultContextType = {
   upgradeMiningLevel: (cost: number, newLevel: number) => void;
   expandBattery: (cost: number) => void;
   tapMine: () => number;
+  
+  activateTurbo: () => void;
+  rechargeEnergy: () => void;
+  startFarming: () => void;
+  claimFarming: () => void;
+  buyPassiveCard: (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => void;
+  addLifetimePoints: (n: number) => void;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -31,11 +64,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 12.45);
   const [tempMiningPoints, setTempMiningPoints] = useState(() => {
     const saved = localStorage.getItem('tempMiningPoints');
-    // Reset any legacy demo value so points start fresh and game earnings are visible
-    const val = saved ? Number(saved) : 0;
-    const levelSaved = Number(localStorage.getItem('miningLevel')) || 1;
-    const freshCap = levelSaved === 1 ? 10800 : levelSaved === 2 ? 54000 : levelSaved === 3 ? 216000 : 1080000;
-    return val > freshCap ? 0 : val;
+    return saved ? Number(saved) : 0;
   });
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 85);
@@ -43,36 +72,76 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [totalReferrals] = useState(14);
   const [referralEarnings] = useState(1.50);
 
-  // Persistence
+  const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
+  const [turboUsesToday, setTurboUsesToday] = useState(() => Number(localStorage.getItem('turboUsesToday')) || 0);
+  const [rechargeUsesToday, setRechargeUsesToday] = useState(() => Number(localStorage.getItem('rechargeUsesToday')) || 0);
+  const [farmState, setFarmState] = useState<'idle' | 'farming' | 'ready'>(() => (localStorage.getItem('farmState') as any) || 'idle');
+  const [farmStartTime, setFarmStartTime] = useState(() => Number(localStorage.getItem('farmStartTime')) || 0);
+  const [passiveCards, setPassiveCards] = useState<PassiveCard[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('passiveCards') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [activeTurbo, setActiveTurbo] = useState(false);
+  const [turboExpiresAt, setTurboExpiresAt] = useState(0);
+
+  const profitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const lastReset = localStorage.getItem('lastResetDate');
+    if (lastReset !== today) {
+      setTurboUsesToday(0);
+      setRechargeUsesToday(0);
+      localStorage.setItem('lastResetDate', today);
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('totalBalanceUSD', totalBalanceUSD.toString());
     localStorage.setItem('tempMiningPoints', tempMiningPoints.toString());
     localStorage.setItem('miningLevel', miningLevel.toString());
     localStorage.setItem('energy', energy.toString());
     localStorage.setItem('maxEnergy', maxEnergy.toString());
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy]);
+    localStorage.setItem('lifetimePoints', lifetimePoints.toString());
+    localStorage.setItem('turboUsesToday', turboUsesToday.toString());
+    localStorage.setItem('rechargeUsesToday', rechargeUsesToday.toString());
+    localStorage.setItem('farmState', farmState);
+    localStorage.setItem('farmStartTime', farmStartTime.toString());
+    localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
 
-  // Auto-mining logic — runs every 30s, costs 1 energy, awards points by level
-  // Cap only applies to idle auto-mining (not game/tap earnings)
   useEffect(() => {
-    const idleCap = miningLevel === 1 ? 10800 : miningLevel === 2 ? 54000 : miningLevel === 3 ? 216000 : 1080000;
-    
+    if (activeTurbo && turboExpiresAt > 0) {
+      const remaining = turboExpiresAt - Date.now();
+      if (remaining > 0) {
+        const timer = setTimeout(() => {
+          setActiveTurbo(false);
+          setTurboExpiresAt(0);
+        }, remaining);
+        return () => clearTimeout(timer);
+      } else {
+        setActiveTurbo(false);
+        setTurboExpiresAt(0);
+      }
+    }
+    return undefined;
+  }, [activeTurbo, turboExpiresAt]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setEnergy((prevEnergy) => {
         if (prevEnergy <= 0) return prevEnergy;
-        setTempMiningPoints((prevPoints) => {
-          if (prevPoints >= idleCap) return prevPoints;
-          const addedPoints = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-          return Math.min(prevPoints + addedPoints, idleCap);
-        });
+        setTempMiningPoints((prevPoints) => prevPoints + (miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100));
         return prevEnergy - 1;
       });
     }, 30000);
-    
     return () => clearInterval(interval);
   }, [miningLevel]);
 
-  // Energy regen
   useEffect(() => {
     const checkRegen = () => {
       const lastRegen = Number(localStorage.getItem('lastEnergyRegen')) || Date.now();
@@ -87,15 +156,34 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.setItem('lastEnergyRegen', now.toString());
       }
     };
-    
-    checkRegen(); // initial check
-    const regenInterval = setInterval(checkRegen, 60000); // Check every minute
-    
+    checkRegen();
+    const regenInterval = setInterval(checkRegen, 60000);
     return () => clearInterval(regenInterval);
   }, [maxEnergy]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (farmState === 'farming' && farmStartTime > 0) {
+        if (Date.now() - farmStartTime >= 8 * 3600 * 1000) {
+          setFarmState('ready');
+        }
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [farmState, farmStartTime]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (profitPerHour > 0) {
+        setTempMiningPoints(p => p + profitPerHour);
+        setLifetimePoints(p => p + profitPerHour);
+      }
+    }, 3600000);
+    return () => clearInterval(interval);
+  }, [profitPerHour]);
+
   const claimEarnings = () => {
-    const usdToAdd = (tempMiningPoints / 10000) * 0.01; // 10,000 pts = $0.01
+    const usdToAdd = (tempMiningPoints / 10000) * 0.01;
     setTotalBalanceUSD(prev => prev + usdToAdd);
     setTempMiningPoints(0);
   };
@@ -114,17 +202,66 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Tap to mine — each tap adds points and costs 1 energy (no upper cap; energy is the limiter)
   const tapMine = (): number => {
     let earned = 0;
     setEnergy(prev => {
       if (prev <= 0) return prev;
       const pts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-      earned = pts;
-      setTempMiningPoints(p => p + pts);
+      earned = activeTurbo ? pts * 5 : pts;
+      setTempMiningPoints(p => p + earned);
+      setLifetimePoints(p => p + earned);
       return prev - 1;
     });
     return earned;
+  };
+
+  const activateTurbo = () => {
+    if (turboUsesToday < 3 && !activeTurbo) {
+      setActiveTurbo(true);
+      setTurboExpiresAt(Date.now() + 20000);
+      setTurboUsesToday(p => p + 1);
+    }
+  };
+
+  const rechargeEnergy = () => {
+    if (rechargeUsesToday < 3) {
+      setEnergy(maxEnergy);
+      setRechargeUsesToday(p => p + 1);
+    }
+  };
+
+  const startFarming = () => {
+    if (farmState === 'idle') {
+      setFarmState('farming');
+      setFarmStartTime(Date.now());
+    }
+  };
+
+  const claimFarming = () => {
+    if (farmState === 'ready') {
+      setTempMiningPoints(p => p + 4000);
+      setLifetimePoints(p => p + 4000);
+      setFarmState('idle');
+      setFarmStartTime(0);
+    }
+  };
+
+  const buyPassiveCard = (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => {
+    if (tempMiningPoints >= cost) {
+      setTempMiningPoints(p => p - cost);
+      setPassiveCards(prev => {
+        const existing = prev.find(c => c.id === cardId);
+        if (existing) {
+          return prev.map(c => c.id === cardId ? { ...c, level: newLevel, ptsPerHour: newPtsPerHour } : c);
+        } else {
+          return [...prev, { id: cardId, name, level: newLevel, ptsPerHour: newPtsPerHour }];
+        }
+      });
+    }
+  };
+
+  const addLifetimePoints = (n: number) => {
+    setLifetimePoints(p => p + n);
   };
 
   return (
@@ -139,6 +276,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maxEnergy,
         totalReferrals,
         referralEarnings,
+        lifetimePoints,
+        profitPerHour,
+        activeTurbo,
+        turboExpiresAt,
+        turboUsesToday,
+        rechargeUsesToday,
+        farmState,
+        farmStartTime,
+        passiveCards,
         setTotalBalanceUSD,
         setTempMiningPoints,
         setMiningLevel,
@@ -147,7 +293,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         claimEarnings,
         upgradeMiningLevel,
         expandBattery,
-        tapMine
+        tapMine,
+        activateTurbo,
+        rechargeEnergy,
+        startFarming,
+        claimFarming,
+        buyPassiveCard,
+        addLifetimePoints,
       }}
     >
       {children}

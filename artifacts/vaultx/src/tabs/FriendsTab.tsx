@@ -1,7 +1,7 @@
 import React from 'react';
-import { useVault } from '../context/VaultContext';
+import { useVault, getLeague } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Users, Coins, ArrowRightLeft, Wallet, AlertCircle } from 'lucide-react';
+import { Copy, Users, Coins, ArrowRightLeft, Wallet, AlertCircle, Trophy } from 'lucide-react';
 
 const WITHDRAWAL_HISTORY = [
   { id: 1, date: '2025-06-30', amount: 5.20, method: 'Binance Pay', status: 'Paid' },
@@ -11,8 +11,21 @@ const WITHDRAWAL_HISTORY = [
   { id: 5, date: '2025-04-22', amount: 1.15, method: 'TON Wallet', status: 'Failed' },
 ];
 
+const LEADERBOARD = [
+  { rank: 1, name: 'CryptoKing_99',    pts: 8420000 },
+  { rank: 2, name: 'VaultMaster',      pts: 6180000 },
+  { rank: 3, name: 'GoldDigger_X',     pts: 4250000 },
+  { rank: 4, name: 'SatoshiMiner',     pts: 2100000 },
+  // 5 is current user
+  { rank: 6, name: 'TokenHunter',      pts: 820000 },
+  { rank: 7, name: 'BlockChainBot',    pts: 540000 },
+  { rank: 8, name: 'DiamondHands77',   pts: 320000 },
+  { rank: 9, name: 'AltcoinAce',       pts: 180000 },
+  { rank: 10, name: 'MoonFarmer',      pts: 95000 },
+];
+
 export const FriendsTab = () => {
-  const { userId, totalReferrals, referralEarnings } = useVault();
+  const { userId, username, totalReferrals, referralEarnings, lifetimePoints } = useVault();
   const { toast } = useToast();
   
   const referralLink = `https://t.me/VaultXBot?start=ref_${userId}`;
@@ -33,9 +46,51 @@ export const FriendsTab = () => {
     }
   };
 
+  const fullLeaderboard: { rank: number; name: string; pts: number; isCurrentUser?: boolean }[] = [
+    ...LEADERBOARD.slice(0, 4),
+    { rank: 5, name: username, pts: lifetimePoints, isCurrentUser: true },
+    ...LEADERBOARD.slice(4)
+  ];
+
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
       
+      {/* Global Leaderboard */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Trophy className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold text-white">Global Leaderboard</h2>
+        </div>
+        <div className="bg-card border border-white/5 rounded-xl overflow-hidden">
+          <div className="p-3 bg-white/5 text-center text-sm text-primary font-bold border-b border-white/5">
+            Your Rank: #5 globally
+          </div>
+          <div className="flex flex-col divide-y divide-white/5">
+            {fullLeaderboard.map((user) => {
+              const league = getLeague(user.pts);
+              const isTop3 = user.rank <= 3;
+              
+              return (
+                <div key={user.rank} className={`flex items-center justify-between p-3 ${user.isCurrentUser ? 'bg-primary/20' : 'hover:bg-white/[0.02]'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-6 text-center font-bold ${user.rank === 1 ? 'text-[#FFD700]' : user.rank === 2 ? 'text-[#C0C0C0]' : user.rank === 3 ? 'text-[#CD7F32]' : 'text-muted-foreground'}`}>
+                      {user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : user.rank === 3 ? '🥉' : user.rank}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`text-sm font-semibold ${user.isCurrentUser ? 'text-primary' : 'text-white'}`}>{user.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{user.pts.toLocaleString()} pts</span>
+                    </div>
+                  </div>
+                  <div className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap" style={{ background: league.color, color: '#000' }}>
+                    {league.icon} {league.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Referral Center */}
       <section>
         <h2 className="text-xl font-bold text-white mb-4">Referral Center</h2>
