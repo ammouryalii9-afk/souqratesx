@@ -1,17 +1,17 @@
-# VaultX
+# SouqratesX
 
-VaultX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, upgrade miners, farm passive rewards, and complete daily tasks, with progress synced permanently to a server-side database.
+SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, upgrade miners, farm passive rewards, and complete daily tasks, with progress synced permanently to a server-side database.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm --filter @workspace/vaultx run dev` — run the VaultX frontend
+- `pnpm --filter @workspace/vaultx run dev` — run the SouqratesX frontend
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
-- Required env: `SESSION_SECRET` — used to sign the VaultX session cookie
+- Required env: `SESSION_SECRET` — used to sign the SouqratesX session cookie
 - Required env: `TELEGRAM_BOT_TOKEN` — used to verify Telegram WebApp `initData` server-side
 
 ## Stack
@@ -22,7 +22,7 @@ VaultX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, upgrad
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
-- Frontend: React + Vite (VaultX artifact), Telegram WebApp SDK
+- Frontend: React + Vite (SouqratesX artifact), Telegram WebApp SDK
 
 ## Where things live
 
@@ -56,7 +56,7 @@ VaultX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, upgrad
 
 ## User preferences
 
-- User wants VaultX to eventually support real cash withdrawal, but explicitly deferred that in favor of first shipping real Telegram auth + persistent server-side progress.
+- User wants SouqratesX to eventually support real cash withdrawal, but explicitly deferred that in favor of first shipping real Telegram auth + persistent server-side progress.
 
 ## Gotchas
 

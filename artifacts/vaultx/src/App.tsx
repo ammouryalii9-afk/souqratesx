@@ -18,7 +18,7 @@ function Header() {
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#8A6F00] flex items-center justify-center shadow-[0_0_15px_rgba(245,197,24,0.3)]">
           <Coins className="w-5 h-5 text-black" />
         </div>
-        <span className="font-bold tracking-tight text-lg text-white">VaultX</span>
+        <span className="font-bold tracking-tight text-lg text-white">SouqratesX</span>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: league.color, color: '#000'}}>
           {league.name}
         </span>

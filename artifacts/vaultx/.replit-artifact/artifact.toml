@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "VaultX"
+title = "SouqratesX"
 version = "1.0.0"
 id = "artifacts/vaultx"
 router = "path"
