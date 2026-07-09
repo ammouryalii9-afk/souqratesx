@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import logo from "@assets/WhatsApp_Image_2026-07-09_at_4.17.52_PM_1783603161513.jpeg";
+import logo from "@assets/splash_logo_optimized.jpg";
 
 interface SplashScreenProps {
   onDone: () => void;
@@ -10,7 +10,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
 
   useEffect(() => {
     const start = Date.now();
-    const durationMs = 1800;
+    const durationMs = 700;
     const interval = setInterval(() => {
       const elapsed = Date.now() - start;
       const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
@@ -29,6 +29,8 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
         <img
           src={logo}
           alt="SouqrateX"
+          fetchPriority="high"
+          decoding="sync"
           className="w-40 h-40 object-contain drop-shadow-[0_0_25px_rgba(245,197,24,0.35)]"
         />
         <span className="font-bold tracking-tight text-2xl text-white">SouqrateX</span>
