@@ -151,6 +151,64 @@ export interface AdminAuditLogEntry {
 
 export type AdminAuditLogList = AdminAuditLogEntry[];
 
+export type UserActivityEntrySource = typeof UserActivityEntrySource[keyof typeof UserActivityEntrySource];
+
+
+export const UserActivityEntrySource = {
+  activity: 'activity',
+  admin: 'admin',
+} as const;
+
+export type UserActivityEntryDetails = { [key: string]: unknown };
+
+export interface UserActivityEntry {
+  source: UserActivityEntrySource;
+  type: string;
+  details: UserActivityEntryDetails;
+  createdAt: string;
+}
+
+export type UserActivityList = UserActivityEntry[];
+
+export type BroadcastRequestAudience = typeof BroadcastRequestAudience[keyof typeof BroadcastRequestAudience];
+
+
+export const BroadcastRequestAudience = {
+  all: 'all',
+  premium: 'premium',
+  active: 'active',
+} as const;
+
+export interface BroadcastRequest {
+  message: string;
+  audience?: BroadcastRequestAudience;
+}
+
+export type BroadcastJobStatus = typeof BroadcastJobStatus[keyof typeof BroadcastJobStatus];
+
+
+export const BroadcastJobStatus = {
+  pending: 'pending',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface BroadcastJob {
+  id: number;
+  message: string;
+  audience: string;
+  status: BroadcastJobStatus;
+  totalUsers: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export type BroadcastJobList = BroadcastJob[];
+
 export interface TelegramWebhookSetupResult {
   ok: boolean;
   webhookUrl: string;

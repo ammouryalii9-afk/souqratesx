@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable } from "@workspace/db";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -17,10 +17,22 @@ import {
   UpdateAdminSettingsBody,
   UpdateAdminSettingsResponse,
   GetAdminAuditLogResponse,
+  GetAdminUserActivityResponse,
+  GetAdminBroadcastsResponse,
+  CreateAdminBroadcastBody,
+  CreateAdminBroadcastResponse,
+  GetAdminBroadcastResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
-import { setTelegramWebhook, setTelegramMenuButton, setTelegramBotCommands, isTelegramBotConfigured } from "../lib/telegramBot";
+import {
+  setTelegramWebhook,
+  setTelegramMenuButton,
+  setTelegramBotCommands,
+  isTelegramBotConfigured,
+  sendPlainTelegramMessage,
+} from "../lib/telegramBot";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -329,6 +341,187 @@ router.get("/admin/audit-log", async (req, res): Promise<void> => {
       })),
     ),
   );
+});
+
+router.get("/admin/users/:telegramId/activity", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const telegramId = req.params.telegramId;
+
+  const [activityRows, auditRows] = await Promise.all([
+    db
+      .select()
+      .from(userActivityLogTable)
+      .where(eq(userActivityLogTable.telegramId, telegramId))
+      .orderBy(desc(userActivityLogTable.createdAt))
+      .limit(200),
+    db
+      .select()
+      .from(adminAuditLogTable)
+      .where(eq(adminAuditLogTable.targetTelegramId, telegramId))
+      .orderBy(desc(adminAuditLogTable.createdAt))
+      .limit(200),
+  ]);
+
+  const merged = [
+    ...activityRows.map((row) => ({
+      source: "activity" as const,
+      type: row.type,
+      details: row.details as Record<string, unknown>,
+      createdAt: row.createdAt.toISOString(),
+    })),
+    ...auditRows.map((row) => ({
+      source: "admin" as const,
+      type: row.action,
+      details: row.details as Record<string, unknown>,
+      createdAt: row.createdAt.toISOString(),
+    })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json(GetAdminUserActivityResponse.parse(merged));
+});
+
+router.get("/admin/broadcast", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const rows = await db.select().from(broadcastJobsTable).orderBy(desc(broadcastJobsTable.createdAt)).limit(50);
+
+  res.json(
+    GetAdminBroadcastsResponse.parse(
+      rows.map((row) => ({
+        id: row.id,
+        message: row.message,
+        audience: row.audience,
+        status: row.status,
+        totalUsers: row.totalUsers,
+        sentCount: row.sentCount,
+        failedCount: row.failedCount,
+        createdAt: row.createdAt.toISOString(),
+        completedAt: row.completedAt ? row.completedAt.toISOString() : null,
+      })),
+    ),
+  );
+});
+
+function toBroadcastJob(row: typeof broadcastJobsTable.$inferSelect) {
+  return {
+    id: row.id,
+    message: row.message,
+    audience: row.audience,
+    status: row.status,
+    totalUsers: row.totalUsers,
+    sentCount: row.sentCount,
+    failedCount: row.failedCount,
+    createdAt: row.createdAt.toISOString(),
+    completedAt: row.completedAt ? row.completedAt.toISOString() : null,
+  };
+}
+
+async function runBroadcastJob(jobId: number, message: string, audience: string): Promise<void> {
+  const whereClause =
+    audience === "premium"
+      ? and(eq(vaultUsersTable.isBanned, false), eq(vaultUsersTable.isPremium, true))
+      : audience === "active"
+        ? and(eq(vaultUsersTable.isBanned, false), sql`${vaultUsersTable.updatedAt} >= now() - interval '7 days'`)
+        : eq(vaultUsersTable.isBanned, false);
+
+  const users = await db.select({ telegramId: vaultUsersTable.telegramId }).from(vaultUsersTable).where(whereClause);
+
+  await db
+    .update(broadcastJobsTable)
+    .set({ status: "running", totalUsers: users.length })
+    .where(eq(broadcastJobsTable.id, jobId));
+
+  let sentCount = 0;
+  let failedCount = 0;
+
+  for (const user of users) {
+    try {
+      await sendPlainTelegramMessage(user.telegramId, message);
+      sentCount += 1;
+    } catch (err) {
+      failedCount += 1;
+      logger.warn({ err, telegramId: user.telegramId }, "Failed to deliver broadcast message");
+    }
+
+    if ((sentCount + failedCount) % 20 === 0) {
+      await db
+        .update(broadcastJobsTable)
+        .set({ sentCount, failedCount })
+        .where(eq(broadcastJobsTable.id, jobId));
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 35));
+  }
+
+  await db
+    .update(broadcastJobsTable)
+    .set({ status: "completed", sentCount, failedCount, completedAt: new Date() })
+    .where(eq(broadcastJobsTable.id, jobId));
+}
+
+router.post("/admin/broadcast", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  if (!isTelegramBotConfigured()) {
+    res.status(400).json({ error: "TELEGRAM_BOT_TOKEN is not configured" });
+    return;
+  }
+
+  const parsed = CreateAdminBroadcastBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const audience = parsed.data.audience ?? "all";
+  const [job] = await db
+    .insert(broadcastJobsTable)
+    .values({ message: parsed.data.message, audience, status: "pending" })
+    .returning();
+
+  if (!job) {
+    res.status(400).json({ error: "Failed to create broadcast job" });
+    return;
+  }
+
+  await logAdminAction("create_broadcast", null, { jobId: job.id, audience, message: parsed.data.message });
+
+  runBroadcastJob(job.id, parsed.data.message, audience).catch((err) => {
+    logger.error({ err, jobId: job.id }, "Broadcast job failed");
+  });
+
+  res.json(CreateAdminBroadcastResponse.parse(toBroadcastJob(job)));
+});
+
+router.get("/admin/broadcast/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(404).json({ error: "Broadcast job not found" });
+    return;
+  }
+
+  const [job] = await db.select().from(broadcastJobsTable).where(eq(broadcastJobsTable.id, id));
+  if (!job) {
+    res.status(404).json({ error: "Broadcast job not found" });
+    return;
+  }
+
+  res.json(GetAdminBroadcastResponse.parse(toBroadcastJob(job)));
 });
 
 export default router;

@@ -4,14 +4,16 @@ import { AdminOverview } from "./AdminOverview";
 import { AdminUsers } from "./AdminUsers";
 import { AdminSettings } from "./AdminSettings";
 import { AdminAuditLog } from "./AdminAuditLog";
+import { AdminBroadcast } from "./AdminBroadcast";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send } from "lucide-react";
 
-type Tab = "overview" | "users" | "settings" | "log";
+type Tab = "overview" | "users" | "broadcast" | "settings" | "log";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "نظرة عامة", icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "users", label: "المستخدمون", icon: <UsersIcon className="w-4 h-4" /> },
+  { id: "broadcast", label: "رسائل جماعية", icon: <Send className="w-4 h-4" /> },
   { id: "settings", label: "الإعدادات", icon: <SettingsIcon className="w-4 h-4" /> },
   { id: "log", label: "السجل", icon: <ScrollText className="w-4 h-4" /> },
 ];
@@ -57,6 +59,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       <main className="p-4 max-w-3xl mx-auto">
         {tab === "overview" && <AdminOverview />}
         {tab === "users" && <AdminUsers />}
+        {tab === "broadcast" && <AdminBroadcast />}
         {tab === "settings" && <AdminSettings />}
         {tab === "log" && <AdminAuditLog />}
       </main>

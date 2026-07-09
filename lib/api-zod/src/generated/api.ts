@@ -255,6 +255,80 @@ export const GetAdminAuditLogResponse = zod.array(GetAdminAuditLogResponseItem)
 
 
 /**
+ * @summary Get a unified timeline of everything a user has done (earnings, purchases, admin edits)
+ */
+export const GetAdminUserActivityParams = zod.object({
+  "telegramId": zod.coerce.string()
+})
+
+export const GetAdminUserActivityResponseItem = zod.object({
+  "source": zod.enum(['activity', 'admin']),
+  "type": zod.string(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.string()
+})
+export const GetAdminUserActivityResponse = zod.array(GetAdminUserActivityResponseItem)
+
+
+/**
+ * @summary List recent broadcast jobs and their progress
+ */
+export const GetAdminBroadcastsResponseItem = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "audience": zod.string(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "totalUsers": zod.number(),
+  "sentCount": zod.number(),
+  "failedCount": zod.number(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullable()
+})
+export const GetAdminBroadcastsResponse = zod.array(GetAdminBroadcastsResponseItem)
+
+
+/**
+ * @summary Send a message to all (or a segment of) Telegram users via the bot
+ */
+export const CreateAdminBroadcastBody = zod.object({
+  "message": zod.string(),
+  "audience": zod.enum(['all', 'premium', 'active']).optional()
+})
+
+export const CreateAdminBroadcastResponse = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "audience": zod.string(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "totalUsers": zod.number(),
+  "sentCount": zod.number(),
+  "failedCount": zod.number(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the progress of a single broadcast job
+ */
+export const GetAdminBroadcastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetAdminBroadcastResponse = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "audience": zod.string(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "totalUsers": zod.number(),
+  "sentCount": zod.number(),
+  "failedCount": zod.number(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
  * @summary Point the Telegram bot's webhook at this server so Stars payments can be processed
  */
 export const SetupTelegramWebhookResponse = zod.object({

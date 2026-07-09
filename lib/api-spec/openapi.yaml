@@ -360,6 +360,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/users/{telegramId}/activity:
+    get:
+      operationId: getAdminUserActivity
+      tags: [admin]
+      summary: Get a unified timeline of everything a user has done (earnings, purchases, admin edits)
+      parameters:
+        - name: telegramId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Activity timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserActivityList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/broadcast:
+    get:
+      operationId: getAdminBroadcasts
+      tags: [admin]
+      summary: List recent broadcast jobs and their progress
+      responses:
+        "200":
+          description: Recent broadcast jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastJobList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAdminBroadcast
+      tags: [admin]
+      summary: Send a message to all (or a segment of) Telegram users via the bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BroadcastRequest"
+      responses:
+        "200":
+          description: Broadcast job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastJob"
+        "400":
+          description: Invalid request or Telegram bot not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/broadcast/{id}:
+    get:
+      operationId: getAdminBroadcast
+      tags: [admin]
+      summary: Get the progress of a single broadcast job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Broadcast job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastJob"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Broadcast job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/telegram/setup-webhook:
     post:
       operationId: setupTelegramWebhook
@@ -819,6 +920,74 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/AdminAuditLogEntry"
+    UserActivityEntry:
+      type: object
+      properties:
+        source:
+          type: string
+          enum: [activity, admin]
+        type:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+      required:
+        - source
+        - type
+        - details
+        - createdAt
+    UserActivityList:
+      type: array
+      items:
+        $ref: "#/components/schemas/UserActivityEntry"
+    BroadcastRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        audience:
+          type: string
+          enum: [all, premium, active]
+      required:
+        - message
+    BroadcastJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        audience:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        totalUsers:
+          type: integer
+        sentCount:
+          type: integer
+        failedCount:
+          type: integer
+        createdAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+      required:
+        - id
+        - message
+        - audience
+        - status
+        - totalUsers
+        - sentCount
+        - failedCount
+        - createdAt
+        - completedAt
+    BroadcastJobList:
+      type: array
+      items:
+        $ref: "#/components/schemas/BroadcastJob"
     TelegramWebhookSetupResult:
       type: object
       properties:

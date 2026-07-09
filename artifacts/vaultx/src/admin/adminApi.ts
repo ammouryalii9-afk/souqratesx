@@ -81,6 +81,25 @@ export type AdminAuditLogEntry = {
   createdAt: string;
 };
 
+export type UserActivityEntry = {
+  source: "activity" | "admin";
+  type: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type BroadcastJob = {
+  id: number;
+  message: string;
+  audience: string;
+  status: string;
+  totalUsers: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 export const adminApi = {
   login: (password: string) =>
     adminFetch<AdminSessionStatus>("/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
@@ -107,4 +126,9 @@ export const adminApi = {
     adminFetch<{ ok: boolean; webhookUrl: string; description: string }>("/admin/telegram/setup-webhook", {
       method: "POST",
     }),
+  userActivity: (telegramId: string) => adminFetch<UserActivityEntry[]>(`/admin/users/${telegramId}/activity`),
+  broadcasts: () => adminFetch<BroadcastJob[]>("/admin/broadcast"),
+  createBroadcast: (message: string, audience: string) =>
+    adminFetch<BroadcastJob>("/admin/broadcast", { method: "POST", body: JSON.stringify({ message, audience }) }),
+  broadcast: (id: number) => adminFetch<BroadcastJob>(`/admin/broadcast/${id}`),
 };

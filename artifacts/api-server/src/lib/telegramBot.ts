@@ -85,6 +85,13 @@ export async function sendTelegramMessage(chatId: number, text: string, webAppUr
   });
 }
 
+export async function sendPlainTelegramMessage(chatId: string, text: string): Promise<void> {
+  await callBotApi("sendMessage", {
+    chat_id: chatId,
+    text,
+  });
+}
+
 export async function setTelegramMenuButton(appUrl: string): Promise<void> {
   await callBotApi("setChatMenuButton", {
     menu_button: { type: "web_app", text: "\u0641\u062A\u062D \u0627\u0644\u062A\u0637\u0628\u064A\u0642", web_app: { url: appUrl } },

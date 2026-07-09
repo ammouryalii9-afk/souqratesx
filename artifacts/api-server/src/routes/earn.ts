@@ -5,6 +5,7 @@ import { ClaimAdsgramRewardResponse, OfferwallPostbackResponse } from "@workspac
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber, asString } from "../lib/settings";
 import { rateLimit } from "../lib/rateLimit";
+import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
 
@@ -66,6 +67,8 @@ router.post("/earn/adsgram/reward", rateLimit("adsgram", 30, 60_000), async (req
     res.status(429).json({ error: "Ad reward not available yet (cooldown or daily limit)" });
     return;
   }
+
+  await logUserActivity(telegramId, "adsgram_reward", { creditedPoints: rewardPoints, lifetimePoints: updated.lifetimePoints });
 
   res.json(
     ClaimAdsgramRewardResponse.parse({
@@ -143,6 +146,7 @@ router.get("/earn/adsgram/postback", rateLimit("postback", 60, 60_000), async (r
   }
 
   req.log.info({ telegramId, rewardPoints }, "Adsgram postback credited");
+  await logUserActivity(telegramId, "adsgram_reward", { creditedPoints: rewardPoints, lifetimePoints: updated.lifetimePoints, viaPostback: true });
 
   res.json(
     ClaimAdsgramRewardResponse.parse({
@@ -212,6 +216,7 @@ router.get("/earn/offerwall/postback", rateLimit("postback", 60, 60_000), async 
   }
 
   req.log.info({ provider, telegramId, creditedPoints }, "Offerwall postback credited");
+  await logUserActivity(telegramId, "offerwall_credit", { provider, creditedPoints, lifetimePoints: updated.lifetimePoints });
 
   res.json(
     OfferwallPostbackResponse.parse({

@@ -29,6 +29,9 @@ import type {
   AdminUserList,
   AdminUserPatch,
   AdsgramPostbackParams,
+  BroadcastJob,
+  BroadcastJobList,
+  BroadcastRequest,
   EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
@@ -42,6 +45,7 @@ import type {
   TelegramWebhook200,
   TelegramWebhookSetupResult,
   TelegramWebhookUpdate,
+  UserActivityList,
   VaultSession,
   VaultStateUpdate
 } from './api.schemas';
@@ -1261,6 +1265,308 @@ export function useGetAdminAuditLog<TData = Awaited<ReturnType<typeof getAdminAu
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAdminAuditLogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminUserActivityUrl = (telegramId: string,) => {
+
+
+
+
+  return `/api/admin/users/${telegramId}/activity`
+}
+
+/**
+ * @summary Get a unified timeline of everything a user has done (earnings, purchases, admin edits)
+ */
+export const getAdminUserActivity = async (telegramId: string, options?: RequestInit): Promise<UserActivityList> => {
+
+  return customFetch<UserActivityList>(getGetAdminUserActivityUrl(telegramId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminUserActivityQueryKey = (telegramId: string,) => {
+    return [
+    `/api/admin/users/${telegramId}/activity`
+    ] as const;
+    }
+
+
+export const getGetAdminUserActivityQueryOptions = <TData = Awaited<ReturnType<typeof getAdminUserActivity>>, TError = ErrorType<ErrorResponse>>(telegramId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminUserActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminUserActivityQueryKey(telegramId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminUserActivity>>> = ({ signal }) => getAdminUserActivity(telegramId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: telegramId !== null && telegramId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminUserActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminUserActivityQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminUserActivity>>>
+export type GetAdminUserActivityQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a unified timeline of everything a user has done (earnings, purchases, admin edits)
+ */
+
+export function useGetAdminUserActivity<TData = Awaited<ReturnType<typeof getAdminUserActivity>>, TError = ErrorType<ErrorResponse>>(
+ telegramId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminUserActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminUserActivityQueryOptions(telegramId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminBroadcastsUrl = () => {
+
+
+
+
+  return `/api/admin/broadcast`
+}
+
+/**
+ * @summary List recent broadcast jobs and their progress
+ */
+export const getAdminBroadcasts = async ( options?: RequestInit): Promise<BroadcastJobList> => {
+
+  return customFetch<BroadcastJobList>(getGetAdminBroadcastsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminBroadcastsQueryKey = () => {
+    return [
+    `/api/admin/broadcast`
+    ] as const;
+    }
+
+
+export const getGetAdminBroadcastsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminBroadcasts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminBroadcastsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminBroadcasts>>> = ({ signal }) => getAdminBroadcasts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcasts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminBroadcastsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminBroadcasts>>>
+export type GetAdminBroadcastsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List recent broadcast jobs and their progress
+ */
+
+export function useGetAdminBroadcasts<TData = Awaited<ReturnType<typeof getAdminBroadcasts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminBroadcastsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminBroadcastUrl = () => {
+
+
+
+
+  return `/api/admin/broadcast`
+}
+
+/**
+ * @summary Send a message to all (or a segment of) Telegram users via the bot
+ */
+export const createAdminBroadcast = async (broadcastRequest: BroadcastRequest, options?: RequestInit): Promise<BroadcastJob> => {
+
+  return customFetch<BroadcastJob>(getCreateAdminBroadcastUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(broadcastRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminBroadcastMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminBroadcast>>, TError,{data: BodyType<BroadcastRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminBroadcast>>, TError,{data: BodyType<BroadcastRequest>}, TContext> => {
+
+const mutationKey = ['createAdminBroadcast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminBroadcast>>, {data: BodyType<BroadcastRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminBroadcast(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminBroadcastMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminBroadcast>>>
+    export type CreateAdminBroadcastMutationBody = BodyType<BroadcastRequest>
+    export type CreateAdminBroadcastMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Send a message to all (or a segment of) Telegram users via the bot
+ */
+export const useCreateAdminBroadcast = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminBroadcast>>, TError,{data: BodyType<BroadcastRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminBroadcast>>,
+        TError,
+        {data: BodyType<BroadcastRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminBroadcastMutationOptions(options));
+    }
+
+export const getGetAdminBroadcastUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/broadcast/${id}`
+}
+
+/**
+ * @summary Get the progress of a single broadcast job
+ */
+export const getAdminBroadcast = async (id: number, options?: RequestInit): Promise<BroadcastJob> => {
+
+  return customFetch<BroadcastJob>(getGetAdminBroadcastUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminBroadcastQueryKey = (id: number,) => {
+    return [
+    `/api/admin/broadcast/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminBroadcastQueryOptions = <TData = Awaited<ReturnType<typeof getAdminBroadcast>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminBroadcastQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminBroadcast>>> = ({ signal }) => getAdminBroadcast(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcast>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminBroadcastQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminBroadcast>>>
+export type GetAdminBroadcastQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the progress of a single broadcast job
+ */
+
+export function useGetAdminBroadcast<TData = Awaited<ReturnType<typeof getAdminBroadcast>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBroadcast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminBroadcastQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

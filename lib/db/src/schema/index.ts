@@ -21,3 +21,5 @@ export * from "./vaultUsers";
 export * from "./adminSettings";
 export * from "./adminAuditLog";
 export * from "./processedTransactions";
+export * from "./userActivityLog";
+export * from "./broadcastJobs";

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, vaultUsersTable, processedTransactionsTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
+import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
 
@@ -100,6 +101,11 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
               .where(eq(vaultUsersTable.telegramId, telegramId));
           }
           req.log.info({ telegramId, product: payload.product, amount: payment.total_amount }, "Telegram Stars payment processed");
+          await logUserActivity(telegramId, "stars_purchase", {
+            product: payload.product ?? "stars_topup",
+            amountStars: payment.total_amount,
+            chargeId: payment.telegram_payment_charge_id,
+          });
         }
       }
     }

@@ -1,13 +1,63 @@
 import { useEffect, useState } from "react";
-import { adminApi, type AdminUserDetail, type AdminUserSummary } from "./adminApi";
+import { adminApi, type AdminUserDetail, type AdminUserSummary, type UserActivityEntry } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Ban, CheckCircle2, Crown, Search, Trash2, X } from "lucide-react";
+import { Ban, CheckCircle2, Crown, History, Search, Trash2, X } from "lucide-react";
+
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  adsgram_reward: "مشاهدة إعلان (Adsgram)",
+  offerwall_credit: "مكافأة من عرض (Offerwall)",
+  stars_purchase: "شراء عبر Telegram Stars",
+  update_user: "تعديل من المدير",
+  delete_user: "حذف من المدير",
+  update_settings: "تعديل الإعدادات",
+  setup_telegram_webhook: "إعداد Webhook",
+  create_broadcast: "إرسال رسالة جماعية",
+};
+
+function UserActivityView({ telegramId }: { telegramId: string }) {
+  const [entries, setEntries] = useState<UserActivityEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    adminApi
+      .userActivity(telegramId)
+      .then(setEntries)
+      .catch(() => setError("فشل تحميل السجل"));
+  }, [telegramId]);
+
+  if (error) return <p className="text-red-400 text-xs">{error}</p>;
+  if (!entries) return <p className="text-muted-foreground text-sm">جار التحميل...</p>;
+  if (entries.length === 0) return <p className="text-muted-foreground text-sm text-center py-4">لا يوجد نشاط مسجل</p>;
+
+  return (
+    <div className="flex flex-col gap-2 max-h-80 overflow-y-auto" data-testid="section-user-activity">
+      {entries.map((entry, idx) => (
+        <div key={idx} className="bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className={`font-medium ${entry.source === "admin" ? "text-amber-400" : "text-primary"}`}>
+              {ACTIVITY_TYPE_LABELS[entry.type] ?? entry.type}
+            </span>
+            <span className="text-muted-foreground">{new Date(entry.createdAt).toLocaleString("ar-EG")}</span>
+          </div>
+          {Object.keys(entry.details).length > 0 && (
+            <div className="text-muted-foreground break-all">
+              {Object.entries(entry.details)
+                .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+                .join(" • ")}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; onClose: () => void; onChanged: () => void }) {
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<"info" | "activity">("info");
 
   useEffect(() => {
     adminApi
@@ -53,6 +103,27 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
               <div className="text-muted-foreground text-xs">ID: {user.telegramId}</div>
             </div>
 
+            <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+              <button
+                onClick={() => setView("info")}
+                data-testid="tab-user-info"
+                className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${view === "info" ? "bg-primary text-black" : "text-muted-foreground"}`}
+              >
+                البيانات
+              </button>
+              <button
+                onClick={() => setView("activity")}
+                data-testid="tab-user-activity"
+                className={`flex-1 flex items-center justify-center gap-1 text-xs font-medium py-1.5 rounded-md transition-colors ${view === "activity" ? "bg-primary text-black" : "text-muted-foreground"}`}
+              >
+                <History className="w-3.5 h-3.5" /> سجل النشاط
+              </button>
+            </div>
+
+            {view === "activity" ? (
+              <UserActivityView telegramId={telegramId} />
+            ) : (
+              <>
             <label className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">النقاط الدائمة</span>
               <Input
@@ -101,6 +172,8 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
             <Button variant="destructive" className="mt-2" data-testid="button-delete-user" onClick={handleDelete}>
               <Trash2 className="w-4 h-4 mr-1" /> حذف المستخدم نهائياً
             </Button>
+              </>
+            )}
           </div>
         )}
       </div>
