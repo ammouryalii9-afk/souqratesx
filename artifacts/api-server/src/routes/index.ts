@@ -3,6 +3,10 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import vaultRouter from "./vault";
 import adminRouter from "./admin";
+import configRouter from "./config";
+import earnRouter from "./earn";
+import starsRouter from "./stars";
+import telegramWebhookRouter from "./telegramWebhook";
 
 const router: IRouter = Router();
 
@@ -10,5 +14,9 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(vaultRouter);
 router.use(adminRouter);
+router.use(configRouter);
+router.use(earnRouter);
+router.use(starsRouter);
+router.use(telegramWebhookRouter);
 
 export default router;

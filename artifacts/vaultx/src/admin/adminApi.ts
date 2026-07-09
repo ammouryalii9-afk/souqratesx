@@ -103,4 +103,8 @@ export const adminApi = {
   updateSettings: (patch: AdminSettingsMap) =>
     adminFetch<AdminSettingsMap>("/admin/settings", { method: "PUT", body: JSON.stringify(patch) }),
   auditLog: () => adminFetch<AdminAuditLogEntry[]>("/admin/audit-log"),
+  setupTelegramWebhook: () =>
+    adminFetch<{ ok: boolean; webhookUrl: string; description: string }>("/admin/telegram/setup-webhook", {
+      method: "POST",
+    }),
 };

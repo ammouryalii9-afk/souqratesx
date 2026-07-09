@@ -19,6 +19,7 @@ import {
   GetAdminAuditLogResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
+import { setTelegramWebhook, isTelegramBotConfigured } from "../lib/telegramBot";
 
 const router: IRouter = Router();
 
@@ -278,6 +279,31 @@ router.put("/admin/settings", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateAdminSettingsResponse.parse(settings));
+});
+
+router.post("/admin/telegram/setup-webhook", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  if (!isTelegramBotConfigured()) {
+    res.status(400).json({ error: "TELEGRAM_BOT_TOKEN is not configured" });
+    return;
+  }
+
+  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
+  const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
+  const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
+
+  try {
+    await setTelegramWebhook(webhookUrl);
+    await logAdminAction("setup_telegram_webhook", null, { webhookUrl });
+    res.json({ ok: true, webhookUrl, description: "Telegram webhook configured successfully" });
+  } catch (err) {
+    req.log.error({ err }, "Failed to set Telegram webhook");
+    res.status(400).json({ error: "Failed to set Telegram webhook" });
+  }
 });
 
 router.get("/admin/audit-log", async (req, res): Promise<void> => {

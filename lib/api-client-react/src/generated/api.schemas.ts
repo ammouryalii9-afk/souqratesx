@@ -151,9 +151,89 @@ export interface AdminAuditLogEntry {
 
 export type AdminAuditLogList = AdminAuditLogEntry[];
 
+export interface TelegramWebhookSetupResult {
+  ok: boolean;
+  webhookUrl: string;
+  description: string;
+}
+
+export type PublicConfigAdsgram = {
+  enabled: boolean;
+  /** @nullable */
+  blockId: string | null;
+  rewardPoints: number;
+  cooldownSeconds: number;
+  dailyCap: number;
+};
+
+export type PublicConfigOfferwallsItem = {
+  id: string;
+  name: string;
+  /** @nullable */
+  url: string | null;
+  enabled: boolean;
+};
+
+export type PublicConfigStars = {
+  enabled: boolean;
+  energyRefillPriceStars: number;
+  boostPriceStars: number;
+};
+
+export type PublicConfigPremium = {
+  enabled: boolean;
+  monthlyPriceStars: number;
+  earningsMultiplier: number;
+};
+
+export interface PublicConfig {
+  adsgram: PublicConfigAdsgram;
+  offerwalls: PublicConfigOfferwallsItem[];
+  stars: PublicConfigStars;
+  premium: PublicConfigPremium;
+}
+
+export interface EarnRewardResult {
+  creditedPoints: number;
+  lifetimePoints: number;
+}
+
+export type StarsInvoiceInputProduct = typeof StarsInvoiceInputProduct[keyof typeof StarsInvoiceInputProduct];
+
+
+export const StarsInvoiceInputProduct = {
+  energy_refill: 'energy_refill',
+  boost: 'boost',
+  premium_month: 'premium_month',
+} as const;
+
+export interface StarsInvoiceInput {
+  product: StarsInvoiceInputProduct;
+}
+
+export interface StarsInvoiceResult {
+  invoiceUrl: string;
+  priceStars: number;
+}
+
+/**
+ * Raw Telegram Bot API Update object
+ */
+export interface TelegramWebhookUpdate { [key: string]: unknown }
+
 export type GetAdminUsersParams = {
 search?: string;
 limit?: number;
 offset?: number;
 };
+
+export type OfferwallPostbackParams = {
+provider: string;
+telegramId: string;
+amount: number;
+secret: string;
+txId?: string;
+};
+
+export type TelegramWebhook200 = { [key: string]: unknown };
 

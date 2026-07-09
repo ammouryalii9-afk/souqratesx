@@ -1,2 +1,4 @@
 - [VaultX Telegram auth & sync](vaultx-telegram-sync.md) — session cookie auth + JSONB state blob pattern for Telegram Mini Apps with server-side persistence.
 - [Admin panel as client route](admin-panel-client-route.md) — build in-app admin panels as a pathname-gated route inside the existing artifact, not a new artifact.
+- [Ready-to-activate monetization pattern](ready-to-activate-monetization.md) — expose only a filtered "enabled" config derived from admin settings; features flip on automatically once keys are pasted, no redeploy.
+- [Telegram Bot API webhook + Orval naming](telegram-webhook-orval-naming.md) — webhook setup needs HTTPS (fails on localhost, expected); Orval schema export names follow operationId, not your intuitive guess.

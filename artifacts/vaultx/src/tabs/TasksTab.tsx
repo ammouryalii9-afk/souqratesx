@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3 } from 'lucide-react';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown } from 'lucide-react';
+import { getPublicConfig, claimAdsgramReward, createStarsInvoice, type PublicConfig } from '../lib/gameApi';
+import { showAdsgramRewardedAd } from '../lib/adsgram';
+import { getTelegramWebApp } from '../lib/telegram';
 
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
 
@@ -30,7 +33,7 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
 
 export const TasksTab = () => {
-  const { setTempMiningPoints, addLifetimePoints } = useVault();
+  const { userId, setTempMiningPoints, addLifetimePoints } = useVault();
   const { toast } = useToast();
 
   const [currentStreak, setCurrentStreak] = useState(() => Number(localStorage.getItem('currentStreak')) || 0);
@@ -41,6 +44,60 @@ export const TasksTab = () => {
 
   const [taskStates, setTaskStates] = useState<Record<string, 'idle' | 'loading' | 'verify'>>({});
   const [showSurveyModal, setShowSurveyModal] = useState(false);
+
+  const [config, setConfig] = useState<PublicConfig | null>(null);
+  const [adLoading, setAdLoading] = useState(false);
+  const [purchasingProduct, setPurchasingProduct] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPublicConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
+
+  const handleWatchAd = async () => {
+    if (!config?.adsgram.enabled || !config.adsgram.blockId || adLoading) return;
+    setAdLoading(true);
+    try {
+      await showAdsgramRewardedAd(config.adsgram.blockId);
+      const result = await claimAdsgramReward();
+      setTempMiningPoints(prev => prev + result.creditedPoints);
+      addLifetimePoints(result.creditedPoints);
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setAdLoading(false);
+    }
+  };
+
+  const openOfferwall = (offer: PublicConfig['offerwalls'][number]) => {
+    if (!offer.enabled || !offer.url) return;
+    const url = offer.url.includes('?') ? `${offer.url}&sub1=${userId}` : `${offer.url}?sub1=${userId}`;
+    window.open(url, '_blank');
+  };
+
+  const handleBuyWithStars = async (product: 'energy_refill' | 'boost' | 'premium_month') => {
+    if (purchasingProduct) return;
+    setPurchasingProduct(product);
+    try {
+      const { invoiceUrl } = await createStarsInvoice(product);
+      const webApp = getTelegramWebApp();
+      if (webApp?.openInvoice) {
+        webApp.openInvoice(invoiceUrl, (status) => {
+          if (status === 'paid') {
+            toast({ title: 'Purchase complete!', description: 'Thank you — your purchase was applied.' });
+          } else if (status === 'failed') {
+            toast({ title: 'Payment failed', variant: 'destructive' });
+          }
+        });
+      } else {
+        window.open(invoiceUrl, '_blank');
+      }
+    } catch (err) {
+      toast({ title: 'Could not start purchase', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setPurchasingProduct(null);
+    }
+  };
 
   const todayStr = new Date().toISOString().split('T')[0];
   
@@ -470,6 +527,113 @@ export const TasksTab = () => {
           >
             {canClaimDaily ? 'Claim Today\'s Reward' : 'Come back tomorrow'}
           </button>
+        </div>
+      </section>
+
+      {/* Watch Ads */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <PlayCircle className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold text-white">Watch & Earn</h2>
+        </div>
+        <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex-1 pr-4">
+            <h3 className="font-semibold text-white text-sm mb-1">Watch a rewarded ad</h3>
+            <p className="text-xs font-medium text-primary">
+              {config?.adsgram.enabled ? `+${config.adsgram.rewardPoints.toLocaleString()} pts per ad` : 'Not activated yet'}
+            </p>
+          </div>
+          <button
+            data-testid="button-watch-ad"
+            onClick={handleWatchAd}
+            disabled={!config?.adsgram.enabled || adLoading}
+            className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+          >
+            {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+          </button>
+        </div>
+      </section>
+
+      {/* Offerwalls / Surveys */}
+      <section>
+        <h2 className="text-xl font-bold text-white mb-4">Offers & Surveys</h2>
+        <div className="space-y-3">
+          {(config?.offerwalls ?? [{ id: 'cpa', name: 'CPA Offerwall', url: null, enabled: false }, { id: 'monlix', name: 'Monlix Surveys', url: null, enabled: false }, { id: 'bitlabs', name: 'Bitlabs Surveys', url: null, enabled: false }]).map((offer) => (
+            <div key={offer.id} className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <h3 className="font-semibold text-white text-sm mb-1">{offer.name}</h3>
+                <p className="text-xs font-medium text-muted-foreground">{offer.enabled ? 'Complete offers for points' : 'Not activated yet'}</p>
+              </div>
+              <button
+                data-testid={`button-offerwall-${offer.id}`}
+                onClick={() => openOfferwall(offer)}
+                disabled={!offer.enabled}
+                className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 disabled:opacity-40 transition-colors"
+              >
+                Open <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Telegram Stars Store */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Star className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold text-white">Store (Telegram Stars)</h2>
+        </div>
+        <div className="space-y-3">
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 pr-4">
+              <Zap className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-white text-sm">Full Energy Refill</h3>
+                <p className="text-xs text-muted-foreground">{config?.stars.enabled ? `${config.stars.energyRefillPriceStars} ⭐` : 'Not activated yet'}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleBuyWithStars('energy_refill')}
+              disabled={!config?.stars.enabled || purchasingProduct === 'energy_refill'}
+              className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors"
+            >
+              {purchasingProduct === 'energy_refill' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buy'}
+            </button>
+          </div>
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 pr-4">
+              <Flame className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-white text-sm">Mining Boost</h3>
+                <p className="text-xs text-muted-foreground">{config?.stars.enabled ? `${config.stars.boostPriceStars} ⭐` : 'Not activated yet'}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleBuyWithStars('boost')}
+              disabled={!config?.stars.enabled || purchasingProduct === 'boost'}
+              className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors"
+            >
+              {purchasingProduct === 'boost' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buy'}
+            </button>
+          </div>
+          <div className="bg-card border border-primary/30 rounded-xl p-4 flex items-center justify-between bg-gradient-to-r from-primary/10 to-transparent">
+            <div className="flex items-center gap-3 flex-1 pr-4">
+              <Crown className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-semibold text-white text-sm">Premium Membership (1 Month)</h3>
+                <p className="text-xs text-muted-foreground">
+                  {config?.premium.enabled ? `${config.premium.monthlyPriceStars} ⭐ · ${config.premium.earningsMultiplier}x earnings` : 'Not activated yet'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleBuyWithStars('premium_month')}
+              disabled={!config?.premium.enabled || purchasingProduct === 'premium_month'}
+              className="min-w-[80px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            >
+              {purchasingProduct === 'premium_month' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Subscribe'}
+            </button>
+          </div>
         </div>
       </section>
 

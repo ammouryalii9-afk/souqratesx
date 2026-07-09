@@ -254,3 +254,90 @@ export const GetAdminAuditLogResponseItem = zod.object({
 export const GetAdminAuditLogResponse = zod.array(GetAdminAuditLogResponseItem)
 
 
+/**
+ * @summary Point the Telegram bot's webhook at this server so Stars payments can be processed
+ */
+export const SetupTelegramWebhookResponse = zod.object({
+  "ok": zod.boolean(),
+  "webhookUrl": zod.string(),
+  "description": zod.string()
+})
+
+
+/**
+ * @summary Get public, non-secret runtime configuration flags used to activate frontend features
+ */
+export const GetPublicConfigResponse = zod.object({
+  "adsgram": zod.object({
+  "enabled": zod.boolean(),
+  "blockId": zod.string().nullable(),
+  "rewardPoints": zod.number(),
+  "cooldownSeconds": zod.number(),
+  "dailyCap": zod.number()
+}),
+  "offerwalls": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "url": zod.string().nullable(),
+  "enabled": zod.boolean()
+})),
+  "stars": zod.object({
+  "enabled": zod.boolean(),
+  "energyRefillPriceStars": zod.number(),
+  "boostPriceStars": zod.number()
+}),
+  "premium": zod.object({
+  "enabled": zod.boolean(),
+  "monthlyPriceStars": zod.number(),
+  "earningsMultiplier": zod.number()
+})
+})
+
+
+/**
+ * @summary Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
+ */
+export const ClaimAdsgramRewardResponse = zod.object({
+  "creditedPoints": zod.number(),
+  "lifetimePoints": zod.number()
+})
+
+
+/**
+ * @summary Server-to-server postback endpoint called by CPA/offerwall/survey providers to credit a completed offer
+ */
+export const OfferwallPostbackQueryParams = zod.object({
+  "provider": zod.coerce.string(),
+  "telegramId": zod.coerce.string(),
+  "amount": zod.coerce.number(),
+  "secret": zod.coerce.string(),
+  "txId": zod.coerce.string().optional()
+})
+
+export const OfferwallPostbackResponse = zod.object({
+  "creditedPoints": zod.number(),
+  "lifetimePoints": zod.number()
+})
+
+
+/**
+ * @summary Create a Telegram Stars invoice link for a purchasable product
+ */
+export const CreateStarsInvoiceBody = zod.object({
+  "product": zod.enum(['energy_refill', 'boost', 'premium_month'])
+})
+
+export const CreateStarsInvoiceResponse = zod.object({
+  "invoiceUrl": zod.string(),
+  "priceStars": zod.number()
+})
+
+
+/**
+ * @summary Receives Telegram Bot API updates (pre_checkout_query, successful_payment) to process Stars purchases
+ */
+export const TelegramWebhookBody = zod.record(zod.string(), zod.unknown()).describe('Raw Telegram Bot API Update object')
+
+export const TelegramWebhookResponse = zod.record(zod.string(), zod.unknown())
+
+

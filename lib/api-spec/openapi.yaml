@@ -16,6 +16,14 @@ tags:
     description: SouqratesX game state operations
   - name: admin
     description: Admin control panel operations
+  - name: config
+    description: Public runtime configuration
+  - name: earn
+    description: Ads, offerwall, and survey reward operations
+  - name: stars
+    description: Telegram Stars purchases
+  - name: telegram
+    description: Telegram Bot webhook
 paths:
   /healthz:
     get:
@@ -352,6 +360,159 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/telegram/setup-webhook:
+    post:
+      operationId: setupTelegramWebhook
+      tags: [admin]
+      summary: Point the Telegram bot's webhook at this server so Stars payments can be processed
+      responses:
+        "200":
+          description: Webhook configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramWebhookSetupResult"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /config/public:
+    get:
+      operationId: getPublicConfig
+      tags: [config]
+      summary: Get public, non-secret runtime configuration flags used to activate frontend features
+      responses:
+        "200":
+          description: Public configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicConfig"
+  /earn/adsgram/reward:
+    post:
+      operationId: claimAdsgramReward
+      tags: [earn]
+      summary: Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
+      responses:
+        "200":
+          description: Reward credited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnRewardResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Cooldown active or daily cap reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /earn/offerwall/postback:
+    get:
+      operationId: offerwallPostback
+      tags: [earn]
+      summary: Server-to-server postback endpoint called by CPA/offerwall/survey providers to credit a completed offer
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: telegramId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: secret
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: txId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnRewardResult"
+        "400":
+          description: Invalid provider or missing params
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid postback secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /stars/invoice:
+    post:
+      operationId: createStarsInvoice
+      tags: [stars]
+      summary: Create a Telegram Stars invoice link for a purchasable product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StarsInvoiceInput"
+      responses:
+        "200":
+          description: Invoice link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarsInvoiceResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Unknown product or Stars purchases not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /telegram/webhook:
+    post:
+      operationId: telegramWebhook
+      tags: [telegram]
+      summary: Receives Telegram Bot API updates (pre_checkout_query, successful_payment) to process Stars purchases
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramWebhookUpdate"
+      responses:
+        "200":
+          description: Update processed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
 components:
   schemas:
     HealthStatus:
@@ -618,3 +779,104 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/AdminAuditLogEntry"
+    TelegramWebhookSetupResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        webhookUrl:
+          type: string
+        description:
+          type: string
+      required:
+        - ok
+        - webhookUrl
+        - description
+    PublicConfig:
+      type: object
+      properties:
+        adsgram:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            blockId:
+              type: ["string", "null"]
+            rewardPoints:
+              type: integer
+            cooldownSeconds:
+              type: integer
+            dailyCap:
+              type: integer
+          required: [enabled, blockId, rewardPoints, cooldownSeconds, dailyCap]
+        offerwalls:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              url:
+                type: ["string", "null"]
+              enabled:
+                type: boolean
+            required: [id, name, url, enabled]
+        stars:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            energyRefillPriceStars:
+              type: integer
+            boostPriceStars:
+              type: integer
+          required: [enabled, energyRefillPriceStars, boostPriceStars]
+        premium:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            monthlyPriceStars:
+              type: integer
+            earningsMultiplier:
+              type: number
+          required: [enabled, monthlyPriceStars, earningsMultiplier]
+      required:
+        - adsgram
+        - offerwalls
+        - stars
+        - premium
+    EarnRewardResult:
+      type: object
+      properties:
+        creditedPoints:
+          type: integer
+        lifetimePoints:
+          type: integer
+      required:
+        - creditedPoints
+        - lifetimePoints
+    StarsInvoiceInput:
+      type: object
+      properties:
+        product:
+          type: string
+          enum: [energy_refill, boost, premium_month]
+      required:
+        - product
+    StarsInvoiceResult:
+      type: object
+      properties:
+        invoiceUrl:
+          type: string
+        priceStars:
+          type: integer
+      required:
+        - invoiceUrl
+        - priceStars
+    TelegramWebhookUpdate:
+      type: object
+      description: Raw Telegram Bot API Update object
+      additionalProperties: true

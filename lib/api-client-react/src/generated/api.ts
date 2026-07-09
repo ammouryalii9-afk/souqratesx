@@ -28,11 +28,19 @@ import type {
   AdminUserDetail,
   AdminUserList,
   AdminUserPatch,
+  EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
   HealthStatus,
   LeaderboardEntryList,
+  OfferwallPostbackParams,
+  PublicConfig,
+  StarsInvoiceInput,
+  StarsInvoiceResult,
   TelegramAuthInput,
+  TelegramWebhook200,
+  TelegramWebhookSetupResult,
+  TelegramWebhookUpdate,
   VaultSession,
   VaultStateUpdate
 } from './api.schemas';
@@ -1263,4 +1271,449 @@ export function useGetAdminAuditLog<TData = Awaited<ReturnType<typeof getAdminAu
 
 
 
+
+export const getSetupTelegramWebhookUrl = () => {
+
+
+
+
+  return `/api/admin/telegram/setup-webhook`
+}
+
+/**
+ * @summary Point the Telegram bot's webhook at this server so Stars payments can be processed
+ */
+export const setupTelegramWebhook = async ( options?: RequestInit): Promise<TelegramWebhookSetupResult> => {
+
+  return customFetch<TelegramWebhookSetupResult>(getSetupTelegramWebhookUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSetupTelegramWebhookMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext> => {
+
+const mutationKey = ['setupTelegramWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setupTelegramWebhook>>, void> = () => {
+
+
+          return  setupTelegramWebhook(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetupTelegramWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof setupTelegramWebhook>>>
+
+    export type SetupTelegramWebhookMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Point the Telegram bot's webhook at this server so Stars payments can be processed
+ */
+export const useSetupTelegramWebhook = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTelegramWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setupTelegramWebhook>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSetupTelegramWebhookMutationOptions(options));
+    }
+
+export const getGetPublicConfigUrl = () => {
+
+
+
+
+  return `/api/config/public`
+}
+
+/**
+ * @summary Get public, non-secret runtime configuration flags used to activate frontend features
+ */
+export const getPublicConfig = async ( options?: RequestInit): Promise<PublicConfig> => {
+
+  return customFetch<PublicConfig>(getGetPublicConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicConfigQueryKey = () => {
+    return [
+    `/api/config/public`
+    ] as const;
+    }
+
+
+export const getGetPublicConfigQueryOptions = <TData = Awaited<ReturnType<typeof getPublicConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicConfig>>> = ({ signal }) => getPublicConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicConfig>>>
+export type GetPublicConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get public, non-secret runtime configuration flags used to activate frontend features
+ */
+
+export function useGetPublicConfig<TData = Awaited<ReturnType<typeof getPublicConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClaimAdsgramRewardUrl = () => {
+
+
+
+
+  return `/api/earn/adsgram/reward`
+}
+
+/**
+ * @summary Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
+ */
+export const claimAdsgramReward = async ( options?: RequestInit): Promise<EarnRewardResult> => {
+
+  return customFetch<EarnRewardResult>(getClaimAdsgramRewardUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getClaimAdsgramRewardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAdsgramReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimAdsgramReward>>, TError,void, TContext> => {
+
+const mutationKey = ['claimAdsgramReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimAdsgramReward>>, void> = () => {
+
+
+          return  claimAdsgramReward(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimAdsgramRewardMutationResult = NonNullable<Awaited<ReturnType<typeof claimAdsgramReward>>>
+
+    export type ClaimAdsgramRewardMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
+ */
+export const useClaimAdsgramReward = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAdsgramReward>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimAdsgramReward>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClaimAdsgramRewardMutationOptions(options));
+    }
+
+export const getOfferwallPostbackUrl = (params: OfferwallPostbackParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/earn/offerwall/postback?${stringifiedParams}` : `/api/earn/offerwall/postback`
+}
+
+/**
+ * @summary Server-to-server postback endpoint called by CPA/offerwall/survey providers to credit a completed offer
+ */
+export const offerwallPostback = async (params: OfferwallPostbackParams, options?: RequestInit): Promise<EarnRewardResult> => {
+
+  return customFetch<EarnRewardResult>(getOfferwallPostbackUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOfferwallPostbackQueryKey = (params?: OfferwallPostbackParams,) => {
+    return [
+    `/api/earn/offerwall/postback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getOfferwallPostbackQueryOptions = <TData = Awaited<ReturnType<typeof offerwallPostback>>, TError = ErrorType<ErrorResponse>>(params: OfferwallPostbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof offerwallPostback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOfferwallPostbackQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof offerwallPostback>>> = ({ signal }) => offerwallPostback(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof offerwallPostback>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type OfferwallPostbackQueryResult = NonNullable<Awaited<ReturnType<typeof offerwallPostback>>>
+export type OfferwallPostbackQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Server-to-server postback endpoint called by CPA/offerwall/survey providers to credit a completed offer
+ */
+
+export function useOfferwallPostback<TData = Awaited<ReturnType<typeof offerwallPostback>>, TError = ErrorType<ErrorResponse>>(
+ params: OfferwallPostbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof offerwallPostback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getOfferwallPostbackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStarsInvoiceUrl = () => {
+
+
+
+
+  return `/api/stars/invoice`
+}
+
+/**
+ * @summary Create a Telegram Stars invoice link for a purchasable product
+ */
+export const createStarsInvoice = async (starsInvoiceInput: StarsInvoiceInput, options?: RequestInit): Promise<StarsInvoiceResult> => {
+
+  return customFetch<StarsInvoiceResult>(getCreateStarsInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(starsInvoiceInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStarsInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStarsInvoice>>, TError,{data: BodyType<StarsInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStarsInvoice>>, TError,{data: BodyType<StarsInvoiceInput>}, TContext> => {
+
+const mutationKey = ['createStarsInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStarsInvoice>>, {data: BodyType<StarsInvoiceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStarsInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStarsInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createStarsInvoice>>>
+    export type CreateStarsInvoiceMutationBody = BodyType<StarsInvoiceInput>
+    export type CreateStarsInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a Telegram Stars invoice link for a purchasable product
+ */
+export const useCreateStarsInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStarsInvoice>>, TError,{data: BodyType<StarsInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStarsInvoice>>,
+        TError,
+        {data: BodyType<StarsInvoiceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateStarsInvoiceMutationOptions(options));
+    }
+
+export const getTelegramWebhookUrl = () => {
+
+
+
+
+  return `/api/telegram/webhook`
+}
+
+/**
+ * @summary Receives Telegram Bot API updates (pre_checkout_query, successful_payment) to process Stars purchases
+ */
+export const telegramWebhook = async (telegramWebhookUpdate?: TelegramWebhookUpdate, options?: RequestInit): Promise<TelegramWebhook200> => {
+
+  return customFetch<TelegramWebhook200>(getTelegramWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(telegramWebhookUpdate)
+  }
+);}
+
+
+
+
+
+export const getTelegramWebhookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof telegramWebhook>>, TError,{data?: BodyType<TelegramWebhookUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof telegramWebhook>>, TError,{data?: BodyType<TelegramWebhookUpdate>}, TContext> => {
+
+const mutationKey = ['telegramWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof telegramWebhook>>, {data?: BodyType<TelegramWebhookUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  telegramWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TelegramWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof telegramWebhook>>>
+    export type TelegramWebhookMutationBody = BodyType<TelegramWebhookUpdate> | undefined
+    export type TelegramWebhookMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Receives Telegram Bot API updates (pre_checkout_query, successful_payment) to process Stars purchases
+ */
+export const useTelegramWebhook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof telegramWebhook>>, TError,{data?: BodyType<TelegramWebhookUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof telegramWebhook>>,
+        TError,
+        {data?: BodyType<TelegramWebhookUpdate>},
+        TContext
+      > => {
+      return useMutation(getTelegramWebhookMutationOptions(options));
+    }
 

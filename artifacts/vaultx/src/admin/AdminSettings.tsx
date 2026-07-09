@@ -26,6 +26,8 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     fields: [
       { key: "adsgramBlockId", label: "Adsgram Block ID", type: "text", defaultValue: "" },
       { key: "adsgramRewardPoints", label: "نقاط مقابل كل عرض إعلان", type: "number", defaultValue: 100 },
+      { key: "adsgramCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
+      { key: "adsgramDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },
     ],
   },
   {
@@ -33,13 +35,18 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     fields: [
       { key: "cpaApiKey", label: "CPA Offerwall API Key", type: "text", defaultValue: "" },
       { key: "cpaOfferwallUrl", label: "رابط الـ Offerwall", type: "text", defaultValue: "" },
+      { key: "cpaPostbackSecret", label: "Postback Secret (للتحقق من الإشعارات)", type: "text", defaultValue: "" },
     ],
   },
   {
     title: "الاستبيانات (Monlix / Bitlabs)",
     fields: [
       { key: "monlixApiKey", label: "Monlix API Key", type: "text", defaultValue: "" },
+      { key: "monlixOfferwallUrl", label: "رابط Monlix", type: "text", defaultValue: "" },
+      { key: "monlixPostbackSecret", label: "Monlix Postback Secret", type: "text", defaultValue: "" },
       { key: "bitlabsApiKey", label: "Bitlabs API Key", type: "text", defaultValue: "" },
+      { key: "bitlabsOfferwallUrl", label: "رابط Bitlabs", type: "text", defaultValue: "" },
+      { key: "bitlabsPostbackSecret", label: "Bitlabs Postback Secret", type: "text", defaultValue: "" },
     ],
   },
   {
@@ -63,6 +70,21 @@ export function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
+  const [settingUpWebhook, setSettingUpWebhook] = useState(false);
+
+  async function setupWebhook() {
+    setSettingUpWebhook(true);
+    setWebhookStatus(null);
+    try {
+      const result = await adminApi.setupTelegramWebhook();
+      setWebhookStatus(`تم الربط بنجاح: ${result.webhookUrl}`);
+    } catch (err) {
+      setWebhookStatus(err instanceof Error ? `فشل: ${err.message}` : "فشل ربط الـ Webhook");
+    } finally {
+      setSettingUpWebhook(false);
+    }
+  }
 
   useEffect(() => {
     adminApi
@@ -88,6 +110,16 @@ export function AdminSettings() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="section-admin-settings">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-white mb-2">Telegram Bot Webhook</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          فعّل هذا لتفعيل استقبال مدفوعات Telegram Stars (يتطلب أن يكون TELEGRAM_BOT_TOKEN مضبوطًا).
+        </p>
+        <Button onClick={setupWebhook} disabled={settingUpWebhook} data-testid="button-setup-webhook" variant="secondary">
+          {settingUpWebhook ? "جار الربط..." : "ربط Webhook الآن"}
+        </Button>
+        {webhookStatus && <p className="text-xs text-muted-foreground mt-2 break-all">{webhookStatus}</p>}
+      </div>
       {SECTIONS.map((section) => (
         <div key={section.title} className="bg-white/5 border border-white/10 rounded-xl p-4">
           <h3 className="text-sm font-bold text-white mb-3">{section.title}</h3>

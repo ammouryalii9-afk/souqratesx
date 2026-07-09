@@ -61,7 +61,11 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Real Telegram user identity and permanent server-side progress persistence (works across devices)
 - Withdraw button is currently a placeholder — no real cash withdrawal flow yet
 - Admin control panel at `/manager` (password-protected via `ADMIN_PASSWORD` secret): overview stats, user search/edit/ban/premium/stars/delete, platform settings (economy + placeholders for Adsgram/CPA/Monlix/Bitlabs/Stars/Premium keys), audit log
-- Planned next: Adsgram ads, CPA/micro-task offerwalls, Telegram Stars in-bot purchases, surveys (Monlix, Bitlabs), Premium Membership subscriptions — all wired through the admin settings but awaiting real provider API keys from the user
+- Monetization is fully wired end-to-end and auto-activates once the admin pastes real keys into Admin Settings — no further code changes needed per provider:
+  - `/config/public` exposes only non-secret "enabled" flags/prices derived from `admin_settings` (e.g. Adsgram enabled iff `adsgramBlockId` set; offerwalls enabled iff url+key set; Stars/Premium enabled iff `TELEGRAM_BOT_TOKEN` is present).
+  - Adsgram: frontend loads the Adsgram SDK dynamically and calls `/earn/adsgram/reward` (server-authoritative; cooldown + daily cap enforced via `vault_users.adsWatchedToday/adsWatchedDate/lastAdRewardAt`).
+  - CPA/Monlix/Bitlabs: outbound offerwall links append `sub1=<telegramId>`; providers postback to `/earn/offerwall/postback?provider=...&telegramId=...&amount=...&secret=...` validated against the matching `*PostbackSecret` admin setting.
+  - Telegram Stars: `/stars/invoice` creates a real Stars (XTR) invoice via the Bot API using `TELEGRAM_BOT_TOKEN`; `/telegram/webhook` auto-approves `pre_checkout_query` and credits `starsBalance` / extends `premiumExpiresAt` on `successful_payment`. Admin Settings has a "ربط Webhook الآن" (setup webhook) button calling `/admin/telegram/setup-webhook` — requires HTTPS, so it only succeeds after publishing (expected failure on localhost dev).
 
 ## User preferences
 
