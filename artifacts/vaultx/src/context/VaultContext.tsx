@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { initTelegramWebApp, getTelegramInitData } from '../lib/telegram';
 
 export type PassiveCard = {
   id: string;
@@ -16,9 +17,28 @@ export const getLeague = (pts: number) => {
   return { name: 'Bronze', color: '#cd7f32', icon: '🥉' };
 };
 
+type SyncedState = {
+  totalBalanceUSD: number;
+  tempMiningPoints: number;
+  miningLevel: number;
+  energy: number;
+  maxEnergy: number;
+  referralEarnings: number;
+  lifetimePoints: number;
+  turboUsesToday: number;
+  rechargeUsesToday: number;
+  farmState: 'idle' | 'farming' | 'ready';
+  farmStartTime: number;
+  passiveCards: PassiveCard[];
+  lastResetDate?: string;
+  lastEnergyRegen?: number;
+};
+
 type VaultContextType = {
   userId: string;
   username: string;
+  isTelegramUser: boolean;
+  isSyncing: boolean;
   totalBalanceUSD: number;
   tempMiningPoints: number;
   miningLevel: number;
@@ -26,7 +46,7 @@ type VaultContextType = {
   maxEnergy: number;
   totalReferrals: number;
   referralEarnings: number;
-  
+
   lifetimePoints: number;
   profitPerHour: number;
   activeTurbo: boolean;
@@ -42,12 +62,12 @@ type VaultContextType = {
   setMiningLevel: (val: number | ((prev: number) => number)) => void;
   setEnergy: (val: number | ((prev: number) => number)) => void;
   setMaxEnergy: (val: number | ((prev: number) => number)) => void;
-  
+
   claimEarnings: () => void;
   upgradeMiningLevel: (cost: number, newLevel: number) => void;
   expandBattery: (cost: number) => void;
   tapMine: () => number;
-  
+
   activateTurbo: () => void;
   rechargeEnergy: () => void;
   startFarming: () => void;
@@ -58,9 +78,25 @@ type VaultContextType = {
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
+const API_BASE = '/api';
+
+async function apiFetch(path: string, init?: RequestInit) {
+  return fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+  });
+}
+
 export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userId] = useState('user_123');
-  const [username] = useState('CryptoMiner');
+  const [userId, setUserId] = useState('user_123');
+  const [username, setUsername] = useState('CryptoMiner');
+  const [isTelegramUser, setIsTelegramUser] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 12.45);
   const [tempMiningPoints, setTempMiningPoints] = useState(() => {
     const saved = localStorage.getItem('tempMiningPoints');
@@ -88,7 +124,67 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeTurbo, setActiveTurbo] = useState(false);
   const [turboExpiresAt, setTurboExpiresAt] = useState(0);
 
+  const hasHydratedFromServer = useRef(false);
+  const isHydrating = useRef(false);
+
   const profitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
+
+  // Authenticate with Telegram (if running inside Telegram) and hydrate state from the server.
+  useEffect(() => {
+    const webApp = initTelegramWebApp();
+    const initData = getTelegramInitData();
+
+    if (!webApp || !initData) {
+      // Not running inside Telegram (e.g. local dev preview) — fall back to localStorage only.
+      hasHydratedFromServer.current = true;
+      return;
+    }
+
+    const unsafeUser = webApp.initDataUnsafe?.user;
+    if (unsafeUser) {
+      setUserId(String(unsafeUser.id));
+      setUsername(unsafeUser.username || unsafeUser.first_name || 'Player');
+    }
+
+    setIsSyncing(true);
+    isHydrating.current = true;
+    apiFetch('/auth/telegram', {
+      method: 'POST',
+      body: JSON.stringify({ initData }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Telegram auth failed');
+        const data = await res.json();
+        const state = (data.state ?? {}) as Partial<SyncedState>;
+
+        setUserId(data.user.telegramId);
+        setUsername(data.user.username || data.user.firstName || 'Player');
+        setIsTelegramUser(true);
+
+        if (Object.keys(state).length > 0) {
+          if (typeof state.totalBalanceUSD === 'number') setTotalBalanceUSD(state.totalBalanceUSD);
+          if (typeof state.tempMiningPoints === 'number') setTempMiningPoints(state.tempMiningPoints);
+          if (typeof state.miningLevel === 'number') setMiningLevel(state.miningLevel);
+          if (typeof state.energy === 'number') setEnergy(state.energy);
+          if (typeof state.maxEnergy === 'number') setMaxEnergy(state.maxEnergy);
+          if (typeof state.referralEarnings === 'number') setReferralEarnings(state.referralEarnings);
+          if (typeof data.user.lifetimePoints === 'number') setLifetimePoints(data.user.lifetimePoints);
+          if (typeof state.turboUsesToday === 'number') setTurboUsesToday(state.turboUsesToday);
+          if (typeof state.rechargeUsesToday === 'number') setRechargeUsesToday(state.rechargeUsesToday);
+          if (state.farmState) setFarmState(state.farmState);
+          if (typeof state.farmStartTime === 'number') setFarmStartTime(state.farmStartTime);
+          if (Array.isArray(state.passiveCards)) setPassiveCards(state.passiveCards);
+        }
+      })
+      .catch((err) => {
+        console.error('Telegram auth failed, falling back to local progress', err);
+      })
+      .finally(() => {
+        hasHydratedFromServer.current = true;
+        isHydrating.current = false;
+        setIsSyncing(false);
+      });
+  }, []);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -100,6 +196,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  // Persist to localStorage always (fast local cache / offline fallback).
   useEffect(() => {
     localStorage.setItem('totalBalanceUSD', totalBalanceUSD.toString());
     localStorage.setItem('tempMiningPoints', tempMiningPoints.toString());
@@ -114,6 +211,38 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
     localStorage.setItem('referralEarnings', referralEarnings.toString());
   }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, referralEarnings]);
+
+  // Debounced sync to the server whenever game state changes (Telegram users only).
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isTelegramUser || !hasHydratedFromServer.current || isHydrating.current) {
+      return;
+    }
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      const state: SyncedState = {
+        totalBalanceUSD,
+        tempMiningPoints,
+        miningLevel,
+        energy,
+        maxEnergy,
+        referralEarnings,
+        lifetimePoints,
+        turboUsesToday,
+        rechargeUsesToday,
+        farmState,
+        farmStartTime,
+        passiveCards,
+      };
+      apiFetch('/vault/me', {
+        method: 'PUT',
+        body: JSON.stringify({ state, lifetimePoints }),
+      }).catch((err) => console.error('Failed to sync progress to server', err));
+    }, 1500);
+    return () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    };
+  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, referralEarnings, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -150,7 +279,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const lastRegen = Number(localStorage.getItem('lastEnergyRegen')) || Date.now();
       const now = Date.now();
       const diffMinutes = Math.floor((now - lastRegen) / 60000);
-      
+
       if (diffMinutes >= 15) {
         const intervals = Math.floor(diffMinutes / 15);
         setEnergy(prev => Math.min(maxEnergy, prev + (5 * intervals)));
@@ -282,6 +411,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         userId,
         username,
+        isTelegramUser,
+        isSyncing,
         totalBalanceUSD,
         tempMiningPoints,
         miningLevel,

@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: vault
+    description: VaultX game state operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/telegram:
+    post:
+      operationId: authTelegram
+      tags: [auth]
+      summary: Authenticate via Telegram WebApp initData
+      description: Verifies Telegram WebApp initData, upserts the user, and sets a session cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramAuthInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSession"
+        "401":
+          description: Invalid Telegram authentication data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /vault/me:
+    get:
+      operationId: getVaultMe
+      tags: [vault]
+      summary: Get the authenticated user's game state
+      responses:
+        "200":
+          description: Current game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSession"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateVaultMe
+      tags: [vault]
+      summary: Save the authenticated user's game state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultStateUpdate"
+      responses:
+        "200":
+          description: Updated game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSession"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /vault/leaderboard:
+    get:
+      operationId: getVaultLeaderboard
+      tags: [vault]
+      summary: Get the global leaderboard sorted by lifetime points
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardEntryList"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +115,87 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    TelegramAuthInput:
+      type: object
+      properties:
+        initData:
+          type: string
+          description: The raw initData string from window.Telegram.WebApp.initData
+      required:
+        - initData
+    VaultUserProfile:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        username:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        lifetimePoints:
+          type: integer
+      required:
+        - telegramId
+        - username
+        - firstName
+        - lastName
+        - photoUrl
+        - lifetimePoints
+    VaultStateData:
+      type: object
+      description: Freeform game state blob persisted for the user
+      additionalProperties: true
+    VaultStateUpdate:
+      type: object
+      properties:
+        state:
+          $ref: "#/components/schemas/VaultStateData"
+        lifetimePoints:
+          type: integer
+      required:
+        - state
+        - lifetimePoints
+    VaultSession:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/VaultUserProfile"
+        state:
+          $ref: "#/components/schemas/VaultStateData"
+      required:
+        - user
+        - state
+    LeaderboardEntry:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        username:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        lifetimePoints:
+          type: integer
+      required:
+        - telegramId
+        - username
+        - firstName
+        - photoUrl
+        - lifetimePoints
+    LeaderboardEntryList:
+      type: array
+      items:
+        $ref: "#/components/schemas/LeaderboardEntry"

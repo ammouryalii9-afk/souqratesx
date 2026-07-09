@@ -1,0 +1,1 @@
+- [VaultX Telegram auth & sync](vaultx-telegram-sync.md) — session cookie auth + JSONB state blob pattern for Telegram Mini Apps with server-side persistence.
