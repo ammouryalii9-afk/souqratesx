@@ -19,6 +19,7 @@ import {
   GetAdminAuditLogResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
+import { rateLimit } from "../lib/rateLimit";
 import { setTelegramWebhook, setTelegramMenuButton, setTelegramBotCommands, isTelegramBotConfigured } from "../lib/telegramBot";
 
 const router: IRouter = Router();
@@ -77,7 +78,7 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
   };
 }
 
-router.post("/admin/login", async (req, res): Promise<void> => {
+router.post("/admin/login", rateLimit("admin-login", 5, 60_000), async (req, res): Promise<void> => {
   const parsed = AdminLoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

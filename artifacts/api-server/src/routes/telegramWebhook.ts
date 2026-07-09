@@ -1,13 +1,20 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, vaultUsersTable } from "@workspace/db";
-import { answerPreCheckoutQuery, sendTelegramMessage, type TelegramUpdate } from "../lib/telegramBot";
+import { eq, sql } from "drizzle-orm";
+import { db, vaultUsersTable, processedTransactionsTable } from "@workspace/db";
+import { answerPreCheckoutQuery, sendTelegramMessage, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 
 const router: IRouter = Router();
 
 const PREMIUM_MONTH_MS = 1000 * 60 * 60 * 24 * 30;
 
 router.post("/telegram/webhook", async (req, res): Promise<void> => {
+  const secretHeader = req.get("x-telegram-bot-api-secret-token");
+  if (!verifyWebhookSecretToken(secretHeader ?? undefined)) {
+    req.log.warn("Rejected Telegram webhook call with missing/invalid secret token");
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   const update = req.body as TelegramUpdate;
 
   try {
@@ -33,6 +40,20 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
       }
 
       const telegramId = payload.telegramId ?? (fromId ? String(fromId) : undefined);
+
+      // Idempotency: Telegram retries webhook deliveries; only credit each
+      // telegram_payment_charge_id once.
+      const [claimed] = await db
+        .insert(processedTransactionsTable)
+        .values({ provider: "telegram_stars", txId: payment.telegram_payment_charge_id, telegramId: telegramId ?? null })
+        .onConflictDoNothing()
+        .returning();
+      if (!claimed) {
+        req.log.info({ chargeId: payment.telegram_payment_charge_id }, "Skipped duplicate Stars payment webhook");
+        res.json({ ok: true });
+        return;
+      }
+
       if (telegramId) {
         const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
         if (user) {
@@ -45,7 +66,7 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
           } else {
             await db
               .update(vaultUsersTable)
-              .set({ starsBalance: user.starsBalance + payment.total_amount })
+              .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
               .where(eq(vaultUsersTable.telegramId, telegramId));
           }
           req.log.info({ telegramId, product: payload.product, amount: payment.total_amount }, "Telegram Stars payment processed");

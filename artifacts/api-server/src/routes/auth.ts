@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { rateLimit } from "../lib/rateLimit";
 import { eq } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import { AuthTelegramBody, AuthTelegramResponse } from "@workspace/api-zod";
@@ -7,7 +8,7 @@ import { setSessionCookie } from "../lib/session";
 
 const router: IRouter = Router();
 
-router.post("/auth/telegram", async (req, res): Promise<void> => {
+router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): Promise<void> => {
   const parsed = AuthTelegramBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -24,6 +25,12 @@ router.post("/auth/telegram", async (req, res): Promise<void> => {
   const telegramId = String(telegramUser.id);
 
   const [existing] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+
+  if (existing?.isBanned) {
+    req.log.warn({ telegramId }, "Banned user attempted to authenticate");
+    res.status(403).json({ error: "This account has been banned" });
+    return;
+  }
 
   let user;
   if (existing) {

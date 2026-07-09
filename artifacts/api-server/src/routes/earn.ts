@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, vaultUsersTable } from "@workspace/db";
+import { and, eq, lt, isNull, or, sql } from "drizzle-orm";
+import { db, vaultUsersTable, processedTransactionsTable } from "@workspace/db";
 import { ClaimAdsgramRewardResponse, OfferwallPostbackResponse } from "@workspace/api-zod";
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber, asString } from "../lib/settings";
+import { rateLimit } from "../lib/rateLimit";
 
 const router: IRouter = Router();
 
@@ -11,7 +12,7 @@ function todayStr(): string {
   return new Date().toISOString().split("T")[0]!;
 }
 
-router.post("/earn/adsgram/reward", async (req, res): Promise<void> => {
+router.post("/earn/adsgram/reward", rateLimit("adsgram", 30, 60_000), async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -29,37 +30,47 @@ router.post("/earn/adsgram/reward", async (req, res): Promise<void> => {
     return;
   }
 
-  const now = new Date();
-  if (user.lastAdRewardAt) {
-    const secondsSince = (now.getTime() - user.lastAdRewardAt.getTime()) / 1000;
-    if (secondsSince < cooldownSeconds) {
-      res.status(429).json({ error: "Please wait before watching another ad" });
-      return;
-    }
-  }
-
-  const today = todayStr();
-  const watchedToday = user.adsWatchedDate === today ? user.adsWatchedToday : 0;
-  if (watchedToday >= dailyCap) {
-    res.status(429).json({ error: "Daily ad limit reached" });
+  if (user.isBanned) {
+    res.status(403).json({ error: "This account has been banned" });
     return;
   }
 
+  const now = new Date();
+  const today = todayStr();
+  const cooldownCutoff = new Date(now.getTime() - cooldownSeconds * 1000);
+
+  // Atomic conditional update: the cooldown + daily-cap checks are re-applied inside
+  // the WHERE clause so two concurrent requests can never both be credited.
   const [updated] = await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: user.lifetimePoints + rewardPoints,
-      adsWatchedToday: watchedToday + 1,
+      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${rewardPoints}`,
+      adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
       adsWatchedDate: today,
       lastAdRewardAt: now,
     })
-    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, telegramId),
+        eq(vaultUsersTable.isBanned, false),
+        or(isNull(vaultUsersTable.lastAdRewardAt), lt(vaultUsersTable.lastAdRewardAt, cooldownCutoff)),
+        or(
+          sql`${vaultUsersTable.adsWatchedDate} is distinct from ${today}`,
+          lt(vaultUsersTable.adsWatchedToday, dailyCap),
+        ),
+      ),
+    )
     .returning();
+
+  if (!updated) {
+    res.status(429).json({ error: "Ad reward not available yet (cooldown or daily limit)" });
+    return;
+  }
 
   res.json(
     ClaimAdsgramRewardResponse.parse({
       creditedPoints: rewardPoints,
-      lifetimePoints: updated?.lifetimePoints ?? user.lifetimePoints + rewardPoints,
+      lifetimePoints: updated.lifetimePoints,
     }),
   );
 });
@@ -70,7 +81,9 @@ const PROVIDER_SETTINGS_KEY: Record<string, string> = {
   bitlabs: "bitlabsPostbackSecret",
 };
 
-router.get("/earn/offerwall/postback", async (req, res): Promise<void> => {
+const MAX_OFFERWALL_CREDIT = 1_000_000; // sanity ceiling per postback
+
+router.get("/earn/offerwall/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
   const provider = typeof req.query.provider === "string" ? req.query.provider : "";
   const telegramId = typeof req.query.telegramId === "string" ? req.query.telegramId : "";
   const amount = Number(req.query.amount);
@@ -90,25 +103,43 @@ router.get("/earn/offerwall/postback", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
-  if (!user) {
-    res.status(400).json({ error: "Unknown user" });
-    return;
+  // Idempotency: providers retry postbacks. Dedupe on the provider transaction id
+  // when supplied (txId/transId/tx query param); replays are acknowledged but not re-credited.
+  const txIdRaw = req.query.txId ?? req.query.transId ?? req.query.tx;
+  const txId = typeof txIdRaw === "string" && txIdRaw.length > 0 ? txIdRaw : null;
+  if (txId) {
+    const [claimed] = await db
+      .insert(processedTransactionsTable)
+      .values({ provider, txId, telegramId })
+      .onConflictDoNothing()
+      .returning();
+    if (!claimed) {
+      req.log.info({ provider, txId }, "Skipped duplicate offerwall postback");
+      res.json(OfferwallPostbackResponse.parse({ creditedPoints: 0, lifetimePoints: 0 }));
+      return;
+    }
+  } else {
+    req.log.warn({ provider }, "Offerwall postback without transaction id — cannot dedupe replays");
   }
 
-  const creditedPoints = Math.round(amount);
+  const creditedPoints = Math.min(Math.round(amount), MAX_OFFERWALL_CREDIT);
   const [updated] = await db
     .update(vaultUsersTable)
-    .set({ lifetimePoints: user.lifetimePoints + creditedPoints })
-    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .set({ lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${creditedPoints}` })
+    .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
     .returning();
+
+  if (!updated) {
+    res.status(400).json({ error: "Unknown or banned user" });
+    return;
+  }
 
   req.log.info({ provider, telegramId, creditedPoints }, "Offerwall postback credited");
 
   res.json(
     OfferwallPostbackResponse.parse({
       creditedPoints,
-      lifetimePoints: updated?.lifetimePoints ?? user.lifetimePoints + creditedPoints,
+      lifetimePoints: updated.lifetimePoints,
     }),
   );
 });

@@ -20,3 +20,4 @@
 export * from "./vaultUsers";
 export * from "./adminSettings";
 export * from "./adminAuditLog";
+export * from "./processedTransactions";

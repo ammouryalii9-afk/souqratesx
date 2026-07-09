@@ -3,3 +3,4 @@
 - [Ready-to-activate monetization pattern](ready-to-activate-monetization.md) — expose only a filtered "enabled" config derived from admin settings; features flip on automatically once keys are pasted, no redeploy.
 - [Telegram Bot API webhook + Orval naming](telegram-webhook-orval-naming.md) — webhook setup needs HTTPS (fails on localhost, expected); Orval schema export names follow operationId, not your intuitive guess.
 - [Points anti-cheat delta cap](points-anticheat-delta-cap.md) — close a client-authoritative P2E exploit by clamping sync deltas server-side, not full rewrite; revisit at real cash-withdrawal time.
+- [Supabase connection gotchas](supabase-connection.md) — direct db.*.supabase.co host is IPv6-only/unreachable; always use the pooler URL with ssl rejectUnauthorized:false.

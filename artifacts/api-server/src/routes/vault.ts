@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { desc, eq } from "drizzle-orm";
+import { rateLimit } from "../lib/rateLimit";
 import { db, vaultUsersTable } from "@workspace/db";
 import {
   UpdateVaultMeBody,
@@ -57,7 +58,7 @@ router.get("/vault/me", async (req, res): Promise<void> => {
   );
 });
 
-router.put("/vault/me", async (req, res): Promise<void> => {
+router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
@@ -73,6 +74,11 @@ router.put("/vault/me", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!existing) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  if (existing.isBanned) {
+    res.status(403).json({ error: "This account has been banned" });
     return;
   }
 
@@ -132,6 +138,7 @@ router.get("/vault/leaderboard", async (_req, res): Promise<void> => {
   const users = await db
     .select()
     .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.isBanned, false))
     .orderBy(desc(vaultUsersTable.lifetimePoints))
     .limit(50);
 

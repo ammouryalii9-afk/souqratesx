@@ -1,6 +1,26 @@
+import crypto from "node:crypto";
 import { logger } from "./logger";
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN ?? "";
+
+/**
+ * Deterministic secret token used to authenticate incoming Telegram webhook
+ * calls (X-Telegram-Bot-Api-Secret-Token header). Derived from SESSION_SECRET
+ * so it survives restarts without extra configuration.
+ */
+export function getWebhookSecretToken(): string {
+  const base = process.env.SESSION_SECRET ?? "";
+  return crypto.createHmac("sha256", base).update("telegram-webhook-secret").digest("hex").slice(0, 64);
+}
+
+export function verifyWebhookSecretToken(headerValue: string | undefined): boolean {
+  if (!headerValue) {
+    return false;
+  }
+  const expected = Buffer.from(getWebhookSecretToken());
+  const actual = Buffer.from(headerValue);
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
 
 function apiUrl(method: string): string {
   return `https://api.telegram.org/bot${botToken}/${method}`;
@@ -49,6 +69,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<void> {
   await callBotApi("setWebhook", {
     url: webhookUrl,
     allowed_updates: ["pre_checkout_query", "message"],
+    secret_token: getWebhookSecretToken(),
   });
 }
 

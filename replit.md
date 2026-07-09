@@ -71,6 +71,17 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
   - Telegram Stars: `/stars/invoice` creates a real Stars (XTR) invoice via the Bot API using `TELEGRAM_BOT_TOKEN`; `/telegram/webhook` auto-approves `pre_checkout_query` and credits `starsBalance` / extends `premiumExpiresAt` on `successful_payment`. Admin Settings has a "ربط Webhook الآن" (setup webhook) button calling `/admin/telegram/setup-webhook` — requires HTTPS, so it only succeeds after publishing (expected failure on localhost dev).
 - Bot `/start` flow: `/admin/telegram/setup-webhook` now also calls `setMyCommands` (registers `/start`) and `setChatMenuButton` (sets a persistent "فتح التطبيق" web_app menu button next to the message box). The webhook handler (`artifacts/api-server/src/routes/telegramWebhook.ts`) replies to a `/start` message with a welcome text + an inline `web_app` button that opens the Mini App at the root domain. All three (webhook, commands, menu button) require HTTPS and are set together from the same admin action — must re-run "ربط Webhook الآن" after every deploy to a new domain.
 
+## Security hardening (launch readiness)
+
+- Telegram webhook is authenticated: `setWebhook` registers a `secret_token` (HMAC-derived from `SESSION_SECRET`), and `/telegram/webhook` rejects calls without a matching `X-Telegram-Bot-Api-Secret-Token` header — must re-run "ربط Webhook الآن" after changing `SESSION_SECRET` or deploying, or Telegram's calls get 403.
+- CORS is restricted to the app's own domains (`REPLIT_DOMAINS` + dev domain) with credentials; cookies are `sameSite: lax` (app + API are same-origin via path routing).
+- `is_banned` is enforced at login, state sync, ad rewards, offerwall credits, and banned users are hidden from the leaderboard.
+- In-memory per-IP rate limits (behind `trust proxy: 1` so IPs can't be spoofed): auth 20/min, vault sync 60/min, adsgram 30/min, postbacks 60/min, admin login 5/min.
+- All credit paths are atomic SQL increments; adsgram cooldown/daily-cap are re-checked inside the UPDATE's WHERE clause (no double-credit races). Offerwall credits capped at 1M/postback.
+- `processed_transactions` table (`lib/db/src/schema/processedTransactions.ts`) is an idempotency ledger: Stars payments dedupe on `telegram_payment_charge_id`; offerwall postbacks dedupe on `txId`/`transId`/`tx` query param when the provider sends one.
+- Server refuses to boot without `SESSION_SECRET`. Admin session tokens embed an issue timestamp and expire server-side after 12h.
+- DB is Supabase Postgres via `SUPABASE_DATABASE_URL` (pooler URL — the direct `db.*.supabase.co` host is IPv6-only and unreachable); falls back to `DATABASE_URL` if unset. All user balances were zeroed on 2026-07-09 to prepare for launch.
+
 ## User preferences
 
 - User wants SouqratesX to eventually support real cash withdrawal, but explicitly deferred that in favor of first shipping real Telegram auth + persistent server-side progress.
