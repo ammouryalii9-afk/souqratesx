@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, createStarsInvoice, type PublicConfig } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getAds, claimAd, type PublicConfig, type SponsoredAdTask } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { getTelegramWebApp } from '../lib/telegram';
 
@@ -49,9 +49,41 @@ export const TasksTab = () => {
   const [adLoading, setAdLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<string | null>(null);
 
+  const [sponsoredAds, setSponsoredAds] = useState<SponsoredAdTask[]>([]);
+  const [claimingAdId, setClaimingAdId] = useState<number | null>(null);
+  const [openedAdIds, setOpenedAdIds] = useState<number[]>([]);
+
+  const loadAds = () => {
+    getAds().then(setSponsoredAds).catch(() => setSponsoredAds([]));
+  };
+
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
+    loadAds();
   }, []);
+
+  const handleAdAction = async (ad: SponsoredAdTask) => {
+    if (ad.claimed || claimingAdId) return;
+
+    if (!openedAdIds.includes(ad.id)) {
+      window.open(ad.linkUrl, '_blank');
+      setOpenedAdIds(prev => [...prev, ad.id]);
+      return;
+    }
+
+    setClaimingAdId(ad.id);
+    try {
+      const result = await claimAd(ad.id);
+      setTempMiningPoints(prev => prev + result.creditedPoints);
+      addLifetimePoints(result.creditedPoints);
+      setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, claimed: true } : a));
+      toast({ title: 'Reward Claimed!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Could not claim reward', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setClaimingAdId(null);
+    }
+  };
 
   const handleWatchAd = async () => {
     if (!config?.adsgram.enabled || !config.adsgram.blockId || adLoading) return;
@@ -559,6 +591,50 @@ export const TasksTab = () => {
           </button>
         </div>
       </section>
+
+      {/* Sponsored Ads (Admin-managed) */}
+      {sponsoredAds.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-bold text-white">Sponsored Offers</h2>
+          </div>
+          <div className="space-y-3">
+            {sponsoredAds.map((ad) => {
+              const isOpened = openedAdIds.includes(ad.id);
+              const isClaiming = claimingAdId === ad.id;
+              return (
+                <div key={ad.id} data-testid={`row-sponsored-ad-${ad.id}`} className="bg-card border border-white/5 rounded-xl p-4 flex items-center gap-3">
+                  {ad.imageUrl && (
+                    <img src={ad.imageUrl} alt={ad.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white text-sm mb-1 truncate">{ad.title}</h3>
+                    {ad.description && <p className="text-xs text-muted-foreground truncate">{ad.description}</p>}
+                    <p className="text-xs font-medium text-primary mt-1">+{ad.rewardPoints.toLocaleString()} pts</p>
+                  </div>
+                  <button
+                    data-testid={`button-sponsored-ad-${ad.id}`}
+                    onClick={() => handleAdAction(ad)}
+                    disabled={ad.claimed || isClaiming}
+                    className="min-w-[90px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center gap-1 disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+                  >
+                    {ad.claimed ? (
+                      <><Check className="w-3.5 h-3.5" /> Done</>
+                    ) : isClaiming ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isOpened ? (
+                      'Claim'
+                    ) : (
+                      <>Open <ExternalLink className="w-3 h-3" /></>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Offerwalls / Surveys */}
       <section>

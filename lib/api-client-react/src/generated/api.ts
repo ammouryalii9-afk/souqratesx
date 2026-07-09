@@ -32,19 +32,24 @@ import type {
   BroadcastJob,
   BroadcastJobList,
   BroadcastRequest,
+  CreateSponsoredAdBody,
   EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
   HealthStatus,
   LeaderboardEntryList,
   OfferwallPostbackParams,
+  PublicAdList,
   PublicConfig,
+  SponsoredAd,
+  SponsoredAdList,
   StarsInvoiceInput,
   StarsInvoiceResult,
   TelegramAuthInput,
   TelegramWebhook200,
   TelegramWebhookSetupResult,
   TelegramWebhookUpdate,
+  UpdateSponsoredAdBody,
   UserActivityList,
   VaultSession,
   VaultStateUpdate
@@ -1650,6 +1655,297 @@ export const useSetupTelegramWebhook = <TError = ErrorType<ErrorResponse>,
       return useMutation(getSetupTelegramWebhookMutationOptions(options));
     }
 
+export const getGetAdminAdsUrl = () => {
+
+
+
+
+  return `/api/admin/ads`
+}
+
+/**
+ * @summary List all sponsored ads (active and inactive)
+ */
+export const getAdminAds = async ( options?: RequestInit): Promise<SponsoredAdList> => {
+
+  return customFetch<SponsoredAdList>(getGetAdminAdsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminAdsQueryKey = () => {
+    return [
+    `/api/admin/ads`
+    ] as const;
+    }
+
+
+export const getGetAdminAdsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminAds>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminAdsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminAds>>> = ({ signal }) => getAdminAds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminAds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminAdsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminAds>>>
+export type GetAdminAdsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all sponsored ads (active and inactive)
+ */
+
+export function useGetAdminAds<TData = Awaited<ReturnType<typeof getAdminAds>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminAdsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminAdUrl = () => {
+
+
+
+
+  return `/api/admin/ads`
+}
+
+/**
+ * @summary Create a sponsored ad, optionally broadcasting it as a Telegram notification
+ */
+export const createAdminAd = async (createSponsoredAdBody: CreateSponsoredAdBody, options?: RequestInit): Promise<SponsoredAd> => {
+
+  return customFetch<SponsoredAd>(getCreateAdminAdUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSponsoredAdBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAd>>, TError,{data: BodyType<CreateSponsoredAdBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminAd>>, TError,{data: BodyType<CreateSponsoredAdBody>}, TContext> => {
+
+const mutationKey = ['createAdminAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminAd>>, {data: BodyType<CreateSponsoredAdBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminAd(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminAdMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminAd>>>
+    export type CreateAdminAdMutationBody = BodyType<CreateSponsoredAdBody>
+    export type CreateAdminAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a sponsored ad, optionally broadcasting it as a Telegram notification
+ */
+export const useCreateAdminAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAd>>, TError,{data: BodyType<CreateSponsoredAdBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminAd>>,
+        TError,
+        {data: BodyType<CreateSponsoredAdBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminAdMutationOptions(options));
+    }
+
+export const getUpdateAdminAdUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/ads/${id}`
+}
+
+/**
+ * @summary Update a sponsored ad (e.g. toggle active state)
+ */
+export const updateAdminAd = async (id: number,
+    updateSponsoredAdBody: UpdateSponsoredAdBody, options?: RequestInit): Promise<SponsoredAd> => {
+
+  return customFetch<SponsoredAd>(getUpdateAdminAdUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateSponsoredAdBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminAd>>, TError,{id: number;data: BodyType<UpdateSponsoredAdBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminAd>>, TError,{id: number;data: BodyType<UpdateSponsoredAdBody>}, TContext> => {
+
+const mutationKey = ['updateAdminAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminAd>>, {id: number;data: BodyType<UpdateSponsoredAdBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdminAd(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminAdMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminAd>>>
+    export type UpdateAdminAdMutationBody = BodyType<UpdateSponsoredAdBody>
+    export type UpdateAdminAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a sponsored ad (e.g. toggle active state)
+ */
+export const useUpdateAdminAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminAd>>, TError,{id: number;data: BodyType<UpdateSponsoredAdBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminAd>>,
+        TError,
+        {id: number;data: BodyType<UpdateSponsoredAdBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAdminAdMutationOptions(options));
+    }
+
+export const getDeleteAdminAdUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/ads/${id}`
+}
+
+/**
+ * @summary Delete a sponsored ad
+ */
+export const deleteAdminAd = async (id: number, options?: RequestInit): Promise<AdminSessionStatus> => {
+
+  return customFetch<AdminSessionStatus>(getDeleteAdminAdUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAd>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAdminAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminAd>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminAd(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminAdMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminAd>>>
+
+    export type DeleteAdminAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a sponsored ad
+ */
+export const useDeleteAdminAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminAd>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAdminAdMutationOptions(options));
+    }
+
 export const getGetPublicConfigUrl = () => {
 
 
@@ -1726,6 +2022,154 @@ export function useGetPublicConfig<TData = Awaited<ReturnType<typeof getPublicCo
 
 
 
+
+export const getGetAdsUrl = () => {
+
+
+
+
+  return `/api/ads`
+}
+
+/**
+ * @summary List active sponsored ads for the current user, including whether each has already been claimed
+ */
+export const getAds = async ( options?: RequestInit): Promise<PublicAdList> => {
+
+  return customFetch<PublicAdList>(getGetAdsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdsQueryKey = () => {
+    return [
+    `/api/ads`
+    ] as const;
+    }
+
+
+export const getGetAdsQueryOptions = <TData = Awaited<ReturnType<typeof getAds>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAds>>> = ({ signal }) => getAds({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAds>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdsQueryResult = NonNullable<Awaited<ReturnType<typeof getAds>>>
+export type GetAdsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List active sponsored ads for the current user, including whether each has already been claimed
+ */
+
+export function useGetAds<TData = Awaited<ReturnType<typeof getAds>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAds>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getClaimAdUrl = (id: number,) => {
+
+
+
+
+  return `/api/ads/${id}/claim`
+}
+
+/**
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ */
+export const claimAd = async (id: number, options?: RequestInit): Promise<EarnRewardResult> => {
+
+  return customFetch<EarnRewardResult>(getClaimAdUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getClaimAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimAd>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['claimAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimAd>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  claimAd(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimAdMutationResult = NonNullable<Awaited<ReturnType<typeof claimAd>>>
+
+    export type ClaimAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ */
+export const useClaimAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimAd>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getClaimAdMutationOptions(options));
+    }
 
 export const getClaimAdsgramRewardUrl = () => {
 

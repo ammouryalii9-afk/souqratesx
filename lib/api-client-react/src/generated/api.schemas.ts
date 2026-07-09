@@ -289,6 +289,60 @@ export interface StarsInvoiceResult {
  */
 export interface TelegramWebhookUpdate { [key: string]: unknown }
 
+export interface SponsoredAd {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  imageUrl: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type SponsoredAdList = SponsoredAd[];
+
+export interface CreateSponsoredAdBody {
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  linkUrl: string;
+  /** @minimum 1 */
+  rewardPoints: number;
+  /** When true, also broadcasts the ad as a Telegram notification to all users */
+  notify?: boolean;
+}
+
+export interface UpdateSponsoredAdBody {
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  linkUrl?: string;
+  /** @minimum 1 */
+  rewardPoints?: number;
+  isActive?: boolean;
+}
+
+export interface PublicAd {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  imageUrl: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  claimed: boolean;
+}
+
+export type PublicAdList = PublicAd[];
+
 export type GetAdminUsersParams = {
 search?: string;
 limit?: number;

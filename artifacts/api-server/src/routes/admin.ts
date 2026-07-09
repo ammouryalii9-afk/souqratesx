@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable } from "@workspace/db";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -22,6 +22,11 @@ import {
   CreateAdminBroadcastBody,
   CreateAdminBroadcastResponse,
   GetAdminBroadcastResponse,
+  GetAdminAdsResponse,
+  CreateAdminAdBody,
+  CreateAdminAdResponse,
+  UpdateAdminAdBody,
+  UpdateAdminAdResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
@@ -388,6 +393,129 @@ router.get("/admin/users/:telegramId/activity", async (req, res): Promise<void> 
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   res.json(GetAdminUserActivityResponse.parse(merged));
+});
+
+function toSponsoredAd(row: typeof sponsoredAdsTable.$inferSelect) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    imageUrl: row.imageUrl,
+    linkUrl: row.linkUrl,
+    rewardPoints: row.rewardPoints,
+    isActive: row.isActive,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+router.get("/admin/ads", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const rows = await db.select().from(sponsoredAdsTable).orderBy(desc(sponsoredAdsTable.createdAt));
+  res.json(GetAdminAdsResponse.parse(rows.map(toSponsoredAd)));
+});
+
+router.post("/admin/ads", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const parsed = CreateAdminAdBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { notify, ...adInput } = parsed.data;
+
+  const [ad] = await db
+    .insert(sponsoredAdsTable)
+    .values({
+      title: adInput.title,
+      description: adInput.description ?? null,
+      imageUrl: adInput.imageUrl ?? null,
+      linkUrl: adInput.linkUrl,
+      rewardPoints: adInput.rewardPoints,
+    })
+    .returning();
+
+  if (!ad) {
+    res.status(400).json({ error: "Failed to create ad" });
+    return;
+  }
+
+  await logAdminAction("create_ad", null, { adId: ad.id, title: ad.title, notify: Boolean(notify) });
+
+  if (notify && isTelegramBotConfigured()) {
+    const message = `📢 ${ad.title}\n\n${ad.description ?? ""}\n\nأكمل المهمة في تطبيق SouqrateX واحصل على ${ad.rewardPoints.toLocaleString()} نقطة!`.trim();
+    const [job] = await db.insert(broadcastJobsTable).values({ message, audience: "all", status: "pending" }).returning();
+    if (job) {
+      runBroadcastJob(job.id, message, "all").catch((err) => {
+        logger.error({ err, jobId: job.id }, "Ad notification broadcast failed");
+      });
+    }
+  }
+
+  res.json(CreateAdminAdResponse.parse(toSponsoredAd(ad)));
+});
+
+router.patch("/admin/ads/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(404).json({ error: "Ad not found" });
+    return;
+  }
+
+  const parsed = UpdateAdminAdBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const patch: Partial<typeof sponsoredAdsTable.$inferInsert> = {};
+  if (parsed.data.title !== undefined) patch.title = parsed.data.title;
+  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (parsed.data.imageUrl !== undefined) patch.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.linkUrl !== undefined) patch.linkUrl = parsed.data.linkUrl;
+  if (parsed.data.rewardPoints !== undefined) patch.rewardPoints = parsed.data.rewardPoints;
+  if (parsed.data.isActive !== undefined) patch.isActive = parsed.data.isActive;
+
+  const [ad] = await db.update(sponsoredAdsTable).set(patch).where(eq(sponsoredAdsTable.id, id)).returning();
+  if (!ad) {
+    res.status(404).json({ error: "Ad not found" });
+    return;
+  }
+
+  await logAdminAction("update_ad", null, { adId: id, ...patch });
+
+  res.json(UpdateAdminAdResponse.parse(toSponsoredAd(ad)));
+});
+
+router.delete("/admin/ads/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(404).json({ error: "Ad not found" });
+    return;
+  }
+
+  await db.delete(sponsoredAdsTable).where(eq(sponsoredAdsTable.id, id));
+  await logAdminAction("delete_ad", null, { adId: id });
+
+  res.json(AdminLogoutResponse.parse({ authenticated: true }));
 });
 
 router.get("/admin/broadcast", async (req, res): Promise<void> => {

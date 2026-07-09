@@ -6,3 +6,4 @@
 - [Supabase connection gotchas](supabase-connection.md) — direct db.*.supabase.co host is IPv6-only/unreachable; always use the pooler URL with ssl rejectUnauthorized:false.
 - [Client-authoritative sync vs server-applied effects](client-sync-vs-server-effects.md) — when a server-side event (e.g. IAP webhook) grants an effect into client-owned state, client must refetch or the next autosync silently overwrites it.
 - [Main agent git restrictions](main-agent-git.md) — `git commit`/destructive git ops are blocked in main agent; platform auto-commits at end of turn, then push to external remotes (e.g. GitHub) in a later turn.
+- [Sponsored ads feature](sponsored-ads.md) — admin-created ads reuse the existing broadcast-job pipeline for Telegram notify, and surface as claimable tasks with a claim-idempotency table.

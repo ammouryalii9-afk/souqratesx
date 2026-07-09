@@ -41,7 +41,7 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
 export async function awardReferralBonus(
   earnerTelegramId: string,
   baseAmount: number,
-  source: "adsgram" | "offerwall",
+  source: "adsgram" | "offerwall" | "sponsored_ad",
   extra: Record<string, unknown> = {},
 ): Promise<void> {
   if (!Number.isFinite(baseAmount) || baseAmount <= 0) return;

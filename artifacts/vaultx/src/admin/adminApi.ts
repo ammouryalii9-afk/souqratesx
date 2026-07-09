@@ -103,6 +103,35 @@ export type BroadcastJob = {
   completedAt: string | null;
 };
 
+export type SponsoredAd = {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type CreateSponsoredAdInput = {
+  title: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  notify?: boolean;
+};
+
+export type UpdateSponsoredAdInput = Partial<{
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  isActive: boolean;
+}>;
+
 export const adminApi = {
   login: (password: string) =>
     adminFetch<AdminSessionStatus>("/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
@@ -134,4 +163,10 @@ export const adminApi = {
   createBroadcast: (message: string, audience: string) =>
     adminFetch<BroadcastJob>("/admin/broadcast", { method: "POST", body: JSON.stringify({ message, audience }) }),
   broadcast: (id: number) => adminFetch<BroadcastJob>(`/admin/broadcast/${id}`),
+  ads: () => adminFetch<SponsoredAd[]>("/admin/ads"),
+  createAd: (input: CreateSponsoredAdInput) =>
+    adminFetch<SponsoredAd>("/admin/ads", { method: "POST", body: JSON.stringify(input) }),
+  updateAd: (id: number, patch: UpdateSponsoredAdInput) =>
+    adminFetch<SponsoredAd>(`/admin/ads/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteAd: (id: number) => adminFetch<AdminSessionStatus>(`/admin/ads/${id}`, { method: "DELETE" }),
 };

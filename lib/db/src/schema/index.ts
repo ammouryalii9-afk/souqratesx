@@ -23,3 +23,4 @@ export * from "./adminAuditLog";
 export * from "./processedTransactions";
 export * from "./userActivityLog";
 export * from "./broadcastJobs";
+export * from "./sponsoredAds";

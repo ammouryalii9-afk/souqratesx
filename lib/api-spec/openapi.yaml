@@ -24,6 +24,8 @@ tags:
     description: Telegram Stars purchases
   - name: telegram
     description: Telegram Bot webhook
+  - name: ads
+    description: Sponsored ad management and claiming
 paths:
   /healthz:
     get:
@@ -479,6 +481,112 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/ads:
+    get:
+      operationId: getAdminAds
+      tags: [admin]
+      summary: List all sponsored ads (active and inactive)
+      responses:
+        "200":
+          description: Sponsored ads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsoredAdList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAdminAd
+      tags: [admin]
+      summary: Create a sponsored ad, optionally broadcasting it as a Telegram notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSponsoredAdBody"
+      responses:
+        "200":
+          description: Sponsored ad created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsoredAd"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/ads/{id}:
+    patch:
+      operationId: updateAdminAd
+      tags: [admin]
+      summary: Update a sponsored ad (e.g. toggle active state)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSponsoredAdBody"
+      responses:
+        "200":
+          description: Sponsored ad updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsoredAd"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Ad not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAdminAd
+      tags: [admin]
+      summary: Delete a sponsored ad
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ad deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /config/public:
     get:
       operationId: getPublicConfig
@@ -491,6 +599,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublicConfig"
+  /ads:
+    get:
+      operationId: getAds
+      tags: [ads]
+      summary: List active sponsored ads for the current user, including whether each has already been claimed
+      responses:
+        "200":
+          description: Active sponsored ads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAdList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /ads/{id}/claim:
+    post:
+      operationId: claimAd
+      tags: [ads]
+      summary: Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reward credited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnRewardResult"
+        "400":
+          description: Ad not found, inactive, or already claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /earn/adsgram/reward:
     post:
       operationId: claimAdsgramReward
@@ -1113,3 +1269,101 @@ components:
       type: object
       description: Raw Telegram Bot API Update object
       additionalProperties: true
+    SponsoredAd:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: string
+        rewardPoints:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - description
+        - imageUrl
+        - linkUrl
+        - rewardPoints
+        - isActive
+        - createdAt
+    SponsoredAdList:
+      type: array
+      items:
+        $ref: "#/components/schemas/SponsoredAd"
+    CreateSponsoredAdBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: string
+        rewardPoints:
+          type: integer
+          minimum: 1
+        notify:
+          type: boolean
+          description: When true, also broadcasts the ad as a Telegram notification to all users
+      required:
+        - title
+        - linkUrl
+        - rewardPoints
+    UpdateSponsoredAdBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: string
+        rewardPoints:
+          type: integer
+          minimum: 1
+        isActive:
+          type: boolean
+    PublicAd:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: string
+        rewardPoints:
+          type: integer
+        claimed:
+          type: boolean
+      required:
+        - id
+        - title
+        - description
+        - imageUrl
+        - linkUrl
+        - rewardPoints
+        - claimed
+    PublicAdList:
+      type: array
+      items:
+        $ref: "#/components/schemas/PublicAd"

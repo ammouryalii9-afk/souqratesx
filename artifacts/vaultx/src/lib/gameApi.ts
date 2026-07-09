@@ -43,3 +43,21 @@ export function claimAdsgramReward(): Promise<{ creditedPoints: number; lifetime
 export function createStarsInvoice(product: "energy_refill" | "boost" | "premium_month"): Promise<{ invoiceUrl: string; priceStars: number }> {
   return apiFetch("/stars/invoice", { method: "POST", body: JSON.stringify({ product }) });
 }
+
+export type SponsoredAdTask = {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  linkUrl: string;
+  rewardPoints: number;
+  claimed: boolean;
+};
+
+export function getAds(): Promise<SponsoredAdTask[]> {
+  return apiFetch<SponsoredAdTask[]>("/ads");
+}
+
+export function claimAd(id: number): Promise<{ creditedPoints: number; lifetimePoints: number }> {
+  return apiFetch(`/ads/${id}/claim`, { method: "POST" });
+}

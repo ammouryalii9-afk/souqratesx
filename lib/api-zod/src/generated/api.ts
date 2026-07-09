@@ -354,6 +354,92 @@ export const SetupTelegramWebhookResponse = zod.object({
 
 
 /**
+ * @summary List all sponsored ads (active and inactive)
+ */
+export const GetAdminAdsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "linkUrl": zod.string(),
+  "rewardPoints": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetAdminAdsResponse = zod.array(GetAdminAdsResponseItem)
+
+
+/**
+ * @summary Create a sponsored ad, optionally broadcasting it as a Telegram notification
+ */
+
+
+
+export const CreateAdminAdBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "linkUrl": zod.string(),
+  "rewardPoints": zod.number().min(1),
+  "notify": zod.boolean().optional().describe('When true, also broadcasts the ad as a Telegram notification to all users')
+})
+
+export const CreateAdminAdResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "linkUrl": zod.string(),
+  "rewardPoints": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a sponsored ad (e.g. toggle active state)
+ */
+export const UpdateAdminAdParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateAdminAdBody = zod.object({
+  "title": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "linkUrl": zod.string().optional(),
+  "rewardPoints": zod.number().min(1).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAdminAdResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "linkUrl": zod.string(),
+  "rewardPoints": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a sponsored ad
+ */
+export const DeleteAdminAdParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAdminAdResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
  * @summary Get public, non-secret runtime configuration flags used to activate frontend features
  */
 export const GetPublicConfigResponse = zod.object({
@@ -380,6 +466,34 @@ export const GetPublicConfigResponse = zod.object({
   "monthlyPriceStars": zod.number(),
   "earningsMultiplier": zod.number()
 })
+})
+
+
+/**
+ * @summary List active sponsored ads for the current user, including whether each has already been claimed
+ */
+export const GetAdsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "linkUrl": zod.string(),
+  "rewardPoints": zod.number(),
+  "claimed": zod.boolean()
+})
+export const GetAdsResponse = zod.array(GetAdsResponseItem)
+
+
+/**
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ */
+export const ClaimAdParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ClaimAdResponse = zod.object({
+  "creditedPoints": zod.number(),
+  "lifetimePoints": zod.number()
 })
 
 
