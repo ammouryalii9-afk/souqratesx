@@ -70,7 +70,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 85);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
   const [totalReferrals] = useState(14);
-  const [referralEarnings] = useState(1.50);
+  const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 1.50);
 
   const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
   const [turboUsesToday, setTurboUsesToday] = useState(() => Number(localStorage.getItem('turboUsesToday')) || 0);
@@ -112,7 +112,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('farmState', farmState);
     localStorage.setItem('farmStartTime', farmStartTime.toString());
     localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
+    localStorage.setItem('referralEarnings', referralEarnings.toString());
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, referralEarnings]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -135,7 +136,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const interval = setInterval(() => {
       setEnergy((prevEnergy) => {
         if (prevEnergy <= 0) return prevEnergy;
-        setTempMiningPoints((prevPoints) => prevPoints + (miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100));
+        const idlePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+        setTempMiningPoints((prevPoints) => prevPoints + idlePts);
+        setLifetimePoints((prevLifetime) => prevLifetime + idlePts);
         return prevEnergy - 1;
       });
     }, 30000);
@@ -181,6 +184,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 3600000);
     return () => clearInterval(interval);
   }, [profitPerHour]);
+
+  // Trickle referral earnings
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (totalReferrals > 0) {
+        setReferralEarnings(prev => prev + (totalReferrals * 0.001));
+      }
+    }, 3600000); // every 1 hour
+    return () => clearInterval(interval);
+  }, [totalReferrals]);
 
   const claimEarnings = () => {
     const usdToAdd = (tempMiningPoints / 10000) * 0.01;

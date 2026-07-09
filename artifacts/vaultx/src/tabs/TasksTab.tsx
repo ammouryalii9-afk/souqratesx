@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift } from 'lucide-react';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3 } from 'lucide-react';
 
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
 
@@ -20,6 +20,15 @@ const COMBO_ICONS = [
   { id: 'gem', icon: Gem },
 ];
 
+const MORSE_CODE: Record<string, string> = {
+  A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..',
+  J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.',
+  S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..'
+};
+const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SAFE', 'COIN', 'MOON'];
+
+const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
+
 export const TasksTab = () => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
   const { toast } = useToast();
@@ -35,15 +44,93 @@ export const TasksTab = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
   
+  // Daily Cipher State
+  const dayOfYear = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  })();
+  const dailyWord = DAILY_WORDS[dayOfYear % DAILY_WORDS.length];
+  const morseCode = dailyWord.split('').map(char => MORSE_CODE[char]).join(' ');
+
+  const [cipherGuess, setCipherGuess] = useState('');
+  const [cipherSolved, setCipherSolved] = useState(() => {
+    return localStorage.getItem('dailyCipherDate') === todayStr 
+      ? localStorage.getItem('dailyCipherSolved') === 'true'
+      : false;
+  });
+  const [cipherError, setCipherError] = useState(false);
+  const [showCipherHint, setShowCipherHint] = useState(false);
+
+  useEffect(() => {
+    if (cipherSolved) return;
+    const timer = setTimeout(() => {
+      setShowCipherHint(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [cipherSolved]);
+
+  const handleCipherSubmit = () => {
+    if (cipherGuess.toUpperCase() === dailyWord) {
+      setTempMiningPoints(prev => prev + 30000);
+      addLifetimePoints(30000);
+      setCipherSolved(true);
+      localStorage.setItem('dailyCipherDate', todayStr);
+      localStorage.setItem('dailyCipherSolved', 'true');
+      toast({ title: "Cipher Solved!", description: "+30,000 pts" });
+      setCipherError(false);
+    } else {
+      setCipherError(true);
+      setTimeout(() => setCipherError(false), 500);
+      toast({ title: "Wrong Guess", description: "Try again!", variant: "destructive" });
+    }
+  };
+
+  // Daily Combo State
   const [comboResult, setComboResult] = useState<'none' | 'success' | 'failed'>(() => {
     const savedDate = localStorage.getItem('dailyComboDate');
     return savedDate === todayStr ? (localStorage.getItem('dailyComboResult') as any) || 'none' : 'none';
   });
   const [selectedCombo, setSelectedCombo] = useState<string[]>([]);
+  const targetCombo = ['star', 'globe', 'gem'];
   
-  // Deterministic target combo based on date
-  const targetCombo = ['star', 'globe', 'gem']; // Hardcoded for simplicity in demo
+  // Spin Wheel State
+  const [spinHasSpun, setSpinHasSpun] = useState(() => localStorage.getItem('lastSpinDate') === todayStr);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [spinRotation, setSpinRotation] = useState(0);
+
+  const handleSpin = () => {
+    if (spinHasSpun || isSpinning) return;
+    setIsSpinning(true);
+    
+    const segmentIndex = Math.floor(Math.random() * SPIN_SEGMENTS.length);
+    const reward = SPIN_SEGMENTS[segmentIndex];
+    
+    const segmentAngle = 360 / SPIN_SEGMENTS.length;
+    const centerAngle = (segmentIndex + 0.5) * segmentAngle;
+    const targetRotation = spinRotation + (360 * 5) + (360 - centerAngle); 
+
+    setSpinRotation(targetRotation);
+
+    setTimeout(() => {
+      setTempMiningPoints(prev => prev + reward);
+      addLifetimePoints(reward);
+      setSpinHasSpun(true);
+      localStorage.setItem('lastSpinDate', todayStr);
+      setIsSpinning(false);
+      toast({ title: "Spin Complete!", description: `You won ${reward} points!` });
+    }, 3000);
+  };
+
+  const spinWheelGradient = SPIN_SEGMENTS.map((s, i) => {
+    const start = (i * 360) / SPIN_SEGMENTS.length;
+    const end = ((i + 1) * 360) / SPIN_SEGMENTS.length;
+    const color = s === 10000 ? '#f5c518' : i % 2 === 0 ? '#1f1f1f' : '#2a2a2a';
+    return `${color} ${start}deg ${end}deg`;
+  }).join(', ');
   
+  // Airdrop State
   const [airdropTime, setAirdropTime] = useState({ d: 0, h: 0, m: 0, s: 0 });
 
   useEffect(() => {
@@ -53,7 +140,7 @@ export const TasksTab = () => {
   }, [currentStreak, lastLoginDate, claimedTasks]);
 
   useEffect(() => {
-    const target = new Date('2025-09-01T00:00:00Z').getTime();
+    const target = new Date('2026-10-01T00:00:00Z').getTime();
     const interval = setInterval(() => {
       const now = Date.now();
       const diff = Math.max(0, target - now);
@@ -155,6 +242,59 @@ export const TasksTab = () => {
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
       
+      {/* Daily Cipher */}
+      <section>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Radio className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-bold text-white">Daily Cipher</h2>
+          </div>
+          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+30,000 pts</span>
+        </div>
+        <div className={`bg-card border ${cipherError ? 'border-red-500/50 translate-x-1' : 'border-white/5'} rounded-xl p-4 transition-all duration-100`}>
+          {cipherSolved ? (
+            <div className="text-center py-4 text-emerald-400 font-bold flex flex-col items-center gap-2">
+              <Check className="w-8 h-8" />
+              Cipher Solved! +30,000 pts
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="text-center">
+                <div className="text-2xl tracking-widest font-mono text-primary font-bold">{morseCode}</div>
+                <div className="text-xs text-muted-foreground mt-2">Decode the morse code!</div>
+              </div>
+              <input
+                type="text"
+                data-testid="input-cipher-guess"
+                value={cipherGuess}
+                onChange={(e) => setCipherGuess(e.target.value.toUpperCase())}
+                maxLength={dailyWord.length}
+                placeholder={`${dailyWord.length}-letter word`}
+                className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-center text-xl font-bold text-white tracking-widest focus:outline-none focus:border-primary uppercase"
+              />
+              <div className="flex gap-2">
+                {showCipherHint && (
+                  <button 
+                    onClick={() => setCipherGuess(dailyWord[0])}
+                    className="flex-1 bg-white/10 text-white font-bold py-3 rounded-lg"
+                  >
+                    Reveal Hint
+                  </button>
+                )}
+                <button 
+                  data-testid="button-cipher-submit"
+                  onClick={handleCipherSubmit} 
+                  disabled={cipherGuess.length !== dailyWord.length}
+                  className="flex-[2] bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Daily Combo */}
       <section>
         <div className="flex justify-between items-center mb-4">
@@ -205,6 +345,54 @@ export const TasksTab = () => {
               </button>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Daily Spin Wheel */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Disc3 className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold text-white">Daily Spin</h2>
+        </div>
+        <div className="bg-card border border-white/5 rounded-xl p-6 flex flex-col items-center overflow-hidden">
+          <div className="relative w-48 h-48 mb-6">
+            {/* Wheel */}
+            <div 
+              className="w-full h-full rounded-full border-4 border-white/10 shadow-2xl transition-transform ease-[cubic-bezier(0.1,0.7,0.1,1)]"
+              style={{
+                background: `conic-gradient(${spinWheelGradient})`,
+                transform: `rotate(${spinRotation}deg)`,
+                transitionDuration: isSpinning ? '3s' : '0s'
+              }}
+            >
+              {SPIN_SEGMENTS.map((reward, i) => {
+                const rotation = (i * 360) / SPIN_SEGMENTS.length + (180 / SPIN_SEGMENTS.length);
+                return (
+                  <div 
+                    key={i}
+                    className="absolute w-full h-full flex justify-center items-start pt-2 font-bold text-xs"
+                    style={{ transform: `rotate(${rotation}deg)` }}
+                  >
+                    <span className={`origin-bottom ${reward === 10000 ? 'text-black' : 'text-white/80'}`}>
+                      {reward >= 1000 ? `${reward/1000}k` : reward}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Center Pin / Pointer */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-4 h-6 bg-primary" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-black rounded-full border-2 border-white/20"></div>
+          </div>
+          
+          <button 
+            data-testid="button-spin-wheel"
+            onClick={handleSpin}
+            disabled={spinHasSpun || isSpinning}
+            className="w-full bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+          >
+            {isSpinning ? 'Spinning...' : spinHasSpun ? 'Come back tomorrow' : 'Spin Wheel'}
+          </button>
         </div>
       </section>
 
