@@ -57,7 +57,7 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 
 - Tap-to-mine core loop with miner level upgrades and energy system
 - Idle mining, passive income cards, and an 8-hour farming cycle
-- Games tab: 4 mini-games for extra points — Tappy Dodge (dodge canvas game), Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins)
+- Games tab: 3 mini-games for extra points — Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins). (A 4th game, "Tappy Dodge", was removed — its physics/lifecycle bugs were too costly to keep debugging.)
 - Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel
 - Referral system with trickling referral earnings
 - Global leaderboard by lifetime points
