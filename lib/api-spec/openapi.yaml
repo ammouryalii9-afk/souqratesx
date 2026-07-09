@@ -13,7 +13,9 @@ tags:
   - name: auth
     description: Authentication operations
   - name: vault
-    description: VaultX game state operations
+    description: SouqratesX game state operations
+  - name: admin
+    description: Admin control panel operations
 paths:
   /healthz:
     get:
@@ -106,6 +108,250 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeaderboardEntryList"
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Log in to the admin control panel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+        "401":
+          description: Invalid admin password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Log out of the admin control panel
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Check the current admin session
+      responses:
+        "200":
+          description: Admin session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get aggregate platform stats
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: List / search users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Users page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/users/{telegramId}:
+    get:
+      operationId: getAdminUser
+      tags: [admin]
+      summary: Get a single user's full record
+      parameters:
+        - name: telegramId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full user record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetail"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateAdminUser
+      tags: [admin]
+      summary: Edit any field of a user's record (points, balance, ban status, premium, stars, notes, full state)
+      parameters:
+        - name: telegramId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserPatch"
+      responses:
+        "200":
+          description: Updated user record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetail"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAdminUser
+      tags: [admin]
+      summary: Permanently delete a user
+      parameters:
+        - name: telegramId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/settings:
+    get:
+      operationId: getAdminSettings
+      tags: [admin]
+      summary: Get all platform settings (economy tuning, ads, CPA/offerwalls, surveys, premium, Telegram Stars)
+      responses:
+        "200":
+          description: Settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettingsMap"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateAdminSettings
+      tags: [admin]
+      summary: Bulk update platform settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSettingsMap"
+      responses:
+        "200":
+          description: Updated settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettingsMap"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/audit-log:
+    get:
+      operationId: getAdminAuditLog
+      tags: [admin]
+      summary: Get recent admin actions
+      responses:
+        "200":
+          description: Recent admin actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuditLogList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -199,3 +445,176 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/LeaderboardEntry"
+    AdminLoginInput:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
+    AdminSessionStatus:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+      required:
+        - authenticated
+    AdminStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalLifetimePoints:
+          type: number
+        totalBalanceUSD:
+          type: number
+        premiumUsers:
+          type: integer
+        bannedUsers:
+          type: integer
+        newUsersToday:
+          type: integer
+      required:
+        - totalUsers
+        - totalLifetimePoints
+        - totalBalanceUSD
+        - premiumUsers
+        - bannedUsers
+        - newUsersToday
+    AdminUserSummary:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        username:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        lifetimePoints:
+          type: integer
+        isBanned:
+          type: boolean
+        isPremium:
+          type: boolean
+        starsBalance:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - telegramId
+        - username
+        - firstName
+        - lastName
+        - photoUrl
+        - lifetimePoints
+        - isBanned
+        - isPremium
+        - starsBalance
+        - createdAt
+    AdminUserList:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserSummary"
+        total:
+          type: integer
+      required:
+        - users
+        - total
+    AdminUserDetail:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        username:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        lifetimePoints:
+          type: integer
+        isBanned:
+          type: boolean
+        isPremium:
+          type: boolean
+        premiumExpiresAt:
+          type: ["string", "null"]
+        starsBalance:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        state:
+          $ref: "#/components/schemas/VaultStateData"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - telegramId
+        - username
+        - firstName
+        - lastName
+        - photoUrl
+        - lifetimePoints
+        - isBanned
+        - isPremium
+        - premiumExpiresAt
+        - starsBalance
+        - notes
+        - state
+        - createdAt
+        - updatedAt
+    AdminUserPatch:
+      type: object
+      properties:
+        lifetimePoints:
+          type: integer
+        isBanned:
+          type: boolean
+        isPremium:
+          type: boolean
+        premiumExpiresAt:
+          type: ["string", "null"]
+        starsBalance:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        state:
+          $ref: "#/components/schemas/VaultStateData"
+    AdminSettingsMap:
+      type: object
+      description: Freeform key/value platform settings blob (economy tuning, ads, CPA/offerwalls, surveys, premium plans, Telegram Stars products)
+      additionalProperties: true
+    AdminAuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        targetTelegramId:
+          type: ["string", "null"]
+        details:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - action
+        - targetTelegramId
+        - details
+        - createdAt
+    AdminAuditLogList:
+      type: array
+      items:
+        $ref: "#/components/schemas/AdminAuditLogEntry"

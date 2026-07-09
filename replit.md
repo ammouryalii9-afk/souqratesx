@@ -35,7 +35,11 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - `artifacts/api-server/src/lib/telegramAuth.ts` — HMAC verification of Telegram `initData`
 - `artifacts/api-server/src/lib/session.ts` — signed session cookie helpers
 - `lib/db/src/schema/vaultUsers.ts` — `vault_users` table (source of truth for user schema)
+- `lib/db/src/schema/adminSettings.ts` — `admin_settings` key/value table for global platform config (economy tuning, ads, CPA/offerwalls, surveys, Stars, Premium — API keys pending from user)
+- `lib/db/src/schema/adminAuditLog.ts` — `admin_audit_log` table logging every admin panel write action
 - `lib/api-spec/openapi.yaml` — source of truth for all API contracts
+- `artifacts/api-server/src/routes/admin.ts` — admin panel API (login/logout/me, stats, user CRUD/ban/premium/stars, settings, audit log)
+- `artifacts/vaultx/src/admin/` — the `/manager` admin panel frontend (login, overview, users, settings, audit log tabs)
 
 ## Architecture decisions
 
@@ -43,6 +47,9 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - `lifetimePoints` is kept as a separate denormalized int column on `vault_users` for fast leaderboard sorting.
 - Telegram auth uses the official `initData` HMAC verification scheme (no OAuth/third-party auth library) plus a custom lightweight HMAC-signed httpOnly session cookie.
 - The frontend gracefully falls back to localStorage-only progress when not running inside Telegram (e.g. local dev browser preview) — this fallback must be preserved.
+- Admin panel lives at the `/manager` client route inside the same `vaultx` artifact (root `main.tsx` checks `window.location.pathname` and renders `AdminApp` instead of the game `App`), rather than a separate artifact — avoids duplicating hosting/build setup.
+- Admin auth uses a separate signed httpOnly cookie (`souqratesx_admin_session`, distinct from the player session cookie) gated by the `ADMIN_PASSWORD` secret — not tied to any Telegram identity.
+- Platform-wide tunables (economy rates, and placeholder keys for Adsgram/CPA offerwalls/Monlix/Bitlabs/Telegram Stars/Premium) are stored in the freeform `admin_settings` key-value table so new integrations can add settings without schema migrations.
 
 ## Product
 
@@ -53,10 +60,13 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Global leaderboard by lifetime points
 - Real Telegram user identity and permanent server-side progress persistence (works across devices)
 - Withdraw button is currently a placeholder — no real cash withdrawal flow yet
+- Admin control panel at `/manager` (password-protected via `ADMIN_PASSWORD` secret): overview stats, user search/edit/ban/premium/stars/delete, platform settings (economy + placeholders for Adsgram/CPA/Monlix/Bitlabs/Stars/Premium keys), audit log
+- Planned next: Adsgram ads, CPA/micro-task offerwalls, Telegram Stars in-bot purchases, surveys (Monlix, Bitlabs), Premium Membership subscriptions — all wired through the admin settings but awaiting real provider API keys from the user
 
 ## User preferences
 
 - User wants SouqratesX to eventually support real cash withdrawal, but explicitly deferred that in favor of first shipping real Telegram auth + persistent server-side progress.
+- User will create Adsgram/CPA/Monlix/Bitlabs accounts and provide API keys later — build integrations "ready to activate" via the admin settings panel now, without blocking on real keys.
 
 ## Gotchas
 

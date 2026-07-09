@@ -88,3 +88,169 @@ export const GetVaultLeaderboardResponseItem = zod.object({
 export const GetVaultLeaderboardResponse = zod.array(GetVaultLeaderboardResponseItem)
 
 
+/**
+ * @summary Log in to the admin control panel
+ */
+export const AdminLoginBody = zod.object({
+  "password": zod.string()
+})
+
+export const AdminLoginResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Log out of the admin control panel
+ */
+export const AdminLogoutResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Check the current admin session
+ */
+export const GetAdminMeResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Get aggregate platform stats
+ */
+export const GetAdminStatsResponse = zod.object({
+  "totalUsers": zod.number(),
+  "totalLifetimePoints": zod.number(),
+  "totalBalanceUSD": zod.number(),
+  "premiumUsers": zod.number(),
+  "bannedUsers": zod.number(),
+  "newUsersToday": zod.number()
+})
+
+
+/**
+ * @summary List / search users
+ */
+export const GetAdminUsersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "limit": zod.coerce.number().optional(),
+  "offset": zod.coerce.number().optional()
+})
+
+export const GetAdminUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "telegramId": zod.string(),
+  "username": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "photoUrl": zod.string().nullable(),
+  "lifetimePoints": zod.number(),
+  "isBanned": zod.boolean(),
+  "isPremium": zod.boolean(),
+  "starsBalance": zod.number(),
+  "createdAt": zod.string()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Get a single user's full record
+ */
+export const GetAdminUserParams = zod.object({
+  "telegramId": zod.coerce.string()
+})
+
+export const GetAdminUserResponse = zod.object({
+  "telegramId": zod.string(),
+  "username": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "photoUrl": zod.string().nullable(),
+  "lifetimePoints": zod.number(),
+  "isBanned": zod.boolean(),
+  "isPremium": zod.boolean(),
+  "premiumExpiresAt": zod.string().nullable(),
+  "starsBalance": zod.number(),
+  "notes": zod.string().nullable(),
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Edit any field of a user's record (points, balance, ban status, premium, stars, notes, full state)
+ */
+export const UpdateAdminUserParams = zod.object({
+  "telegramId": zod.coerce.string()
+})
+
+export const UpdateAdminUserBody = zod.object({
+  "lifetimePoints": zod.number().optional(),
+  "isBanned": zod.boolean().optional(),
+  "isPremium": zod.boolean().optional(),
+  "premiumExpiresAt": zod.string().nullish(),
+  "starsBalance": zod.number().optional(),
+  "notes": zod.string().nullish(),
+  "state": zod.record(zod.string(), zod.unknown()).optional().describe('Freeform game state blob persisted for the user')
+})
+
+export const UpdateAdminUserResponse = zod.object({
+  "telegramId": zod.string(),
+  "username": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "photoUrl": zod.string().nullable(),
+  "lifetimePoints": zod.number(),
+  "isBanned": zod.boolean(),
+  "isPremium": zod.boolean(),
+  "premiumExpiresAt": zod.string().nullable(),
+  "starsBalance": zod.number(),
+  "notes": zod.string().nullable(),
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Permanently delete a user
+ */
+export const DeleteAdminUserParams = zod.object({
+  "telegramId": zod.coerce.string()
+})
+
+export const DeleteAdminUserResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Get all platform settings (economy tuning, ads, CPA/offerwalls, surveys, premium, Telegram Stars)
+ */
+export const GetAdminSettingsResponse = zod.record(zod.string(), zod.unknown()).describe('Freeform key\/value platform settings blob (economy tuning, ads, CPA\/offerwalls, surveys, premium plans, Telegram Stars products)')
+
+
+/**
+ * @summary Bulk update platform settings
+ */
+export const UpdateAdminSettingsBody = zod.record(zod.string(), zod.unknown()).describe('Freeform key\/value platform settings blob (economy tuning, ads, CPA\/offerwalls, surveys, premium plans, Telegram Stars products)')
+
+export const UpdateAdminSettingsResponse = zod.record(zod.string(), zod.unknown()).describe('Freeform key\/value platform settings blob (economy tuning, ads, CPA\/offerwalls, surveys, premium plans, Telegram Stars products)')
+
+
+/**
+ * @summary Get recent admin actions
+ */
+export const GetAdminAuditLogResponseItem = zod.object({
+  "id": zod.number(),
+  "action": zod.string(),
+  "targetTelegramId": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.string()
+})
+export const GetAdminAuditLogResponse = zod.array(GetAdminAuditLogResponseItem)
+
+

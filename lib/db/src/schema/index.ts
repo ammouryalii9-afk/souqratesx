@@ -18,3 +18,5 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./vaultUsers";
+export * from "./adminSettings";
+export * from "./adminAuditLog";

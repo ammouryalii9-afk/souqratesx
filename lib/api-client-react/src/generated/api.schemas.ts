@@ -59,3 +59,101 @@ export interface LeaderboardEntry {
 
 export type LeaderboardEntryList = LeaderboardEntry[];
 
+export interface AdminLoginInput {
+  password: string;
+}
+
+export interface AdminSessionStatus {
+  authenticated: boolean;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalLifetimePoints: number;
+  totalBalanceUSD: number;
+  premiumUsers: number;
+  bannedUsers: number;
+  newUsersToday: number;
+}
+
+export interface AdminUserSummary {
+  telegramId: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  photoUrl: string | null;
+  lifetimePoints: number;
+  isBanned: boolean;
+  isPremium: boolean;
+  starsBalance: number;
+  createdAt: string;
+}
+
+export interface AdminUserList {
+  users: AdminUserSummary[];
+  total: number;
+}
+
+export interface AdminUserDetail {
+  telegramId: string;
+  /** @nullable */
+  username: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  photoUrl: string | null;
+  lifetimePoints: number;
+  isBanned: boolean;
+  isPremium: boolean;
+  /** @nullable */
+  premiumExpiresAt: string | null;
+  starsBalance: number;
+  /** @nullable */
+  notes: string | null;
+  state: VaultStateData;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUserPatch {
+  lifetimePoints?: number;
+  isBanned?: boolean;
+  isPremium?: boolean;
+  /** @nullable */
+  premiumExpiresAt?: string | null;
+  starsBalance?: number;
+  /** @nullable */
+  notes?: string | null;
+  state?: VaultStateData;
+}
+
+/**
+ * Freeform key/value platform settings blob (economy tuning, ads, CPA/offerwalls, surveys, premium plans, Telegram Stars products)
+ */
+export interface AdminSettingsMap { [key: string]: unknown }
+
+export type AdminAuditLogEntryDetails = { [key: string]: unknown };
+
+export interface AdminAuditLogEntry {
+  id: number;
+  action: string;
+  /** @nullable */
+  targetTelegramId: string | null;
+  details: AdminAuditLogEntryDetails;
+  createdAt: string;
+}
+
+export type AdminAuditLogList = AdminAuditLogEntry[];
+
+export type GetAdminUsersParams = {
+search?: string;
+limit?: number;
+offset?: number;
+};
+

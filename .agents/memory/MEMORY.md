@@ -1,1 +1,2 @@
 - [VaultX Telegram auth & sync](vaultx-telegram-sync.md) — session cookie auth + JSONB state blob pattern for Telegram Mini Apps with server-side persistence.
+- [Admin panel as client route](admin-panel-client-route.md) — build in-app admin panels as a pathname-gated route inside the existing artifact, not a new artifact.

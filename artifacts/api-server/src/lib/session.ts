@@ -43,3 +43,28 @@ export function getSessionTelegramId(req: Request): string | null {
   }
   return unsign(raw);
 }
+
+const ADMIN_SESSION_COOKIE = "souqratesx_admin_session";
+
+export function setAdminSessionCookie(res: Response): void {
+  const token = sign("admin");
+  res.cookie(ADMIN_SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 12,
+    path: "/",
+  });
+}
+
+export function clearAdminSessionCookie(res: Response): void {
+  res.clearCookie(ADMIN_SESSION_COOKIE, { path: "/" });
+}
+
+export function isAdminSession(req: Request): boolean {
+  const raw = req.cookies?.[ADMIN_SESSION_COOKIE];
+  if (!raw || typeof raw !== "string") {
+    return false;
+  }
+  return unsign(raw) === "admin";
+}
