@@ -17,6 +17,7 @@ export * from './adminUserDetail';
 export * from './adminUserList';
 export * from './adminUserPatch';
 export * from './adminUserSummary';
+export * from './adsgramPostbackParams';
 export * from './earnRewardResult';
 export * from './errorResponse';
 export * from './getAdminUsersParams';

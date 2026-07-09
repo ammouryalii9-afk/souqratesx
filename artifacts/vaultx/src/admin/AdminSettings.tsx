@@ -28,6 +28,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "adsgramRewardPoints", label: "نقاط مقابل كل عرض إعلان", type: "number", defaultValue: 100 },
       { key: "adsgramCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
       { key: "adsgramDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },
+      { key: "adsgramPostbackSecret", label: "Adsgram Postback Secret", type: "text", defaultValue: "" },
     ],
   },
   {

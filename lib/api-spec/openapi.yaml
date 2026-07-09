@@ -414,6 +414,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /earn/adsgram/postback:
+    get:
+      operationId: adsgramPostback
+      tags: [earn]
+      summary: Server-to-server reward callback called by Adsgram when a rewarded ad view completes
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: secret
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: txId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnRewardResult"
+        "400":
+          description: Missing or invalid params
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invalid postback secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /earn/offerwall/postback:
     get:
       operationId: offerwallPostback

@@ -28,6 +28,7 @@ import type {
   AdminUserDetail,
   AdminUserList,
   AdminUserPatch,
+  AdsgramPostbackParams,
   EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
@@ -1490,6 +1491,90 @@ export const useClaimAdsgramReward = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getClaimAdsgramRewardMutationOptions(options));
     }
+
+export const getAdsgramPostbackUrl = (params: AdsgramPostbackParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/earn/adsgram/postback?${stringifiedParams}` : `/api/earn/adsgram/postback`
+}
+
+/**
+ * @summary Server-to-server reward callback called by Adsgram when a rewarded ad view completes
+ */
+export const adsgramPostback = async (params: AdsgramPostbackParams, options?: RequestInit): Promise<EarnRewardResult> => {
+
+  return customFetch<EarnRewardResult>(getAdsgramPostbackUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdsgramPostbackQueryKey = (params?: AdsgramPostbackParams,) => {
+    return [
+    `/api/earn/adsgram/postback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAdsgramPostbackQueryOptions = <TData = Awaited<ReturnType<typeof adsgramPostback>>, TError = ErrorType<ErrorResponse>>(params: AdsgramPostbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adsgramPostback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdsgramPostbackQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adsgramPostback>>> = ({ signal }) => adsgramPostback(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adsgramPostback>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdsgramPostbackQueryResult = NonNullable<Awaited<ReturnType<typeof adsgramPostback>>>
+export type AdsgramPostbackQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Server-to-server reward callback called by Adsgram when a rewarded ad view completes
+ */
+
+export function useAdsgramPostback<TData = Awaited<ReturnType<typeof adsgramPostback>>, TError = ErrorType<ErrorResponse>>(
+ params: AdsgramPostbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adsgramPostback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdsgramPostbackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getOfferwallPostbackUrl = (params: OfferwallPostbackParams,) => {
   const normalizedParams = new URLSearchParams();

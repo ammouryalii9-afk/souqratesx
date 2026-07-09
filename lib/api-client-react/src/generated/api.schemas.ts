@@ -227,6 +227,12 @@ limit?: number;
 offset?: number;
 };
 
+export type AdsgramPostbackParams = {
+userId: string;
+secret: string;
+txId?: string;
+};
+
 export type OfferwallPostbackParams = {
 provider: string;
 telegramId: string;

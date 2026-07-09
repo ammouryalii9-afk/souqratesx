@@ -75,6 +75,83 @@ router.post("/earn/adsgram/reward", rateLimit("adsgram", 30, 60_000), async (req
   );
 });
 
+router.get("/earn/adsgram/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
+  const telegramId = typeof req.query.userId === "string" ? req.query.userId : "";
+  const secret = typeof req.query.secret === "string" ? req.query.secret : "";
+
+  if (!telegramId) {
+    res.status(400).json({ error: "Missing userId" });
+    return;
+  }
+
+  const settings = await getSettingsMap();
+  const expectedSecret = asString(settings.adsgramPostbackSecret);
+  if (!expectedSecret || expectedSecret !== secret) {
+    req.log.warn("Rejected Adsgram postback with invalid secret");
+    res.status(403).json({ error: "Invalid postback secret" });
+    return;
+  }
+
+  const txIdRaw = req.query.txId;
+  const txId = typeof txIdRaw === "string" && txIdRaw.length > 0 ? txIdRaw : null;
+  if (txId) {
+    const [claimed] = await db
+      .insert(processedTransactionsTable)
+      .values({ provider: "adsgram", txId, telegramId })
+      .onConflictDoNothing()
+      .returning();
+    if (!claimed) {
+      req.log.info({ txId }, "Skipped duplicate Adsgram postback");
+      res.json(ClaimAdsgramRewardResponse.parse({ creditedPoints: 0, lifetimePoints: 0 }));
+      return;
+    }
+  } else {
+    req.log.warn("Adsgram postback without transaction id — cannot dedupe replays");
+  }
+
+  const rewardPoints = asNumber(settings.adsgramRewardPoints, 100);
+  const cooldownSeconds = asNumber(settings.adsgramCooldownSeconds, 30);
+  const dailyCap = asNumber(settings.adsgramDailyCap, 20);
+  const now = new Date();
+  const today = todayStr();
+  const cooldownCutoff = new Date(now.getTime() - cooldownSeconds * 1000);
+
+  const [updated] = await db
+    .update(vaultUsersTable)
+    .set({
+      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${rewardPoints}`,
+      adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
+      adsWatchedDate: today,
+      lastAdRewardAt: now,
+    })
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, telegramId),
+        eq(vaultUsersTable.isBanned, false),
+        or(isNull(vaultUsersTable.lastAdRewardAt), lt(vaultUsersTable.lastAdRewardAt, cooldownCutoff)),
+        or(
+          sql`${vaultUsersTable.adsWatchedDate} is distinct from ${today}`,
+          lt(vaultUsersTable.adsWatchedToday, dailyCap),
+        ),
+      ),
+    )
+    .returning();
+
+  if (!updated) {
+    res.status(400).json({ error: "Unknown/banned user or cooldown/daily cap reached" });
+    return;
+  }
+
+  req.log.info({ telegramId, rewardPoints }, "Adsgram postback credited");
+
+  res.json(
+    ClaimAdsgramRewardResponse.parse({
+      creditedPoints: rewardPoints,
+      lifetimePoints: updated.lifetimePoints,
+    }),
+  );
+});
+
 const PROVIDER_SETTINGS_KEY: Record<string, string> = {
   cpa: "cpaPostbackSecret",
   monlix: "monlixPostbackSecret",

@@ -304,6 +304,21 @@ export const ClaimAdsgramRewardResponse = zod.object({
 
 
 /**
+ * @summary Server-to-server reward callback called by Adsgram when a rewarded ad view completes
+ */
+export const AdsgramPostbackQueryParams = zod.object({
+  "userId": zod.coerce.string(),
+  "secret": zod.coerce.string(),
+  "txId": zod.coerce.string().optional()
+})
+
+export const AdsgramPostbackResponse = zod.object({
+  "creditedPoints": zod.number(),
+  "lifetimePoints": zod.number()
+})
+
+
+/**
  * @summary Server-to-server postback endpoint called by CPA/offerwall/survey providers to credit a completed offer
  */
 export const OfferwallPostbackQueryParams = zod.object({
