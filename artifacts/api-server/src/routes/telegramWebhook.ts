@@ -65,12 +65,18 @@ async function applyStarProductEffect(
       break;
     }
     case "points": {
+      // "points" here means the user's spendable/mined balance — the frontend
+      // reads this from state.tempMiningPoints (see VaultContext.refreshFromServer),
+      // not a "points" key. lifetimePoints is only the read-only lifetime/leaderboard
+      // counter, so it must also be bumped to keep it consistent, but crediting only
+      // lifetimePoints (as before) left the purchase invisible/unusable in-game.
       const points = product.effectValue ?? 0;
+      const currentTempMiningPoints = typeof state.tempMiningPoints === "number" ? state.tempMiningPoints : 0;
       await db
         .update(vaultUsersTable)
         .set({
           lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${points}`,
-          state: { ...state, points: (typeof state.points === "number" ? state.points : 0) + points },
+          state: { ...state, tempMiningPoints: currentTempMiningPoints + points },
           starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
