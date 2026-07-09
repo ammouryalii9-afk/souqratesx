@@ -168,6 +168,19 @@ export const GamesTab = () => {
   );
 };
 
+function drawRoundedBar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  if (h <= 0 || w <= 0) return;
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+  ctx.fill();
+}
+
 const GameHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
   <div className="flex items-center gap-3 px-4 pt-4 pb-2">
     <button data-testid="button-back-to-games" onClick={onBack} className="p-2 rounded-full bg-white/5 active:scale-90 transition-transform">
@@ -210,49 +223,94 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
     if (gameState !== 'playing') return;
 
     // --- Resolution handling -------------------------------------------------
-    // Render at devicePixelRatio so the game is crisp on mobile screens, while all
-    // gameplay math below stays in logical CSS pixels (via `logicalWidth/Height`).
-    // This also keeps drawing coordinates aligned with pointer coordinates, which
-    // is what made hits/taps feel "off" before.
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
-    const logicalWidth = Math.max(1, Math.round(rect.width));
-    const logicalHeight = Math.max(1, Math.round(rect.height));
-    canvas.width = logicalWidth * dpr;
-    canvas.height = logicalHeight * dpr;
+    const W = Math.max(1, Math.round(rect.width));
+    const H = Math.max(1, Math.round(rect.height));
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     let animationId: number;
-    let playerY = logicalHeight / 2;
-    let playerVelocity = 0;
-    const playerRadius = 12;
-    const playerX = Math.min(60, logicalWidth * 0.15);
-
-    // Physics tuned in px/second (not px/frame) so speed is identical at 30fps or 120fps.
-    const GRAVITY = 900; // px/s^2
-    const JUMP_VELOCITY = -360; // px/s
-    const MAX_FALL_SPEED = 620; // px/s terminal velocity, keeps falls readable
-    const GRACE_PERIOD_MS = 700; // brief no-gravity window right after starting so a run never ends instantly
-    const OBSTACLE_WIDTH = 28;
-    const GAP_SIZE = Math.max(115, logicalHeight * 0.42);
-    const BASE_SPEED = 130; // px/s
-    const BASE_SPAWN_INTERVAL_MS = 1500;
-
-    let obstacles: { x: number; gapY: number; passed: boolean }[] = [];
-    let elapsedMs = 0;
-    let lastSpawnMs = 0;
-    let currentScore = scoreRef.current;
-    let lastTimestamp: number | null = null;
     let ended = false;
+
+    // --- Player ---------------------------------------------------------------
+    const playerX = Math.min(70, W * 0.18);
+    const playerRadius = 13;
+    let playerY = H / 2;
+    let playerVelocity = 0;
+    let playerRotation = 0;
+
+    // Physics in px/second so behaviour is identical at any frame rate.
+    const GRAVITY = 1350;
+    const JUMP_VELOCITY = -430;
+    const MAX_FALL_SPEED = 720;
+    const GRACE_PERIOD_MS = 650;
+
+    // --- Difficulty curve -------------------------------------------------------
+    // Driven by *distance travelled*, not obstacle count, so it ramps smoothly and
+    // continuously instead of jumping in steps. Distance is in px, scaled to a 0..1
+    // "progress" that eases toward 1 and never fully caps out the challenge.
+    const OBSTACLE_WIDTH = 30;
+    const BASE_GAP = Math.max(150, H * 0.5);
+    const MIN_GAP = Math.max(112, H * 0.36);
+    const BASE_SPACING = 260; // px between obstacle centers at the very start
+    const MIN_SPACING = 190;
+    const BASE_SCROLL_SPEED = 155; // px/s
+    const MAX_SCROLL_SPEED = 420; // px/s reached at high distance
+    const DIFFICULTY_RAMP_PX = 6000; // distance over which difficulty scales to ~max
+
+    let distance = 0; // px traveled since run start, drives difficulty + score
+    let elapsedMs = 0;
+    let lastTimestamp: number | null = null;
+    let currentScore = scoreRef.current;
 
     if (currentScore === 0) {
       sessionEarnedRef.current = 0;
       setSessionEarned(0);
     }
 
+    const difficultyT = () => Math.min(1, distance / DIFFICULTY_RAMP_PX);
+    const scrollSpeed = () => BASE_SCROLL_SPEED + (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * difficultyT();
+    const gapSize = () => BASE_GAP - (BASE_GAP - MIN_GAP) * difficultyT();
+    const obstacleSpacing = () => BASE_SPACING - (BASE_SPACING - MIN_SPACING) * difficultyT();
+
+    type Obstacle = { x: number; gapY: number; passed: boolean };
+    let obstacles: Obstacle[] = [];
+
+    const spawnObstacle = (fromX: number) => {
+      const gap = gapSize();
+      const margin = 26;
+      const gapY = Math.random() * (H - gap - margin * 2) + margin;
+      obstacles.push({ x: fromX, gapY, passed: false });
+    };
+
+    // Seed the first obstacle safely off-screen to the right; subsequent obstacles
+    // are queued purely by *distance-since-last-spawn*, so the run keeps producing
+    // obstacles forever and can never silently stop generating them.
+    spawnObstacle(W + 220);
+
+    // Ambient particle starfield (purely cosmetic, adds production polish).
+    const stars = Array.from({ length: 28 }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.6 + 0.4,
+      speed: Math.random() * 0.4 + 0.15,
+    }));
+
+    // Trail particles behind the player for a "rocket" feel.
+    type Particle = { x: number; y: number; life: number; vx: number; vy: number };
+    let particles: Particle[] = [];
+
+    let screenShake = 0;
+    let flash = 0;
+    let distanceSinceSpawn = 0;
+
     const endGame = () => {
       if (ended) return;
       ended = true;
+      screenShake = 10;
+      flash = 1;
       setGameState('gameover');
       haptic('error');
     };
@@ -262,58 +320,87 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       if (ended) return;
 
       if (lastTimestamp === null) lastTimestamp = timestamp;
-      // Cap dt so a dropped/backgrounded tab doesn't cause a huge catch-up jump on resume.
       const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
       lastTimestamp = timestamp;
       elapsedMs += dt * 1000;
 
-      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-
-      const grad = ctx.createLinearGradient(0, 0, 0, logicalHeight);
-      grad.addColorStop(0, '#0A0A0C');
-      grad.addColorStop(1, '#0D0D0F');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, logicalWidth, logicalHeight);
-
-      ctx.strokeStyle = 'rgba(245,197,24,0.04)';
-      ctx.lineWidth = 1;
-      for (let gx = 0; gx < logicalWidth; gx += 40) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, logicalHeight); ctx.stroke();
-      }
-      for (let gy = 0; gy < logicalHeight; gy += 40) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(logicalWidth, gy); ctx.stroke();
-      }
-
       const inGracePeriod = elapsedMs < GRACE_PERIOD_MS;
+      const speed = inGracePeriod ? BASE_SCROLL_SPEED * 0.6 : scrollSpeed();
+
+      if (!inGracePeriod) distance += speed * dt;
+
+      ctx.save();
+      if (screenShake > 0) {
+        const sx = (Math.random() - 0.5) * screenShake;
+        const sy = (Math.random() - 0.5) * screenShake;
+        ctx.translate(sx, sy);
+        screenShake = Math.max(0, screenShake - dt * 40);
+      }
+
+      ctx.clearRect(-20, -20, W + 40, H + 40);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#0B0B0E');
+      grad.addColorStop(1, '#07070A');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Parallax starfield
+      ctx.fillStyle = 'rgba(245,197,24,0.35)';
+      for (const s of stars) {
+        s.x -= s.speed * speed * dt * 0.06;
+        if (s.x < -2) { s.x = W + 2; s.y = Math.random() * H; }
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // Physics
       if (!inGracePeriod) {
         playerVelocity = Math.min(MAX_FALL_SPEED, playerVelocity + GRAVITY * dt);
       }
       playerY += playerVelocity * dt;
-      playerY = Math.max(playerRadius, Math.min(logicalHeight - playerRadius, playerY));
+      const hitTop = playerY <= playerRadius;
+      const hitBottom = playerY >= H - playerRadius;
+      playerY = Math.max(playerRadius, Math.min(H - playerRadius, playerY));
+      playerRotation = Math.max(-0.5, Math.min(0.9, playerVelocity / 600));
 
-      const glowStrength = Math.min(16, Math.abs(playerVelocity) * 0.03);
-      ctx.shadowColor = '#F5C518';
-      ctx.shadowBlur = 10 + glowStrength;
-      ctx.fillStyle = '#F5C518';
-      ctx.font = 'bold 26px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('X', playerX, playerY);
-      ctx.shadowBlur = 0;
+      // Trail particles
+      particles.push({ x: playerX - playerRadius * 0.6, y: playerY, life: 1, vx: -speed * 0.35, vy: (Math.random() - 0.5) * 40 });
+      particles = particles.filter(p => p.life > 0);
+      for (const p of particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt * 2.2;
+        ctx.globalAlpha = Math.max(0, p.life) * 0.5;
+        ctx.fillStyle = '#F5C518';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3 * Math.max(0, p.life), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
 
-      if (!inGracePeriod && (playerY >= logicalHeight - playerRadius || playerY <= playerRadius)) {
+      if (!inGracePeriod && (hitTop || hitBottom)) {
         endGame();
+        ctx.restore();
         return;
       }
 
-      const speed = BASE_SPEED + currentScore * 0.25;
-      const spawnInterval = Math.max(850, BASE_SPAWN_INTERVAL_MS - currentScore * 2.5);
-      if (!inGracePeriod && elapsedMs - lastSpawnMs >= spawnInterval) {
-        lastSpawnMs = elapsedMs;
-        const gapY = Math.random() * (logicalHeight - GAP_SIZE - 60) + 30;
-        obstacles.push({ x: logicalWidth + OBSTACLE_WIDTH, gapY, passed: false });
+      // Spawn purely by distance travelled since the last obstacle, so the stream of
+      // obstacles never depends on timers/frame-count and can never stall out.
+      if (!inGracePeriod) {
+        distanceSinceSpawn += speed * dt;
+        const spacing = obstacleSpacing();
+        if (distanceSinceSpawn >= spacing) {
+          distanceSinceSpawn = 0;
+          const rightmost = obstacles.length ? Math.max(...obstacles.map(o => o.x)) : W;
+          spawnObstacle(Math.max(W + 40, rightmost + spacing));
+        }
       }
 
+      const gap = gapSize();
       let collided = false;
 
       for (const obs of obstacles) {
@@ -321,28 +408,29 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
 
         const pillarGrad = ctx.createLinearGradient(obs.x, 0, obs.x + OBSTACLE_WIDTH, 0);
         pillarGrad.addColorStop(0, '#1A1A20');
-        pillarGrad.addColorStop(1, '#2A2A35');
+        pillarGrad.addColorStop(0.5, '#26262F');
+        pillarGrad.addColorStop(1, '#1A1A20');
         ctx.fillStyle = pillarGrad;
-        ctx.shadowColor = 'rgba(245,197,24,0.15)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(245,197,24,0.18)';
+        ctx.shadowBlur = 10;
 
-        ctx.fillRect(obs.x, 0, OBSTACLE_WIDTH, obs.gapY);
-        ctx.fillRect(obs.x, obs.gapY + GAP_SIZE, OBSTACLE_WIDTH, logicalHeight - obs.gapY - GAP_SIZE);
+        const radius = 6;
+        drawRoundedBar(ctx, obs.x, 0, OBSTACLE_WIDTH, obs.gapY, radius);
+        drawRoundedBar(ctx, obs.x, obs.gapY + gap, OBSTACLE_WIDTH, H - obs.gapY - gap, radius);
         ctx.shadowBlur = 0;
 
-        ctx.strokeStyle = 'rgba(245,197,24,0.25)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(245,197,24,0.3)';
+        ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY); ctx.lineTo(obs.x + OBSTACLE_WIDTH, obs.gapY); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY + GAP_SIZE); ctx.lineTo(obs.x + OBSTACLE_WIDTH, obs.gapY + GAP_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY + gap); ctx.lineTo(obs.x + OBSTACLE_WIDTH, obs.gapY + gap); ctx.stroke();
 
-        // Fair hitbox: shrink the player's collision radius slightly below its visual size
-        // (classic "forgiving hitbox" trick) and only test the X-overlap window precisely.
-        const hitRadius = playerRadius - 3;
+        // Forgiving hitbox: collision radius is intentionally a little smaller than the
+        // rendered orb, which is standard practice in polished arcade games and prevents
+        // "unfair-looking" deaths on near-misses.
+        const hitRadius = playerRadius - 4;
         const overlapsX = playerX + hitRadius > obs.x && playerX - hitRadius < obs.x + OBSTACLE_WIDTH;
-        if (overlapsX) {
-          if (playerY - hitRadius < obs.gapY || playerY + hitRadius > obs.gapY + GAP_SIZE) {
-            collided = true;
-          }
+        if (overlapsX && (playerY - hitRadius < obs.gapY || playerY + hitRadius > obs.gapY + gap)) {
+          collided = true;
         }
 
         if (obs.x + OBSTACLE_WIDTH < playerX && !obs.passed) {
@@ -357,21 +445,51 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
 
       if (collided) {
         endGame();
+        ctx.restore();
         return;
       }
 
-      obstacles = obstacles.filter(obs => obs.x > -OBSTACLE_WIDTH - 10);
+      obstacles = obstacles.filter(obs => obs.x > -OBSTACLE_WIDTH - 20);
 
-      ctx.fillStyle = 'rgba(245,197,24,0.9)';
+      // Player orb, rotated to face its velocity for a more "alive" feel.
+      ctx.save();
+      ctx.translate(playerX, playerY);
+      ctx.rotate(playerRotation);
+      const glowStrength = Math.min(18, Math.abs(playerVelocity) * 0.025);
+      ctx.shadowColor = '#F5C518';
+      ctx.shadowBlur = 12 + glowStrength;
+      const orbGrad = ctx.createRadialGradient(-3, -3, 1, 0, 0, playerRadius);
+      orbGrad.addColorStop(0, '#FFE79A');
+      orbGrad.addColorStop(1, '#F5C518');
+      ctx.fillStyle = orbGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, playerRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(10,10,12,0.85)';
+      ctx.beginPath();
+      ctx.arc(playerRadius * 0.35, -playerRadius * 0.15, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      if (flash > 0) {
+        ctx.fillStyle = `rgba(255,80,80,${flash * 0.25})`;
+        ctx.fillRect(0, 0, W, H);
+        flash = Math.max(0, flash - dt * 3);
+      }
+
+      ctx.fillStyle = 'rgba(245,197,24,0.95)';
       ctx.font = 'bold 18px Inter, sans-serif';
       ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
       ctx.fillText(`${currentScore} pts`, 12, 24);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`Speed ×${(speed / BASE_SPEED).toFixed(1)}`, logicalWidth - 10, 24);
+      ctx.fillText(`Speed ×${(speed / BASE_SCROLL_SPEED).toFixed(1)}`, W - 10, 24);
 
+      ctx.restore();
       animationId = requestAnimationFrame(draw);
     };
 
