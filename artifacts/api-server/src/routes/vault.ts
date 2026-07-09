@@ -8,8 +8,26 @@ import {
   GetVaultLeaderboardResponse,
 } from "@workspace/api-zod";
 import { getSessionTelegramId } from "../lib/session";
+import { getSettingsMap, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
+
+// Generous ceiling covering tap-mining + all passive cards at high levels + mini-games.
+// Anything above this per-sync window is treated as implausible and clamped server-side,
+// closing the "client just sends a huge lifetimePoints number" exploit while still letting
+// legitimate fast progression through (admin-tunable via admin_settings.maxPointsPerHourCap).
+const DEFAULT_MAX_POINTS_PER_HOUR = 3_000_000;
+const MIN_SYNC_WINDOW_SECONDS = 5; // first-ever sync / very fast repeats still get a small grace window
+
+async function computeMaxAllowedDelta(lastSyncAt: Date | null): Promise<number> {
+  const settings = await getSettingsMap();
+  const capPerHour = asNumber(settings.maxPointsPerHourCap, DEFAULT_MAX_POINTS_PER_HOUR);
+  const capPerSecond = capPerHour / 3600;
+  const elapsedSeconds = lastSyncAt
+    ? Math.max(MIN_SYNC_WINDOW_SECONDS, (Date.now() - lastSyncAt.getTime()) / 1000)
+    : 60 * 60; // no prior sync on record: allow up to one hour worth as a one-time grace amount
+  return Math.ceil(capPerSecond * elapsedSeconds);
+}
 
 router.get("/vault/me", async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
@@ -52,11 +70,40 @@ router.put("/vault/me", async (req, res): Promise<void> => {
     return;
   }
 
+  const [existing] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+  if (!existing) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const requestedLifetimePoints = parsed.data.lifetimePoints;
+  const requestedDelta = requestedLifetimePoints - existing.lifetimePoints;
+
+  let finalLifetimePoints = existing.lifetimePoints;
+  let finalState = parsed.data.state;
+
+  if (requestedDelta <= 0) {
+    // Never let the client decrease lifetimePoints (e.g. a stale/racing sync) — keep the higher server value.
+    finalLifetimePoints = existing.lifetimePoints;
+  } else {
+    const maxAllowedDelta = await computeMaxAllowedDelta(existing.lastPointsSyncAt);
+    if (requestedDelta > maxAllowedDelta) {
+      req.log.warn(
+        { telegramId, requestedDelta, maxAllowedDelta, requestedLifetimePoints, previous: existing.lifetimePoints },
+        "clamped implausible lifetimePoints increase from client",
+      );
+      finalLifetimePoints = existing.lifetimePoints + maxAllowedDelta;
+    } else {
+      finalLifetimePoints = requestedLifetimePoints;
+    }
+  }
+
   const [user] = await db
     .update(vaultUsersTable)
     .set({
-      state: parsed.data.state,
-      lifetimePoints: parsed.data.lifetimePoints,
+      state: finalState,
+      lifetimePoints: finalLifetimePoints,
+      lastPointsSyncAt: new Date(),
     })
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .returning();

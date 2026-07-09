@@ -18,6 +18,7 @@ export const vaultUsersTable = pgTable("vault_users", {
   adsWatchedToday: integer("ads_watched_today").notNull().default(0),
   adsWatchedDate: text("ads_watched_date"),
   lastAdRewardAt: timestamp("last_ad_reward_at", { withTimezone: true }),
+  lastPointsSyncAt: timestamp("last_points_sync_at", { withTimezone: true }),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

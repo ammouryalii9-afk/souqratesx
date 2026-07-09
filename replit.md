@@ -45,6 +45,8 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 
 - Game state is stored as a single JSONB blob (`vault_users.state`) rather than normalized columns, mirroring the frontend's in-memory state shape to minimize migration churn as features evolve.
 - `lifetimePoints` is kept as a separate denormalized int column on `vault_users` for fast leaderboard sorting.
+- `lifetimePoints` anti-cheat: `PUT /vault/me` no longer trusts the client's `lifetimePoints` blindly. It compares against the server's stored value + `lastPointsSyncAt`, and clamps any increase above an admin-tunable `admin_settings.maxPointsPerHourCap` (default 3,000,000/hr) rather than rejecting the sync outright — keeps the client-authoritative game loop but caps how much any single exploit attempt can inject. Decreases from the client are always ignored (server value wins).
+- Telegram haptic feedback is wired via `artifacts/vaultx/src/lib/telegram.ts`'s `haptic()` helper (no-ops outside Telegram) on taps, upgrades, and all game interactions for a smoother native feel.
 - Telegram auth uses the official `initData` HMAC verification scheme (no OAuth/third-party auth library) plus a custom lightweight HMAC-signed httpOnly session cookie.
 - The frontend gracefully falls back to localStorage-only progress when not running inside Telegram (e.g. local dev browser preview) — this fallback must be preserved.
 - Admin panel lives at the `/manager` client route inside the same `vaultx` artifact (root `main.tsx` checks `window.location.pathname` and renders `AdminApp` instead of the game `App`), rather than a separate artifact — avoids duplicating hosting/build setup.
@@ -55,6 +57,7 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 
 - Tap-to-mine core loop with miner level upgrades and energy system
 - Idle mining, passive income cards, and an 8-hour farming cycle
+- Games tab: 4 mini-games for extra points — Tappy Dodge (dodge canvas game), Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins)
 - Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel
 - Referral system with trickling referral earnings
 - Global leaderboard by lifetime points

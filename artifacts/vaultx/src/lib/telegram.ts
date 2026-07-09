@@ -6,6 +6,12 @@ type TelegramWebAppUser = {
   photo_url?: string;
 };
 
+type HapticFeedback = {
+  impactOccurred?: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
+  notificationOccurred?: (type: "error" | "success" | "warning") => void;
+  selectionChanged?: () => void;
+};
+
 type TelegramWebApp = {
   initData: string;
   initDataUnsafe: { user?: TelegramWebAppUser };
@@ -15,6 +21,7 @@ type TelegramWebApp = {
   setBackgroundColor?: (color: string) => void;
   enableClosingConfirmation?: () => void;
   openInvoice?: (url: string, callback: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;
+  HapticFeedback?: HapticFeedback;
 };
 
 declare global {
@@ -45,4 +52,26 @@ export function getTelegramInitData(): string | null {
     return null;
   }
   return webApp.initData;
+}
+
+/**
+ * Fire a native haptic pulse when running inside Telegram. No-ops silently outside Telegram
+ * (e.g. local dev browser preview) so it's safe to call from anywhere without extra checks.
+ */
+export function haptic(
+  kind: "light" | "medium" | "heavy" | "success" | "warning" | "error" | "select" = "light",
+): void {
+  const feedback = getTelegramWebApp()?.HapticFeedback;
+  if (!feedback) return;
+  try {
+    if (kind === "success" || kind === "warning" || kind === "error") {
+      feedback.notificationOccurred?.(kind);
+    } else if (kind === "select") {
+      feedback.selectionChanged?.();
+    } else {
+      feedback.impactOccurred?.(kind);
+    }
+  } catch {
+    // Haptics are a nice-to-have; never let a WebApp SDK quirk break gameplay.
+  }
 }

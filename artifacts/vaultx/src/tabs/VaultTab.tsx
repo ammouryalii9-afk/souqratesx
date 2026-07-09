@@ -9,6 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useVault, getLeague } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
+import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
@@ -95,6 +96,7 @@ export const VaultTab = () => {
     }
 
     const earned = tapMine();
+    if (earned > 0) haptic('light');
 
     setIsTapping(true);
     setTimeout(() => setIsTapping(false), 120);
