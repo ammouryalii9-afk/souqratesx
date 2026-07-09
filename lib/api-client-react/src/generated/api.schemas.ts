@@ -244,21 +244,12 @@ export type PublicConfigOfferwallsItem = {
 
 export type PublicConfigStars = {
   enabled: boolean;
-  energyRefillPriceStars: number;
-  boostPriceStars: number;
-};
-
-export type PublicConfigPremium = {
-  enabled: boolean;
-  monthlyPriceStars: number;
-  earningsMultiplier: number;
 };
 
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   offerwalls: PublicConfigOfferwallsItem[];
   stars: PublicConfigStars;
-  premium: PublicConfigPremium;
 }
 
 export interface EarnRewardResult {
@@ -266,22 +257,90 @@ export interface EarnRewardResult {
   lifetimePoints: number;
 }
 
-export type StarsInvoiceInputProduct = typeof StarsInvoiceInputProduct[keyof typeof StarsInvoiceInputProduct];
-
-
-export const StarsInvoiceInputProduct = {
-  energy_refill: 'energy_refill',
-  boost: 'boost',
-  premium_month: 'premium_month',
-} as const;
-
 export interface StarsInvoiceInput {
-  product: StarsInvoiceInputProduct;
+  productId: number;
 }
 
 export interface StarsInvoiceResult {
   invoiceUrl: string;
   priceStars: number;
+}
+
+export type StarProductEffectType = typeof StarProductEffectType[keyof typeof StarProductEffectType];
+
+
+export const StarProductEffectType = {
+  points: 'points',
+  energy_refill: 'energy_refill',
+  turbo_boost: 'turbo_boost',
+  premium_days: 'premium_days',
+} as const;
+
+export interface StarProduct {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  imageUrl: string | null;
+  priceStars: number;
+  effectType: StarProductEffectType;
+  /**
+     * Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.
+     * @nullable
+     */
+  effectValue: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type StarProductList = StarProduct[];
+
+export type CreateStarProductBodyEffectType = typeof CreateStarProductBodyEffectType[keyof typeof CreateStarProductBodyEffectType];
+
+
+export const CreateStarProductBodyEffectType = {
+  points: 'points',
+  energy_refill: 'energy_refill',
+  turbo_boost: 'turbo_boost',
+  premium_days: 'premium_days',
+} as const;
+
+export interface CreateStarProductBody {
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @minimum 1 */
+  priceStars: number;
+  effectType: CreateStarProductBodyEffectType;
+  /** @nullable */
+  effectValue?: number | null;
+}
+
+export type UpdateStarProductBodyEffectType = typeof UpdateStarProductBodyEffectType[keyof typeof UpdateStarProductBodyEffectType];
+
+
+export const UpdateStarProductBodyEffectType = {
+  points: 'points',
+  energy_refill: 'energy_refill',
+  turbo_boost: 'turbo_boost',
+  premium_days: 'premium_days',
+} as const;
+
+export interface UpdateStarProductBody {
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @minimum 1 */
+  priceStars?: number;
+  effectType?: UpdateStarProductBodyEffectType;
+  /** @nullable */
+  effectValue?: number | null;
+  isActive?: boolean;
 }
 
 /**

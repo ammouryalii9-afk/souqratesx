@@ -132,6 +132,39 @@ export type UpdateSponsoredAdInput = Partial<{
   isActive: boolean;
 }>;
 
+export type StarProductEffectType = "points" | "energy_refill" | "turbo_boost" | "premium_days";
+
+export type StarProduct = {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  priceStars: number;
+  effectType: StarProductEffectType;
+  effectValue: number | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type CreateStarProductInput = {
+  title: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  priceStars: number;
+  effectType: StarProductEffectType;
+  effectValue?: number | null;
+};
+
+export type UpdateStarProductInput = Partial<{
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  priceStars: number;
+  effectType: StarProductEffectType;
+  effectValue: number | null;
+  isActive: boolean;
+}>;
+
 export const adminApi = {
   login: (password: string) =>
     adminFetch<AdminSessionStatus>("/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
@@ -169,4 +202,10 @@ export const adminApi = {
   updateAd: (id: number, patch: UpdateSponsoredAdInput) =>
     adminFetch<SponsoredAd>(`/admin/ads/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteAd: (id: number) => adminFetch<AdminSessionStatus>(`/admin/ads/${id}`, { method: "DELETE" }),
+  starProducts: () => adminFetch<StarProduct[]>("/admin/star-products"),
+  createStarProduct: (input: CreateStarProductInput) =>
+    adminFetch<StarProduct>("/admin/star-products", { method: "POST", body: JSON.stringify(input) }),
+  updateStarProduct: (id: number, patch: UpdateStarProductInput) =>
+    adminFetch<StarProduct>(`/admin/star-products/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteStarProduct: (id: number) => adminFetch<AdminSessionStatus>(`/admin/star-products/${id}`, { method: "DELETE" }),
 };

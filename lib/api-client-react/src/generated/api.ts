@@ -33,6 +33,7 @@ import type {
   BroadcastJobList,
   BroadcastRequest,
   CreateSponsoredAdBody,
+  CreateStarProductBody,
   EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
@@ -43,6 +44,8 @@ import type {
   PublicConfig,
   SponsoredAd,
   SponsoredAdList,
+  StarProduct,
+  StarProductList,
   StarsInvoiceInput,
   StarsInvoiceResult,
   TelegramAuthInput,
@@ -50,6 +53,7 @@ import type {
   TelegramWebhookSetupResult,
   TelegramWebhookUpdate,
   UpdateSponsoredAdBody,
+  UpdateStarProductBody,
   UserActivityList,
   VaultSession,
   VaultStateUpdate
@@ -1945,6 +1949,374 @@ export const useDeleteAdminAd = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteAdminAdMutationOptions(options));
     }
+
+export const getGetAdminStarProductsUrl = () => {
+
+
+
+
+  return `/api/admin/star-products`
+}
+
+/**
+ * @summary List all Telegram Stars store products (active and inactive)
+ */
+export const getAdminStarProducts = async ( options?: RequestInit): Promise<StarProductList> => {
+
+  return customFetch<StarProductList>(getGetAdminStarProductsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminStarProductsQueryKey = () => {
+    return [
+    `/api/admin/star-products`
+    ] as const;
+    }
+
+
+export const getGetAdminStarProductsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminStarProducts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminStarProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminStarProductsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminStarProducts>>> = ({ signal }) => getAdminStarProducts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminStarProducts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminStarProductsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminStarProducts>>>
+export type GetAdminStarProductsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all Telegram Stars store products (active and inactive)
+ */
+
+export function useGetAdminStarProducts<TData = Awaited<ReturnType<typeof getAdminStarProducts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminStarProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminStarProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminStarProductUrl = () => {
+
+
+
+
+  return `/api/admin/star-products`
+}
+
+/**
+ * @summary Create a new Telegram Stars store product
+ */
+export const createAdminStarProduct = async (createStarProductBody: CreateStarProductBody, options?: RequestInit): Promise<StarProduct> => {
+
+  return customFetch<StarProduct>(getCreateAdminStarProductUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createStarProductBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminStarProductMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminStarProduct>>, TError,{data: BodyType<CreateStarProductBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminStarProduct>>, TError,{data: BodyType<CreateStarProductBody>}, TContext> => {
+
+const mutationKey = ['createAdminStarProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminStarProduct>>, {data: BodyType<CreateStarProductBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminStarProduct(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminStarProductMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminStarProduct>>>
+    export type CreateAdminStarProductMutationBody = BodyType<CreateStarProductBody>
+    export type CreateAdminStarProductMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a new Telegram Stars store product
+ */
+export const useCreateAdminStarProduct = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminStarProduct>>, TError,{data: BodyType<CreateStarProductBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminStarProduct>>,
+        TError,
+        {data: BodyType<CreateStarProductBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAdminStarProductMutationOptions(options));
+    }
+
+export const getUpdateAdminStarProductUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/star-products/${id}`
+}
+
+/**
+ * @summary Update a Telegram Stars store product (e.g. toggle active state, change price)
+ */
+export const updateAdminStarProduct = async (id: number,
+    updateStarProductBody: UpdateStarProductBody, options?: RequestInit): Promise<StarProduct> => {
+
+  return customFetch<StarProduct>(getUpdateAdminStarProductUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateStarProductBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminStarProductMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminStarProduct>>, TError,{id: number;data: BodyType<UpdateStarProductBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminStarProduct>>, TError,{id: number;data: BodyType<UpdateStarProductBody>}, TContext> => {
+
+const mutationKey = ['updateAdminStarProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminStarProduct>>, {id: number;data: BodyType<UpdateStarProductBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdminStarProduct(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminStarProductMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminStarProduct>>>
+    export type UpdateAdminStarProductMutationBody = BodyType<UpdateStarProductBody>
+    export type UpdateAdminStarProductMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a Telegram Stars store product (e.g. toggle active state, change price)
+ */
+export const useUpdateAdminStarProduct = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminStarProduct>>, TError,{id: number;data: BodyType<UpdateStarProductBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminStarProduct>>,
+        TError,
+        {id: number;data: BodyType<UpdateStarProductBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAdminStarProductMutationOptions(options));
+    }
+
+export const getDeleteAdminStarProductUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/star-products/${id}`
+}
+
+/**
+ * @summary Delete a Telegram Stars store product
+ */
+export const deleteAdminStarProduct = async (id: number, options?: RequestInit): Promise<AdminSessionStatus> => {
+
+  return customFetch<AdminSessionStatus>(getDeleteAdminStarProductUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminStarProductMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminStarProduct>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminStarProduct>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAdminStarProduct'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminStarProduct>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminStarProduct(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminStarProductMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminStarProduct>>>
+
+    export type DeleteAdminStarProductMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a Telegram Stars store product
+ */
+export const useDeleteAdminStarProduct = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminStarProduct>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminStarProduct>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAdminStarProductMutationOptions(options));
+    }
+
+export const getGetStoreProductsUrl = () => {
+
+
+
+
+  return `/api/store/products`
+}
+
+/**
+ * @summary List active Telegram Stars store products for the current user
+ */
+export const getStoreProducts = async ( options?: RequestInit): Promise<StarProductList> => {
+
+  return customFetch<StarProductList>(getGetStoreProductsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStoreProductsQueryKey = () => {
+    return [
+    `/api/store/products`
+    ] as const;
+    }
+
+
+export const getGetStoreProductsQueryOptions = <TData = Awaited<ReturnType<typeof getStoreProducts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStoreProductsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStoreProducts>>> = ({ signal }) => getStoreProducts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStoreProducts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStoreProductsQueryResult = NonNullable<Awaited<ReturnType<typeof getStoreProducts>>>
+export type GetStoreProductsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List active Telegram Stars store products for the current user
+ */
+
+export function useGetStoreProducts<TData = Awaited<ReturnType<typeof getStoreProducts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStoreProductsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetPublicConfigUrl = () => {
 

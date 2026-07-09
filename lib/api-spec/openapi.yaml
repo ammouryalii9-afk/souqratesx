@@ -587,6 +587,130 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/star-products:
+    get:
+      operationId: getAdminStarProducts
+      tags: [admin]
+      summary: List all Telegram Stars store products (active and inactive)
+      responses:
+        "200":
+          description: Star products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarProductList"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAdminStarProduct
+      tags: [admin]
+      summary: Create a new Telegram Stars store product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStarProductBody"
+      responses:
+        "200":
+          description: Star product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarProduct"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/star-products/{id}:
+    patch:
+      operationId: updateAdminStarProduct
+      tags: [admin]
+      summary: Update a Telegram Stars store product (e.g. toggle active state, change price)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStarProductBody"
+      responses:
+        "200":
+          description: Star product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarProduct"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAdminStarProduct
+      tags: [admin]
+      summary: Delete a Telegram Stars store product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionStatus"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /store/products:
+    get:
+      operationId: getStoreProducts
+      tags: [stars]
+      summary: List active Telegram Stars store products for the current user
+      responses:
+        "200":
+          description: Active star products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarProductList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /config/public:
     get:
       operationId: getPublicConfig
@@ -1217,26 +1341,11 @@ components:
           properties:
             enabled:
               type: boolean
-            energyRefillPriceStars:
-              type: integer
-            boostPriceStars:
-              type: integer
-          required: [enabled, energyRefillPriceStars, boostPriceStars]
-        premium:
-          type: object
-          properties:
-            enabled:
-              type: boolean
-            monthlyPriceStars:
-              type: integer
-            earningsMultiplier:
-              type: number
-          required: [enabled, monthlyPriceStars, earningsMultiplier]
+          required: [enabled]
       required:
         - adsgram
         - offerwalls
         - stars
-        - premium
     EarnRewardResult:
       type: object
       properties:
@@ -1250,11 +1359,10 @@ components:
     StarsInvoiceInput:
       type: object
       properties:
-        product:
-          type: string
-          enum: [energy_refill, boost, premium_month]
+        productId:
+          type: integer
       required:
-        - product
+        - productId
     StarsInvoiceResult:
       type: object
       properties:
@@ -1265,6 +1373,83 @@ components:
       required:
         - invoiceUrl
         - priceStars
+    StarProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        priceStars:
+          type: integer
+        effectType:
+          type: string
+          enum: [points, energy_refill, turbo_boost, premium_days]
+        effectValue:
+          type: ["integer", "null"]
+          description: "Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill."
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - description
+        - imageUrl
+        - priceStars
+        - effectType
+        - effectValue
+        - isActive
+        - createdAt
+    StarProductList:
+      type: array
+      items:
+        $ref: "#/components/schemas/StarProduct"
+    CreateStarProductBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        priceStars:
+          type: integer
+          minimum: 1
+        effectType:
+          type: string
+          enum: [points, energy_refill, turbo_boost, premium_days]
+        effectValue:
+          type: ["integer", "null"]
+      required:
+        - title
+        - priceStars
+        - effectType
+    UpdateStarProductBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        priceStars:
+          type: integer
+          minimum: 1
+        effectType:
+          type: string
+          enum: [points, energy_refill, turbo_boost, premium_days]
+        effectValue:
+          type: ["integer", "null"]
+        isActive:
+          type: boolean
     TelegramWebhookUpdate:
       type: object
       description: Raw Telegram Bot API Update object

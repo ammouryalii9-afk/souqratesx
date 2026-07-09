@@ -51,16 +51,8 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
-    title: "Telegram Stars",
-    fields: [
-      { key: "starsBoostPriceStars", label: "سعر تعزيز النقاط (Stars)", type: "number", defaultValue: 50 },
-      { key: "starsEnergyRefillPriceStars", label: "سعر إعادة شحن الطاقة (Stars)", type: "number", defaultValue: 30 },
-    ],
-  },
-  {
     title: "عضوية Premium",
     fields: [
-      { key: "premiumMonthlyPriceStars", label: "سعر الاشتراك الشهري (Stars)", type: "number", defaultValue: 200 },
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },
     ],
   },

@@ -1,18 +1,88 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, processedTransactionsTable } from "@workspace/db";
+import { db, vaultUsersTable, processedTransactionsTable, starProductsTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
 
-const PREMIUM_MONTH_MS = 1000 * 60 * 60 * 24 * 30;
-const BOOST_DURATION_MS = 20_000;
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 type VaultState = Record<string, unknown>;
 
 function isVaultState(value: unknown): value is VaultState {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function applyStarProductEffect(
+  telegramId: string,
+  product: typeof starProductsTable.$inferSelect,
+  amountStars: number,
+): Promise<void> {
+  const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+  if (!user) return;
+
+  const state = isVaultState(user.state) ? user.state : {};
+
+  switch (product.effectType) {
+    case "premium_days": {
+      const days = product.effectValue ?? 30;
+      const base = user.premiumExpiresAt && user.premiumExpiresAt.getTime() > Date.now() ? user.premiumExpiresAt.getTime() : Date.now();
+      await db
+        .update(vaultUsersTable)
+        .set({
+          isPremium: true,
+          premiumExpiresAt: new Date(base + days * DAY_MS),
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "energy_refill": {
+      const maxEnergy = typeof state.maxEnergy === "number" ? state.maxEnergy : 1000;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: { ...state, energy: maxEnergy },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "turbo_boost": {
+      const seconds = product.effectValue ?? 20;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: {
+            ...state,
+            activeTurbo: true,
+            turboExpiresAt: Date.now() + seconds * 1000,
+          },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "points": {
+      const points = product.effectValue ?? 0;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${points}`,
+          state: { ...state, points: (typeof state.points === "number" ? state.points : 0) + points },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    default: {
+      await db
+        .update(vaultUsersTable)
+        .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}` })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+    }
+  }
 }
 
 router.post("/telegram/webhook", async (req, res): Promise<void> => {
@@ -40,7 +110,7 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
     } else if (update.message?.successful_payment) {
       const payment = update.message.successful_payment;
       const fromId = update.message.from?.id;
-      let payload: { telegramId?: string; product?: string } = {};
+      let payload: { telegramId?: string; productId?: number } = {};
       try {
         payload = JSON.parse(payment.invoice_payload);
       } catch {
@@ -63,50 +133,27 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
       }
 
       if (telegramId) {
-        const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
-        if (user) {
-          if (payload.product === "premium_month") {
-            const base = user.premiumExpiresAt && user.premiumExpiresAt.getTime() > Date.now() ? user.premiumExpiresAt.getTime() : Date.now();
-            await db
-              .update(vaultUsersTable)
-              .set({ isPremium: true, premiumExpiresAt: new Date(base + PREMIUM_MONTH_MS) })
-              .where(eq(vaultUsersTable.telegramId, telegramId));
-          } else if (payload.product === "energy_refill") {
-            const state = isVaultState(user.state) ? user.state : {};
-            const maxEnergy = typeof state.maxEnergy === "number" ? state.maxEnergy : 1000;
-            await db
-              .update(vaultUsersTable)
-              .set({
-                state: { ...state, energy: maxEnergy },
-                starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}`,
-              })
-              .where(eq(vaultUsersTable.telegramId, telegramId));
-          } else if (payload.product === "boost") {
-            const state = isVaultState(user.state) ? user.state : {};
-            await db
-              .update(vaultUsersTable)
-              .set({
-                state: {
-                  ...state,
-                  activeTurbo: true,
-                  turboExpiresAt: Date.now() + BOOST_DURATION_MS,
-                },
-                starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}`,
-              })
-              .where(eq(vaultUsersTable.telegramId, telegramId));
-          } else {
-            await db
-              .update(vaultUsersTable)
-              .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
-              .where(eq(vaultUsersTable.telegramId, telegramId));
-          }
-          req.log.info({ telegramId, product: payload.product, amount: payment.total_amount }, "Telegram Stars payment processed");
-          await logUserActivity(telegramId, "stars_purchase", {
-            product: payload.product ?? "stars_topup",
-            amountStars: payment.total_amount,
-            chargeId: payment.telegram_payment_charge_id,
-          });
+        let product: typeof starProductsTable.$inferSelect | undefined;
+        if (typeof payload.productId === "number") {
+          [product] = await db.select().from(starProductsTable).where(eq(starProductsTable.id, payload.productId));
         }
+
+        if (product) {
+          await applyStarProductEffect(telegramId, product, payment.total_amount);
+        } else {
+          await db
+            .update(vaultUsersTable)
+            .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
+            .where(eq(vaultUsersTable.telegramId, telegramId));
+        }
+
+        req.log.info({ telegramId, productId: payload.productId, amount: payment.total_amount }, "Telegram Stars payment processed");
+        await logUserActivity(telegramId, "stars_purchase", {
+          productId: payload.productId ?? null,
+          productTitle: product?.title ?? "stars_topup",
+          amountStars: payment.total_amount,
+          chargeId: payment.telegram_payment_charge_id,
+        });
       }
     }
   } catch (err) {

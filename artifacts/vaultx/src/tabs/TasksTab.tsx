@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getAds, claimAd, type PublicConfig, type SponsoredAdTask } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getStarProducts, getAds, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { getTelegramWebApp } from '../lib/telegram';
 
@@ -47,7 +47,8 @@ export const TasksTab = () => {
 
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [adLoading, setAdLoading] = useState(false);
-  const [purchasingProduct, setPurchasingProduct] = useState<string | null>(null);
+  const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
+  const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
 
   const [sponsoredAds, setSponsoredAds] = useState<SponsoredAdTask[]>([]);
   const [claimingAdId, setClaimingAdId] = useState<number | null>(null);
@@ -59,6 +60,7 @@ export const TasksTab = () => {
 
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
+    getStarProducts().then(setStarProducts).catch(() => setStarProducts([]));
     loadAds();
   }, []);
 
@@ -107,11 +109,11 @@ export const TasksTab = () => {
     window.open(url, '_blank');
   };
 
-  const handleBuyWithStars = async (product: 'energy_refill' | 'boost' | 'premium_month') => {
+  const handleBuyWithStars = async (productId: number) => {
     if (purchasingProduct) return;
-    setPurchasingProduct(product);
+    setPurchasingProduct(productId);
     try {
-      const { invoiceUrl } = await createStarsInvoice(product);
+      const { invoiceUrl } = await createStarsInvoice(productId);
       const webApp = getTelegramWebApp();
       if (webApp?.openInvoice) {
         webApp.openInvoice(invoiceUrl, (status) => {
@@ -666,56 +668,51 @@ export const TasksTab = () => {
           <h2 className="text-xl font-bold text-white">Store (Telegram Stars)</h2>
         </div>
         <div className="space-y-3">
-          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 pr-4">
-              <Zap className="w-5 h-5 text-primary" />
-              <div>
-                <h3 className="font-semibold text-white text-sm">Full Energy Refill</h3>
-                <p className="text-xs text-muted-foreground">{config?.stars.enabled ? `${config.stars.energyRefillPriceStars} ⭐` : 'Not activated yet'}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleBuyWithStars('energy_refill')}
-              disabled={!config?.stars.enabled || purchasingProduct === 'energy_refill'}
-              className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors"
-            >
-              {purchasingProduct === 'energy_refill' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buy'}
-            </button>
-          </div>
-          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 pr-4">
-              <Flame className="w-5 h-5 text-primary" />
-              <div>
-                <h3 className="font-semibold text-white text-sm">Mining Boost</h3>
-                <p className="text-xs text-muted-foreground">{config?.stars.enabled ? `${config.stars.boostPriceStars} ⭐` : 'Not activated yet'}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleBuyWithStars('boost')}
-              disabled={!config?.stars.enabled || purchasingProduct === 'boost'}
-              className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors"
-            >
-              {purchasingProduct === 'boost' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buy'}
-            </button>
-          </div>
-          <div className="bg-card border border-primary/30 rounded-xl p-4 flex items-center justify-between bg-gradient-to-r from-primary/10 to-transparent">
-            <div className="flex items-center gap-3 flex-1 pr-4">
-              <Crown className="w-5 h-5 text-primary" />
-              <div>
-                <h3 className="font-semibold text-white text-sm">Premium Membership (1 Month)</h3>
-                <p className="text-xs text-muted-foreground">
-                  {config?.premium.enabled ? `${config.premium.monthlyPriceStars} ⭐ · ${config.premium.earningsMultiplier}x earnings` : 'Not activated yet'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleBuyWithStars('premium_month')}
-              disabled={!config?.premium.enabled || purchasingProduct === 'premium_month'}
-              className="min-w-[80px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
-            >
-              {purchasingProduct === 'premium_month' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Subscribe'}
-            </button>
-          </div>
+          {!config?.stars.enabled ? (
+            <div className="bg-card border border-white/5 rounded-xl p-4 text-center text-xs text-muted-foreground">Not activated yet</div>
+          ) : starProducts.length === 0 ? (
+            <div className="bg-card border border-white/5 rounded-xl p-4 text-center text-xs text-muted-foreground">No items available right now</div>
+          ) : (
+            starProducts.map((product) => {
+              const Icon = product.effectType === 'premium_days' ? Crown : product.effectType === 'turbo_boost' ? Flame : product.effectType === 'energy_refill' ? Zap : Gem;
+              const isPremium = product.effectType === 'premium_days';
+              return (
+                <div
+                  key={product.id}
+                  className={
+                    isPremium
+                      ? 'bg-card border border-primary/30 rounded-xl p-4 flex items-center justify-between bg-gradient-to-r from-primary/10 to-transparent'
+                      : 'bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between'
+                  }
+                >
+                  <div className="flex items-center gap-3 flex-1 pr-4">
+                    {product.imageUrl ? (
+                      <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <Icon className="w-5 h-5 text-primary flex-shrink-0" />
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-white text-sm">{product.title}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {product.priceStars.toLocaleString()} ⭐{product.description ? ` · ${product.description}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleBuyWithStars(product.id)}
+                    disabled={purchasingProduct === product.id}
+                    className={
+                      isPremium
+                        ? 'min-w-[80px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors'
+                        : 'min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors'
+                    }
+                  >
+                    {purchasingProduct === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : isPremium ? 'Subscribe' : 'Buy'}
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 

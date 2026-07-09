@@ -42,13 +42,6 @@ router.get("/config/public", async (_req, res): Promise<void> => {
       ],
       stars: {
         enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-        energyRefillPriceStars: asNumber(settings.starsEnergyRefillPriceStars, 30),
-        boostPriceStars: asNumber(settings.starsBoostPriceStars, 50),
-      },
-      premium: {
-        enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-        monthlyPriceStars: asNumber(settings.premiumMonthlyPriceStars, 200),
-        earningsMultiplier: asNumber(settings.premiumEarningsMultiplier, 2),
       },
     }),
   );

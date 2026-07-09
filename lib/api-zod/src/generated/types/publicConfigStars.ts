@@ -8,6 +8,4 @@
 
 export type PublicConfigStars = {
   enabled: boolean;
-  energyRefillPriceStars: number;
-  boostPriceStars: number;
 };

@@ -7,3 +7,4 @@
 - [Client-authoritative sync vs server-applied effects](client-sync-vs-server-effects.md) — when a server-side event (e.g. IAP webhook) grants an effect into client-owned state, client must refetch or the next autosync silently overwrites it.
 - [Main agent git restrictions](main-agent-git.md) — `git commit`/destructive git ops are blocked in main agent; platform auto-commits at end of turn, then push to external remotes (e.g. GitHub) in a later turn.
 - [Sponsored ads feature](sponsored-ads.md) — admin-created ads reuse the existing broadcast-job pipeline for Telegram notify, and surface as claimable tasks with a claim-idempotency table.
+- [Generic paid-feature store pattern](star-store-pattern.md) — admin-configurable purchasable effects (Stars store) keyed by effectType+effectValue, not hardcoded product enums.

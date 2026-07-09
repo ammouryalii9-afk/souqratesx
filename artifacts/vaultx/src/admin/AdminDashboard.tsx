@@ -6,16 +6,18 @@ import { AdminSettings } from "./AdminSettings";
 import { AdminAuditLog } from "./AdminAuditLog";
 import { AdminBroadcast } from "./AdminBroadcast";
 import { AdminAds } from "./AdminAds";
+import { AdminStarStore } from "./AdminStarStore";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star } from "lucide-react";
 
-type Tab = "overview" | "users" | "broadcast" | "ads" | "settings" | "log";
+type Tab = "overview" | "users" | "broadcast" | "ads" | "star-store" | "settings" | "log";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "نظرة عامة", icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "users", label: "المستخدمون", icon: <UsersIcon className="w-4 h-4" /> },
   { id: "broadcast", label: "رسائل جماعية", icon: <Send className="w-4 h-4" /> },
   { id: "ads", label: "الإعلانات", icon: <Megaphone className="w-4 h-4" /> },
+  { id: "star-store", label: "متجر النجوم", icon: <Star className="w-4 h-4" /> },
   { id: "settings", label: "الإعدادات", icon: <SettingsIcon className="w-4 h-4" /> },
   { id: "log", label: "السجل", icon: <ScrollText className="w-4 h-4" /> },
 ];
@@ -63,6 +65,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "users" && <AdminUsers />}
         {tab === "broadcast" && <AdminBroadcast />}
         {tab === "ads" && <AdminAds />}
+        {tab === "star-store" && <AdminStarStore />}
         {tab === "settings" && <AdminSettings />}
         {tab === "log" && <AdminAuditLog />}
       </main>

@@ -5,9 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StarProduct } from './starProduct';
 
-export type PublicConfigPremium = {
-  enabled: boolean;
-  monthlyPriceStars: number;
-  earningsMultiplier: number;
-};
+export type StarProductList = StarProduct[];

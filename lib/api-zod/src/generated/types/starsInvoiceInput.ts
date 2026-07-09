@@ -5,8 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { StarsInvoiceInputProduct } from './starsInvoiceInputProduct';
 
 export interface StarsInvoiceInput {
-  product: StarsInvoiceInputProduct;
+  productId: number;
 }

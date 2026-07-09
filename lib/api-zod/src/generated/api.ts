@@ -440,6 +440,113 @@ export const DeleteAdminAdResponse = zod.object({
 
 
 /**
+ * @summary List all Telegram Stars store products (active and inactive)
+ */
+export const GetAdminStarProductsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "priceStars": zod.number(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetAdminStarProductsResponse = zod.array(GetAdminStarProductsResponseItem)
+
+
+/**
+ * @summary Create a new Telegram Stars store product
+ */
+
+
+
+export const CreateAdminStarProductBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "priceStars": zod.number().min(1),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectValue": zod.number().nullish()
+})
+
+export const CreateAdminStarProductResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "priceStars": zod.number(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a Telegram Stars store product (e.g. toggle active state, change price)
+ */
+export const UpdateAdminStarProductParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateAdminStarProductBody = zod.object({
+  "title": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "priceStars": zod.number().min(1).optional(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']).optional(),
+  "effectValue": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAdminStarProductResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "priceStars": zod.number(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a Telegram Stars store product
+ */
+export const DeleteAdminStarProductParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAdminStarProductResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary List active Telegram Stars store products for the current user
+ */
+export const GetStoreProductsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "imageUrl": zod.string().nullable(),
+  "priceStars": zod.number(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetStoreProductsResponse = zod.array(GetStoreProductsResponseItem)
+
+
+/**
  * @summary Get public, non-secret runtime configuration flags used to activate frontend features
  */
 export const GetPublicConfigResponse = zod.object({
@@ -457,14 +564,7 @@ export const GetPublicConfigResponse = zod.object({
   "enabled": zod.boolean()
 })),
   "stars": zod.object({
-  "enabled": zod.boolean(),
-  "energyRefillPriceStars": zod.number(),
-  "boostPriceStars": zod.number()
-}),
-  "premium": zod.object({
-  "enabled": zod.boolean(),
-  "monthlyPriceStars": zod.number(),
-  "earningsMultiplier": zod.number()
+  "enabled": zod.boolean()
 })
 })
 
@@ -542,7 +642,7 @@ export const OfferwallPostbackResponse = zod.object({
  * @summary Create a Telegram Stars invoice link for a purchasable product
  */
 export const CreateStarsInvoiceBody = zod.object({
-  "product": zod.enum(['energy_refill', 'boost', 'premium_month'])
+  "productId": zod.number()
 })
 
 export const CreateStarsInvoiceResponse = zod.object({

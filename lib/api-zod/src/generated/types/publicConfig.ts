@@ -7,12 +7,10 @@
  */
 import type { PublicConfigAdsgram } from './publicConfigAdsgram';
 import type { PublicConfigOfferwallsItem } from './publicConfigOfferwallsItem';
-import type { PublicConfigPremium } from './publicConfigPremium';
 import type { PublicConfigStars } from './publicConfigStars';
 
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   offerwalls: PublicConfigOfferwallsItem[];
   stars: PublicConfigStars;
-  premium: PublicConfigPremium;
 }

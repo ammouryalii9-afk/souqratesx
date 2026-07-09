@@ -1,31 +1,41 @@
 import { Router, type IRouter } from "express";
-import { CreateStarsInvoiceBody, CreateStarsInvoiceResponse } from "@workspace/api-zod";
+import { eq } from "drizzle-orm";
+import { db, starProductsTable } from "@workspace/db";
+import { CreateStarsInvoiceBody, CreateStarsInvoiceResponse, GetStoreProductsResponse } from "@workspace/api-zod";
 import { getSessionTelegramId } from "../lib/session";
-import { getSettingsMap, asNumber } from "../lib/settings";
 import { createStarsInvoiceLink, isTelegramBotConfigured } from "../lib/telegramBot";
 
 const router: IRouter = Router();
 
-const PRODUCTS: Record<string, { title: string; description: string; settingsKey: string; fallbackPrice: number }> = {
-  energy_refill: {
-    title: "Full Energy Refill",
-    description: "Instantly refill your energy to the max.",
-    settingsKey: "starsEnergyRefillPriceStars",
-    fallbackPrice: 30,
-  },
-  boost: {
-    title: "Mining Boost",
-    description: "Temporary mining speed boost.",
-    settingsKey: "starsBoostPriceStars",
-    fallbackPrice: 50,
-  },
-  premium_month: {
-    title: "SouqratesX Premium (1 Month)",
-    description: "Unlock the Premium earnings multiplier for 30 days.",
-    settingsKey: "premiumMonthlyPriceStars",
-    fallbackPrice: 200,
-  },
-};
+router.get("/store/products", async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(starProductsTable)
+    .where(eq(starProductsTable.isActive, true))
+    .orderBy(starProductsTable.priceStars);
+
+  res.json(
+    GetStoreProductsResponse.parse(
+      rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        imageUrl: row.imageUrl,
+        priceStars: row.priceStars,
+        effectType: row.effectType,
+        effectValue: row.effectValue,
+        isActive: row.isActive,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    ),
+  );
+});
 
 router.post("/stars/invoice", async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
@@ -45,26 +55,23 @@ router.post("/stars/invoice", async (req, res): Promise<void> => {
     return;
   }
 
-  const product = PRODUCTS[parsed.data.product];
-  if (!product) {
+  const [product] = await db.select().from(starProductsTable).where(eq(starProductsTable.id, parsed.data.productId));
+  if (!product || !product.isActive) {
     res.status(400).json({ error: "Unknown product" });
     return;
   }
 
-  const settings = await getSettingsMap();
-  const priceStars = asNumber(settings[product.settingsKey], product.fallbackPrice);
-
-  const payload = JSON.stringify({ telegramId, product: parsed.data.product });
+  const payload = JSON.stringify({ telegramId, productId: product.id });
 
   try {
     const invoiceUrl = await createStarsInvoiceLink({
       title: product.title,
-      description: product.description,
+      description: product.description ?? product.title,
       payload,
-      amountStars: priceStars,
+      amountStars: product.priceStars,
     });
 
-    res.json(CreateStarsInvoiceResponse.parse({ invoiceUrl, priceStars }));
+    res.json(CreateStarsInvoiceResponse.parse({ invoiceUrl, priceStars: product.priceStars }));
   } catch (err) {
     req.log.error({ err }, "Failed to create Telegram Stars invoice");
     res.status(400).json({ error: "Failed to create invoice, check TELEGRAM_BOT_TOKEN" });

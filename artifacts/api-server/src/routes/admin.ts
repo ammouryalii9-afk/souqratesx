@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable } from "@workspace/db";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -27,6 +27,11 @@ import {
   CreateAdminAdResponse,
   UpdateAdminAdBody,
   UpdateAdminAdResponse,
+  GetAdminStarProductsResponse,
+  CreateAdminStarProductBody,
+  CreateAdminStarProductResponse,
+  UpdateAdminStarProductBody,
+  UpdateAdminStarProductResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
@@ -514,6 +519,120 @@ router.delete("/admin/ads/:id", async (req, res): Promise<void> => {
 
   await db.delete(sponsoredAdsTable).where(eq(sponsoredAdsTable.id, id));
   await logAdminAction("delete_ad", null, { adId: id });
+
+  res.json(AdminLogoutResponse.parse({ authenticated: true }));
+});
+
+function toStarProduct(row: typeof starProductsTable.$inferSelect) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    imageUrl: row.imageUrl,
+    priceStars: row.priceStars,
+    effectType: row.effectType,
+    effectValue: row.effectValue,
+    isActive: row.isActive,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+router.get("/admin/star-products", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const rows = await db.select().from(starProductsTable).orderBy(desc(starProductsTable.createdAt));
+  res.json(GetAdminStarProductsResponse.parse(rows.map(toStarProduct)));
+});
+
+router.post("/admin/star-products", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const parsed = CreateAdminStarProductBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [product] = await db
+    .insert(starProductsTable)
+    .values({
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      imageUrl: parsed.data.imageUrl ?? null,
+      priceStars: parsed.data.priceStars,
+      effectType: parsed.data.effectType,
+      effectValue: parsed.data.effectValue ?? null,
+    })
+    .returning();
+
+  if (!product) {
+    res.status(400).json({ error: "Failed to create product" });
+    return;
+  }
+
+  await logAdminAction("create_star_product", null, { productId: product.id, title: product.title });
+
+  res.json(CreateAdminStarProductResponse.parse(toStarProduct(product)));
+});
+
+router.patch("/admin/star-products/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const parsed = UpdateAdminStarProductBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const patch: Partial<typeof starProductsTable.$inferInsert> = {};
+  if (parsed.data.title !== undefined) patch.title = parsed.data.title;
+  if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (parsed.data.imageUrl !== undefined) patch.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.priceStars !== undefined) patch.priceStars = parsed.data.priceStars;
+  if (parsed.data.effectType !== undefined) patch.effectType = parsed.data.effectType;
+  if (parsed.data.effectValue !== undefined) patch.effectValue = parsed.data.effectValue;
+  if (parsed.data.isActive !== undefined) patch.isActive = parsed.data.isActive;
+
+  const [product] = await db.update(starProductsTable).set(patch).where(eq(starProductsTable.id, id)).returning();
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  await logAdminAction("update_star_product", null, { productId: id, ...patch });
+
+  res.json(UpdateAdminStarProductResponse.parse(toStarProduct(product)));
+});
+
+router.delete("/admin/star-products/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  await db.delete(starProductsTable).where(eq(starProductsTable.id, id));
+  await logAdminAction("delete_star_product", null, { productId: id });
 
   res.json(AdminLogoutResponse.parse({ authenticated: true }));
 });

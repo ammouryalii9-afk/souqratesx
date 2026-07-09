@@ -9,8 +9,7 @@ export type PublicConfig = {
     dailyCap: number;
   };
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
-  stars: { enabled: boolean; energyRefillPriceStars: number; boostPriceStars: number };
-  premium: { enabled: boolean; monthlyPriceStars: number; earningsMultiplier: number };
+  stars: { enabled: boolean };
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -40,8 +39,24 @@ export function claimAdsgramReward(): Promise<{ creditedPoints: number; lifetime
   return apiFetch("/earn/adsgram/reward", { method: "POST" });
 }
 
-export function createStarsInvoice(product: "energy_refill" | "boost" | "premium_month"): Promise<{ invoiceUrl: string; priceStars: number }> {
-  return apiFetch("/stars/invoice", { method: "POST", body: JSON.stringify({ product }) });
+export type StarProduct = {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  priceStars: number;
+  effectType: "points" | "energy_refill" | "turbo_boost" | "premium_days";
+  effectValue: number | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export function getStarProducts(): Promise<StarProduct[]> {
+  return apiFetch<StarProduct[]>("/store/products");
+}
+
+export function createStarsInvoice(productId: number): Promise<{ invoiceUrl: string; priceStars: number }> {
+  return apiFetch("/stars/invoice", { method: "POST", body: JSON.stringify({ productId }) });
 }
 
 export type SponsoredAdTask = {
