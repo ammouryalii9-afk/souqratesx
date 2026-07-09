@@ -1,0 +1,41 @@
+This server is hosted by Contabo. If you have any questions or need help,
+please raise a support ticket from your customer control panel.
+Last login: Thu Jul  9 16:19:56 2026 from 35.200.169.21
+root@vmi3329645:~# dig souqrates.online @8.8.8.8 +short
+dig www.souqrates.online @8.8.8.8 +short
+194.163.155.52
+194.163.155.52
+root@vmi3329645:~# https://dnschecker.org/#A/souqrates.online
+-bash: https://dnschecker.org/#A/souqrates.online: No such file or directory
+root@vmi3329645:~# dig souqrates.online @8.8.8.8 +short
+194.163.155.52
+root@vmi3329645:~# cd /opt/souqratex
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d souqrates.online -d www.souqrates.online
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+certbot is already the newest version (2.9.0-1).
+python3-certbot-nginx is already the newest version (2.9.0-1).
+0 upgraded, 0 newly installed, 0 to remove and 12 not upgraded.
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Requesting a certificate for souqrates.online and www.souqrates.online
+
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/souqrates.online/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/souqrates.online/privkey.pem
+This certificate expires on 2026-10-07.
+These files will be updated when the certificate renews.
+Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+Deploying certificate
+Successfully deployed certificate for souqrates.online to /etc/nginx/sites-enabled/souqratex
+Successfully deployed certificate for www.souqrates.online to /etc/nginx/sites-enabled/souqratex
+Congratulations! You have successfully enabled HTTPS on https://souqrates.online and https://www.souqrates.online
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@vmi3329645:/opt/souqratex# 
