@@ -1,0 +1,108 @@
+This server is hosted by Contabo. If you have any questions or need help,
+please raise a support ticket from your customer control panel.
+Last login: Thu Jul  9 16:19:56 2026 from 35.200.169.21
+root@vmi3329645:~# dig souqrates.online @8.8.8.8 +short
+dig www.souqrates.online @8.8.8.8 +short
+194.163.155.52
+194.163.155.52
+root@vmi3329645:~# https://dnschecker.org/#A/souqrates.online
+-bash: https://dnschecker.org/#A/souqrates.online: No such file or directory
+root@vmi3329645:~# dig souqrates.online @8.8.8.8 +short
+194.163.155.52
+root@vmi3329645:~# cd /opt/souqratex
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d souqrates.online -d www.souqrates.online
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+certbot is already the newest version (2.9.0-1).
+python3-certbot-nginx is already the newest version (2.9.0-1).
+0 upgraded, 0 newly installed, 0 to remove and 12 not upgraded.
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Requesting a certificate for souqrates.online and www.souqrates.online
+
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/souqrates.online/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/souqrates.online/privkey.pem
+This certificate expires on 2026-10-07.
+These files will be updated when the certificate renews.
+Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+Deploying certificate
+Successfully deployed certificate for souqrates.online to /etc/nginx/sites-enabled/souqratex
+Successfully deployed certificate for www.souqrates.online to /etc/nginx/sites-enabled/souqratex
+Congratulations! You have successfully enabled HTTPS on https://souqrates.online and https://www.souqrates.online
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@vmi3329645:/opt/souqratex# cd /opt/souqratex && ./deploy/contabo/deploy.sh
+==> Pulling latest code from GitHub
+From https://github.com/ammouryalii9-afk/souqratesx
+ * branch            main       -> FETCH_HEAD
+HEAD is now at 5cc3e84 Add instructions for self-hosting the application on a Contabo server
+==> Loading deploy/contabo/.env
+==> Installing dependencies
+Scope: all 9 workspace projects
+Already up to date
+Done in 1.5s using pnpm v11.10.0
+==> Building libs
+$ tsc --build
+==> Pushing DB schema (idempotent, safe on prod-ready schema)
+$ drizzle-kit push --config ./drizzle.config.ts
+Reading config file '/opt/souqratex/lib/db/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+[i] No changes detected
+==> Building api-server
+$ node ./build.mjs
+
+  dist/index.mjs                       2.2mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   3.8mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 1148ms
+==> Building vaultx frontend
+$ vite build --config vite.config.ts
+vite v7.3.6 building client environment for production...
+src/components/ui/progress.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 1760 modules transformed.
+dist/public/index.html                                                                    1.44 kB │ gzip:   0.57 kB
+dist/public/assets/WhatsApp_Image_2026-07-09_at_4.17.52_PM_1783603161513-CvK4us-o.jpeg  173.32 kB
+dist/public/assets/index-DXaDXpIn.css                                                   115.00 kB │ gzip:  18.05 kB
+dist/public/assets/index-COIg_1kJ.js                                                    368.75 kB │ gzip: 113.62 kB
+✓ built in 8.43s
+==> Restarting services via pm2
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 7.0.1
+Local PM2 version: 7.0.3
+
+[PM2] Applying action reloadProcessId on app [souqratex-api](ids: [ 1 ])
+[PM2] [souqratex-api](1) ✓
+┌────┬──────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name             │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼──────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 1  │ souqratex-api    │ cluster  │ 144  │ online    │ 0%       │ 93.0mb   │
+└────┴──────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+==> Done. Services status:
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 7.0.1
+Local PM2 version: 7.0.3
+
+┌────┬──────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name             │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼──────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 1  │ souqratex-api    │ cluster  │ 144  │ online    │ 0%       │ 93.0mb   │
