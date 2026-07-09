@@ -52,6 +52,30 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<void> {
   });
 }
 
+export async function sendTelegramMessage(chatId: number, text: string, webAppUrl?: string): Promise<void> {
+  await callBotApi("sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup: webAppUrl
+      ? {
+          inline_keyboard: [[{ text: "\u{1F680} \u0627\u0644\u0639\u0628 \u0627\u0644\u0627\u0646", web_app: { url: webAppUrl } }]],
+        }
+      : undefined,
+  });
+}
+
+export async function setTelegramMenuButton(appUrl: string): Promise<void> {
+  await callBotApi("setChatMenuButton", {
+    menu_button: { type: "web_app", text: "\u0641\u062A\u062D \u0627\u0644\u062A\u0637\u0628\u064A\u0642", web_app: { url: appUrl } },
+  });
+}
+
+export async function setTelegramBotCommands(): Promise<void> {
+  await callBotApi("setMyCommands", {
+    commands: [{ command: "start", description: "\u0627\u0641\u062A\u062D SouqratesX" }],
+  });
+}
+
 export function isTelegramBotConfigured(): boolean {
   return Boolean(botToken);
 }
@@ -65,7 +89,7 @@ export type TelegramSuccessfulPayment = {
 
 export type TelegramUpdate = {
   pre_checkout_query?: { id: string; from: { id: number }; invoice_payload: string; total_amount: number };
-  message?: { from?: { id: number }; successful_payment?: TelegramSuccessfulPayment };
+  message?: { from?: { id: number }; text?: string; successful_payment?: TelegramSuccessfulPayment };
 };
 
 export function logTelegramWebhookError(context: string, err: unknown): void {

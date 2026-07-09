@@ -19,7 +19,7 @@ import {
   GetAdminAuditLogResponse,
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
-import { setTelegramWebhook, isTelegramBotConfigured } from "../lib/telegramBot";
+import { setTelegramWebhook, setTelegramMenuButton, setTelegramBotCommands, isTelegramBotConfigured } from "../lib/telegramBot";
 
 const router: IRouter = Router();
 
@@ -297,8 +297,11 @@ router.post("/admin/telegram/setup-webhook", async (req, res): Promise<void> => 
   const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
 
   try {
+    const appUrl = `${proto}://${host}/`;
     await setTelegramWebhook(webhookUrl);
-    await logAdminAction("setup_telegram_webhook", null, { webhookUrl });
+    await setTelegramBotCommands();
+    await setTelegramMenuButton(appUrl);
+    await logAdminAction("setup_telegram_webhook", null, { webhookUrl, appUrl });
     res.json({ ok: true, webhookUrl, description: "Telegram webhook configured successfully" });
   } catch (err) {
     req.log.error({ err }, "Failed to set Telegram webhook");
