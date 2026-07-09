@@ -97,16 +97,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isTelegramUser, setIsTelegramUser] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 12.45);
+  const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 0);
   const [tempMiningPoints, setTempMiningPoints] = useState(() => {
     const saved = localStorage.getItem('tempMiningPoints');
     return saved ? Number(saved) : 0;
   });
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
-  const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 85);
+  const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 100);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
-  const [totalReferrals] = useState(14);
-  const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 1.50);
+  const [totalReferrals] = useState(0);
+  const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 0);
 
   const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
   const [turboUsesToday, setTurboUsesToday] = useState(() => Number(localStorage.getItem('turboUsesToday')) || 0);
@@ -161,20 +161,21 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setUsername(data.user.username || data.user.firstName || 'Player');
         setIsTelegramUser(true);
 
-        if (Object.keys(state).length > 0) {
-          if (typeof state.totalBalanceUSD === 'number') setTotalBalanceUSD(state.totalBalanceUSD);
-          if (typeof state.tempMiningPoints === 'number') setTempMiningPoints(state.tempMiningPoints);
-          if (typeof state.miningLevel === 'number') setMiningLevel(state.miningLevel);
-          if (typeof state.energy === 'number') setEnergy(state.energy);
-          if (typeof state.maxEnergy === 'number') setMaxEnergy(state.maxEnergy);
-          if (typeof state.referralEarnings === 'number') setReferralEarnings(state.referralEarnings);
-          if (typeof data.user.lifetimePoints === 'number') setLifetimePoints(data.user.lifetimePoints);
-          if (typeof state.turboUsesToday === 'number') setTurboUsesToday(state.turboUsesToday);
-          if (typeof state.rechargeUsesToday === 'number') setRechargeUsesToday(state.rechargeUsesToday);
-          if (state.farmState) setFarmState(state.farmState);
-          if (typeof state.farmStartTime === 'number') setFarmStartTime(state.farmStartTime);
-          if (Array.isArray(state.passiveCards)) setPassiveCards(state.passiveCards);
-        }
+        // Server is the source of truth. If the server has no state (new or
+        // admin-reset account), reset local values to defaults instead of
+        // keeping stale localStorage progress.
+        setTotalBalanceUSD(typeof state.totalBalanceUSD === 'number' ? state.totalBalanceUSD : 0);
+        setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
+        setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
+        setEnergy(typeof state.energy === 'number' ? state.energy : 100);
+        setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
+        setReferralEarnings(typeof state.referralEarnings === 'number' ? state.referralEarnings : 0);
+        setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
+        setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
+        setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);
+        setFarmState(state.farmState ?? 'idle');
+        setFarmStartTime(typeof state.farmStartTime === 'number' ? state.farmStartTime : 0);
+        setPassiveCards(Array.isArray(state.passiveCards) ? state.passiveCards : []);
       })
       .catch((err) => {
         console.error('Telegram auth failed, falling back to local progress', err);
@@ -324,13 +325,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, [totalReferrals]);
 
+  // While the server auth/hydration request is in flight inside Telegram,
+  // block progress-mutating actions — otherwise taps made before hydration
+  // completes would be overwritten (lost) when the server state arrives.
+  const isHydrationPending = () => isHydrating.current;
+
   const claimEarnings = () => {
+    if (isHydrationPending()) return;
     const usdToAdd = (tempMiningPoints / 10000) * 0.01;
     setTotalBalanceUSD(prev => prev + usdToAdd);
     setTempMiningPoints(0);
   };
 
   const upgradeMiningLevel = (cost: number, newLevel: number) => {
+    if (isHydrationPending()) return;
     if (tempMiningPoints >= cost) {
       setTempMiningPoints(prev => prev - cost);
       setMiningLevel(newLevel);
@@ -338,6 +346,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const expandBattery = (cost: number) => {
+    if (isHydrationPending()) return;
     if (tempMiningPoints >= cost && maxEnergy < 200) {
       setTempMiningPoints(prev => prev - cost);
       setMaxEnergy(200);
@@ -345,6 +354,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const tapMine = (): number => {
+    if (isHydrationPending()) return 0;
     let earned = 0;
     setEnergy(prev => {
       if (prev <= 0) return prev;
@@ -358,6 +368,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const activateTurbo = () => {
+    if (isHydrationPending()) return;
     if (turboUsesToday < 3 && !activeTurbo) {
       setActiveTurbo(true);
       setTurboExpiresAt(Date.now() + 20000);
@@ -366,6 +377,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const rechargeEnergy = () => {
+    if (isHydrationPending()) return;
     if (rechargeUsesToday < 3) {
       setEnergy(maxEnergy);
       setRechargeUsesToday(p => p + 1);
@@ -373,6 +385,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const startFarming = () => {
+    if (isHydrationPending()) return;
     if (farmState === 'idle') {
       setFarmState('farming');
       setFarmStartTime(Date.now());
@@ -380,6 +393,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const claimFarming = () => {
+    if (isHydrationPending()) return;
     if (farmState === 'ready') {
       setTempMiningPoints(p => p + 4000);
       setLifetimePoints(p => p + 4000);
@@ -389,6 +403,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const buyPassiveCard = (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => {
+    if (isHydrationPending()) return;
     if (tempMiningPoints >= cost) {
       setTempMiningPoints(p => p - cost);
       setPassiveCards(prev => {
@@ -403,6 +418,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addLifetimePoints = (n: number) => {
+    if (isHydrationPending()) return;
     setLifetimePoints(p => p + n);
   };
 

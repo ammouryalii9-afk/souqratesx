@@ -80,6 +80,8 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - All credit paths are atomic SQL increments; adsgram cooldown/daily-cap are re-checked inside the UPDATE's WHERE clause (no double-credit races). Offerwall credits capped at 1M/postback.
 - `processed_transactions` table (`lib/db/src/schema/processedTransactions.ts`) is an idempotency ledger: Stars payments dedupe on `telegram_payment_charge_id`; offerwall postbacks dedupe on `txId`/`transId`/`tx` query param when the provider sends one.
 - Server refuses to boot without `SESSION_SECRET`. Admin session tokens embed an issue timestamp and expire server-side after 12h.
+- Client hydration is server-authoritative: on successful Telegram auth, ALL game fields are set from server state (defaults when empty) — stale localStorage never survives a server-side reset. Progress-mutating actions are no-op'd while the auth request is in flight so pre-hydration taps can't be lost/overwritten. The localStorage-only fallback outside Telegram is preserved.
+- DB pool uses keepAlive + warm-up query at boot — remote Supabase pooler TLS handshake cost ~1s/query before this; don't remove it or every request slows down.
 - DB is Supabase Postgres via `SUPABASE_DATABASE_URL` (pooler URL — the direct `db.*.supabase.co` host is IPv6-only and unreachable); falls back to `DATABASE_URL` if unset. All user balances were zeroed on 2026-07-09 to prepare for launch.
 
 ## User preferences
