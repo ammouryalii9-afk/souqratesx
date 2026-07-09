@@ -31,7 +31,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#8A6F00] flex items-center justify-center">
             <ShieldCheck className="w-5 h-5 text-black" />
           </div>
-          <span className="font-bold">لوحة تحكم SouqratesX</span>
+          <span className="font-bold">لوحة تحكم SouqrateX</span>
         </div>
         <Button size="sm" variant="outline" onClick={handleLogout} data-testid="button-admin-logout">
           <LogOut className="w-4 h-4 mr-1" /> خروج

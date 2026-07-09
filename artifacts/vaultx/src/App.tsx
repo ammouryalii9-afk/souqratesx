@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { VaultProvider, useVault, getLeague } from "./context/VaultContext";
 import { BottomNav } from "./components/BottomNav";
+import { SplashScreen } from "./components/SplashScreen";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -18,7 +19,7 @@ function Header() {
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#8A6F00] flex items-center justify-center shadow-[0_0_15px_rgba(245,197,24,0.3)]">
           <Coins className="w-5 h-5 text-black" />
         </div>
-        <span className="font-bold tracking-tight text-lg text-white">SouqratesX</span>
+        <span className="font-bold tracking-tight text-lg text-white">SouqrateX</span>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: league.color, color: '#000'}}>
           {league.name}
         </span>
@@ -56,6 +57,12 @@ function MainLayout() {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onDone={() => setShowSplash(false)} />;
+  }
+
   return (
     <VaultProvider>
       <MainLayout />

@@ -9,7 +9,7 @@ import { getTelegramWebApp } from '../lib/telegram';
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
 
 const SPONSORED_TASKS = [
-  { id: 't1', title: 'Join SouqratesX Official Channel', reward: 5000, link: 'https://t.me/SouqratesXOfficial' },
+  { id: 't1', title: 'Join SouqrateX Official Channel', reward: 5000, link: 'https://t.me/SouqrateXOfficial' },
   { id: 't2', title: 'Launch Partner Currency Bot', reward: 15000, link: 'https://t.me/PartnerBot' },
   { id: 't3', title: 'Complete Survey via Monlix', reward: 2000, isSurvey: true },
 ];
@@ -459,7 +459,7 @@ export const TasksTab = () => {
           <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
           <div className="flex items-center gap-3 mb-2">
             <Gift className="w-6 h-6 text-primary animate-bounce" />
-            <h2 className="text-lg font-bold text-white">SouqratesX Airdrop</h2>
+            <h2 className="text-lg font-bold text-white">SouqrateX Airdrop</h2>
           </div>
           <p className="text-xs text-primary/80 mb-4">Accumulate more points before the snapshot!</p>
           <div className="flex gap-2">

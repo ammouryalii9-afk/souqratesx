@@ -28,7 +28,7 @@ export const FriendsTab = () => {
   const { userId, username, totalReferrals, referralEarnings, lifetimePoints } = useVault();
   const { toast } = useToast();
   
-  const referralLink = `https://t.me/SouqratesXBot?start=ref_${userId}`;
+  const referralLink = `https://t.me/SouqrateXBot?start=ref_${userId}`;
 
   const copyLink = async () => {
     try {

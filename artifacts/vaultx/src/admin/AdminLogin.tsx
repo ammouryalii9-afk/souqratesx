@@ -30,7 +30,7 @@ export function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-[#8A6F00] flex items-center justify-center">
             <ShieldCheck className="w-6 h-6 text-black" />
           </div>
-          <h1 className="text-lg font-bold">لوحة تحكم SouqratesX</h1>
+          <h1 className="text-lg font-bold">لوحة تحكم SouqrateX</h1>
           <p className="text-xs text-muted-foreground">أدخل كلمة مرور المدير للاستمرار</p>
         </div>
         <Input
