@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown } from 'lucide-react';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
 import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { getTelegramWebApp } from '../lib/telegram';
@@ -710,7 +710,7 @@ export const TasksTab = () => {
             <div className="bg-card border border-white/5 rounded-xl p-4 text-center text-xs text-muted-foreground">No items available right now</div>
           ) : (
             starProducts.map((product) => {
-              const Icon = product.effectType === 'premium_days' ? Crown : product.effectType === 'turbo_boost' ? Flame : product.effectType === 'energy_refill' ? Zap : Gem;
+              const Icon = product.effectType === 'premium_days' ? Crown : product.effectType === 'turbo_boost' ? Flame : product.effectType === 'energy_refill' ? Zap : product.effectType === 'permanent_multiplier' ? Sparkles : product.effectType === 'badge' ? Award : product.effectType === 'skin' ? Palette : Gem;
               const isPremium = product.effectType === 'premium_days';
               return (
                 <div

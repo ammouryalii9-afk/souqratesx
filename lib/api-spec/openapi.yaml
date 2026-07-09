@@ -1424,10 +1424,10 @@ components:
           type: integer
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days]
+          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
         effectValue:
           type: ["integer", "null"]
-          description: "Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill."
+          description: "Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill."
         isActive:
           type: boolean
         createdAt:
@@ -1460,7 +1460,7 @@ components:
           minimum: 1
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days]
+          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
         effectValue:
           type: ["integer", "null"]
       required:
@@ -1481,7 +1481,7 @@ components:
           minimum: 1
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days]
+          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
         effectValue:
           type: ["integer", "null"]
         isActive:

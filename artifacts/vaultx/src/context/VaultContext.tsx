@@ -31,6 +31,24 @@ type SyncedState = {
   passiveCards: PassiveCard[];
   lastResetDate?: string;
   lastEnergyRegen?: number;
+  permanentMultiplierPercent?: number;
+  ownedBadgeIds?: number[];
+  equippedBadgeId?: number | null;
+  ownedSkinIds?: number[];
+  equippedSkinId?: number | null;
+};
+
+export const BADGES: Record<number, { label: string; color: string }> = {
+  1: { label: 'مستكشف', color: '#c0c0c0' },
+  2: { label: 'محترف', color: '#ffd700' },
+  3: { label: 'أسطورة', color: '#ff4d4d' },
+};
+
+export const SKINS: Record<number, { name: string; accent: string; glow: string }> = {
+  1: { name: 'كلاسيك', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)' },
+  2: { name: 'نيون أزرق', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)' },
+  3: { name: 'زمردي', accent: '#34d399', glow: 'rgba(52,211,153,0.35)' },
+  4: { name: 'ملكي بنفسجي', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
 };
 
 type VaultContextType = {
@@ -55,6 +73,14 @@ type VaultContextType = {
   farmState: 'idle' | 'farming' | 'ready';
   farmStartTime: number;
   passiveCards: PassiveCard[];
+
+  permanentMultiplierPercent: number;
+  ownedBadgeIds: number[];
+  equippedBadgeId: number | null;
+  ownedSkinIds: number[];
+  equippedSkinId: number | null;
+  equipBadge: (badgeId: number | null) => void;
+  equipSkin: (skinId: number | null) => void;
 
   setTotalBalanceUSD: (val: number | ((prev: number) => number)) => void;
   setTempMiningPoints: (val: number | ((prev: number) => number)) => void;
@@ -124,10 +150,36 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeTurbo, setActiveTurbo] = useState(false);
   const [turboExpiresAt, setTurboExpiresAt] = useState(0);
 
+  const [permanentMultiplierPercent, setPermanentMultiplierPercent] = useState(() => Number(localStorage.getItem('permanentMultiplierPercent')) || 0);
+  const [ownedBadgeIds, setOwnedBadgeIds] = useState<number[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ownedBadgeIds') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [equippedBadgeId, setEquippedBadgeId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('equippedBadgeId');
+    return saved ? Number(saved) : null;
+  });
+  const [ownedSkinIds, setOwnedSkinIds] = useState<number[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ownedSkinIds') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [equippedSkinId, setEquippedSkinId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('equippedSkinId');
+    return saved ? Number(saved) : null;
+  });
+
   const hasHydratedFromServer = useRef(false);
   const isHydrating = useRef(false);
 
-  const profitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
+  const basePassiveProfitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
+  const multiplierFactor = 1 + permanentMultiplierPercent / 100;
+  const profitPerHour = Math.round(basePassiveProfitPerHour * multiplierFactor);
 
   // Authenticate with Telegram (if running inside Telegram) and hydrate state from the server.
   useEffect(() => {
@@ -177,6 +229,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setFarmState(state.farmState ?? 'idle');
         setFarmStartTime(typeof state.farmStartTime === 'number' ? state.farmStartTime : 0);
         setPassiveCards(Array.isArray(state.passiveCards) ? state.passiveCards : []);
+        setPermanentMultiplierPercent(typeof state.permanentMultiplierPercent === 'number' ? state.permanentMultiplierPercent : 0);
+        setOwnedBadgeIds(Array.isArray(state.ownedBadgeIds) ? state.ownedBadgeIds : []);
+        setEquippedBadgeId(typeof state.equippedBadgeId === 'number' ? state.equippedBadgeId : null);
+        setOwnedSkinIds(Array.isArray(state.ownedSkinIds) ? state.ownedSkinIds : []);
+        setEquippedSkinId(typeof state.equippedSkinId === 'number' ? state.equippedSkinId : null);
       })
       .catch((err) => {
         console.error('Telegram auth failed, falling back to local progress', err);
@@ -213,7 +270,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
     localStorage.setItem('totalReferrals', totalReferrals.toString());
     localStorage.setItem('referralEarnings', referralEarnings.toString());
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings]);
+    localStorage.setItem('permanentMultiplierPercent', permanentMultiplierPercent.toString());
+    localStorage.setItem('ownedBadgeIds', JSON.stringify(ownedBadgeIds));
+    localStorage.setItem('equippedBadgeId', equippedBadgeId === null ? '' : equippedBadgeId.toString());
+    localStorage.setItem('ownedSkinIds', JSON.stringify(ownedSkinIds));
+    localStorage.setItem('equippedSkinId', equippedSkinId === null ? '' : equippedSkinId.toString());
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,6 +297,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         farmState,
         farmStartTime,
         passiveCards,
+        permanentMultiplierPercent,
+        ownedBadgeIds,
+        equippedBadgeId,
+        ownedSkinIds,
+        equippedSkinId,
       };
       apiFetch('/vault/me', {
         method: 'PUT',
@@ -244,7 +311,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
+  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -321,6 +388,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // completes would be overwritten (lost) when the server state arrives.
   const isHydrationPending = () => isHydrating.current;
 
+  const equipBadge = (badgeId: number | null) => {
+    if (badgeId !== null && !ownedBadgeIds.includes(badgeId)) return;
+    setEquippedBadgeId(badgeId);
+  };
+
+  const equipSkin = (skinId: number | null) => {
+    if (skinId !== null && !ownedSkinIds.includes(skinId)) return;
+    setEquippedSkinId(skinId);
+  };
+
   const claimEarnings = () => {
     if (isHydrationPending()) return;
     const usdToAdd = (tempMiningPoints / 10000) * 0.01;
@@ -349,8 +426,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let earned = 0;
     setEnergy(prev => {
       if (prev <= 0) return prev;
-      const pts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-      earned = activeTurbo ? pts * 5 : pts;
+      const basePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+      const boostedPts = activeTurbo ? basePts * 5 : basePts;
+      earned = Math.round(boostedPts * multiplierFactor);
       setTempMiningPoints(p => p + earned);
       setLifetimePoints(p => p + earned);
       return prev - 1;
@@ -440,6 +518,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setFarmState(state.farmState ?? 'idle');
       setFarmStartTime(typeof state.farmStartTime === 'number' ? state.farmStartTime : 0);
       setPassiveCards(Array.isArray(state.passiveCards) ? state.passiveCards : []);
+      setPermanentMultiplierPercent(typeof state.permanentMultiplierPercent === 'number' ? state.permanentMultiplierPercent : 0);
+      setOwnedBadgeIds(Array.isArray(state.ownedBadgeIds) ? state.ownedBadgeIds : []);
+      setEquippedBadgeId(typeof state.equippedBadgeId === 'number' ? state.equippedBadgeId : null);
+      setOwnedSkinIds(Array.isArray(state.ownedSkinIds) ? state.ownedSkinIds : []);
+      setEquippedSkinId(typeof state.equippedSkinId === 'number' ? state.equippedSkinId : null);
       const activeTurboFromServer = (state as Record<string, unknown>).activeTurbo === true;
       const turboExpiresAtFromServer = typeof (state as Record<string, unknown>).turboExpiresAt === 'number'
         ? (state as Record<string, unknown>).turboExpiresAt as number
@@ -477,6 +560,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         farmState,
         farmStartTime,
         passiveCards,
+        permanentMultiplierPercent,
+        ownedBadgeIds,
+        equippedBadgeId,
+        ownedSkinIds,
+        equippedSkinId,
+        equipBadge,
+        equipSkin,
         setTotalBalanceUSD,
         setTempMiningPoints,
         setMiningLevel,

@@ -7,7 +7,7 @@
 // [Sentry.io SDK] — error tracking and performance monitoring
 
 import { useState, useCallback, useEffect } from 'react';
-import { useVault, getLeague } from '../context/VaultContext';
+import { useVault, getLeague, SKINS } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault } from 'lucide-react';
@@ -29,9 +29,10 @@ export const VaultTab = () => {
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo,
     rechargeUsesToday, rechargeEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
-    lifetimePoints, profitPerHour
+    lifetimePoints, profitPerHour, equippedSkinId
   } = useVault();
   const { toast } = useToast();
+  const skin = equippedSkinId !== null ? SKINS[equippedSkinId] : undefined;
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState(0);
@@ -183,17 +184,26 @@ export const VaultTab = () => {
           className="relative w-52 h-52 rounded-full focus:outline-none disabled:cursor-not-allowed"
           style={{ transform: isTapping ? 'scale(0.94)' : 'scale(1)', transition: 'transform 0.1s ease' }}
         >
-          <div className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${activeTurbo ? 'border-cyan-400/80 animate-pulse' : energy > 0 ? 'border-primary/40' : 'border-white/10'}`} />
-          <div className={`absolute inset-2 rounded-full border border-primary/20 ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''} ${activeTurbo ? 'border-cyan-400/50' : ''}`} />
+          <div
+            className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${activeTurbo ? 'border-cyan-400/80 animate-pulse' : !skin && energy > 0 ? 'border-primary/40' : !skin ? 'border-white/10' : ''}`}
+            style={!activeTurbo && skin && energy > 0 ? { borderColor: `${skin.accent}66` } : undefined}
+          />
+          <div
+            className={`absolute inset-2 rounded-full border ${!skin ? 'border-primary/20' : ''} ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''} ${activeTurbo ? 'border-cyan-400/50' : ''}`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}33` } : undefined}
+          />
 
           {energy > 0 && !isCapped && !activeTurbo && (
-            <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(245,197,24,0.18)] animate-pulse" />
+            <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(245,197,24,0.18)] animate-pulse" style={skin ? { boxShadow: `0 0 60px ${skin.glow}` } : undefined} />
           )}
           {activeTurbo && (
             <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(34,211,238,0.4)] animate-pulse" />
           )}
 
-          <div className={`absolute inset-4 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-[#002b36] to-[#0A0900] border-cyan-400/60' : 'from-[#2A2205] to-[#0A0900] border-primary/40'} flex flex-col items-center justify-center border shadow-inner overflow-hidden`}>
+          <div
+            className={`absolute inset-4 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-[#002b36] to-[#0A0900] border-cyan-400/60' : !skin ? 'from-[#2A2205] to-[#0A0900] border-primary/40' : 'from-[#1a1a1a] to-[#0A0900]'} flex flex-col items-center justify-center border shadow-inner overflow-hidden`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}66` } : undefined}
+          >
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`} />
             <span className="text-[10px] text-primary/60 font-medium uppercase tracking-widest mb-1">Mined</span>
             <span className="text-3xl font-bold text-white tabular-nums leading-none">

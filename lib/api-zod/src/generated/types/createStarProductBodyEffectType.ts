@@ -14,4 +14,7 @@ export const CreateStarProductBodyEffectType = {
   energy_refill: 'energy_refill',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
+  permanent_multiplier: 'permanent_multiplier',
+  badge: 'badge',
+  skin: 'skin',
 } as const;

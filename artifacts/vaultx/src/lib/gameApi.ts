@@ -45,7 +45,7 @@ export type StarProduct = {
   description: string | null;
   imageUrl: string | null;
   priceStars: number;
-  effectType: "points" | "energy_refill" | "turbo_boost" | "premium_days";
+  effectType: "points" | "energy_refill" | "turbo_boost" | "premium_days" | "permanent_multiplier" | "badge" | "skin";
   effectValue: number | null;
   isActive: boolean;
   createdAt: string;

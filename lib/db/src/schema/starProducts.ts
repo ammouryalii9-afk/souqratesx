@@ -8,7 +8,15 @@ import { z } from "zod/v4";
  * a purchase completes; `effectValue` is a generic numeric parameter whose
  * meaning depends on `effectType` (see applyStarProductEffect in the API server).
  */
-export const starProductEffectTypes = ["points", "energy_refill", "turbo_boost", "premium_days"] as const;
+export const starProductEffectTypes = [
+  "points",
+  "energy_refill",
+  "turbo_boost",
+  "premium_days",
+  "permanent_multiplier",
+  "badge",
+  "skin",
+] as const;
 
 export const starProductsTable = pgTable("star_products", {
   id: serial("id").primaryKey(),

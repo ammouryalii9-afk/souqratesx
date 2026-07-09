@@ -17,7 +17,7 @@ export interface StarProduct {
   priceStars: number;
   effectType: StarProductEffectType;
   /**
-     * Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.
+     * Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.
      * @nullable
      */
   effectValue: number | null;

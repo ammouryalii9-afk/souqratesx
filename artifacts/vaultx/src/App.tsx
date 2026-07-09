@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { VaultProvider, useVault, getLeague } from "./context/VaultContext";
+import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultContext";
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
 import { VaultTab } from "./tabs/VaultTab";
@@ -10,8 +10,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Coins } from "lucide-react";
 
 function Header() {
-  const { totalBalanceUSD, lifetimePoints, profitPerHour } = useVault();
+  const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
   const league = getLeague(lifetimePoints);
+  const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   
   return (
     <header className="sticky top-0 z-40 bg-[#0D0D0F]/90 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between">
@@ -23,6 +24,11 @@ function Header() {
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: league.color, color: '#000'}}>
           {league.name}
         </span>
+        {badge && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: badge.color, color: '#000'}}>
+            {badge.label}
+          </span>
+        )}
       </div>
       <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex flex-col items-end justify-center">
         <div className="flex items-center gap-1.5">

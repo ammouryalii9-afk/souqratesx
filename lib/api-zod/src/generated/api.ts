@@ -448,8 +448,8 @@ export const GetAdminStarProductsResponseItem = zod.object({
   "description": zod.string().nullable(),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
-  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -467,7 +467,7 @@ export const CreateAdminStarProductBody = zod.object({
   "description": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "priceStars": zod.number().min(1),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
   "effectValue": zod.number().nullish()
 })
 
@@ -477,8 +477,8 @@ export const CreateAdminStarProductResponse = zod.object({
   "description": zod.string().nullable(),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
-  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -499,7 +499,7 @@ export const UpdateAdminStarProductBody = zod.object({
   "description": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "priceStars": zod.number().min(1).optional(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']).optional(),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']).optional(),
   "effectValue": zod.number().nullish(),
   "isActive": zod.boolean().optional()
 })
@@ -510,8 +510,8 @@ export const UpdateAdminStarProductResponse = zod.object({
   "description": zod.string().nullable(),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
-  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -538,8 +538,8 @@ export const GetStoreProductsResponseItem = zod.object({
   "description": zod.string().nullable(),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days']),
-  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.'),
+  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
 })

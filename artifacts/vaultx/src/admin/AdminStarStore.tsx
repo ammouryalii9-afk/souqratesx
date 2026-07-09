@@ -9,6 +9,9 @@ const EFFECT_LABELS: Record<StarProductEffectType, string> = {
   energy_refill: "تعبئة الطاقة بالكامل",
   turbo_boost: "تسريع التعدين (تربو)",
   premium_days: "اشتراك بريميوم (أيام)",
+  permanent_multiplier: "مضاعف نقاط دائم (%)",
+  badge: "شارة مميزة",
+  skin: "سكن (شكل) مخصص",
 };
 
 const EFFECT_VALUE_LABEL: Record<StarProductEffectType, string | null> = {
@@ -16,6 +19,9 @@ const EFFECT_VALUE_LABEL: Record<StarProductEffectType, string | null> = {
   energy_refill: null,
   turbo_boost: "مدة التسريع بالثواني",
   premium_days: "عدد أيام البريميوم",
+  permanent_multiplier: "نسبة الزيادة الدائمة % (مثال: 10)",
+  badge: "رقم تعريف الشارة (Badge ID)",
+  skin: "رقم تعريف السكن (Skin ID)",
 };
 
 export function AdminStarStore() {

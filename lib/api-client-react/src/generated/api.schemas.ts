@@ -274,6 +274,9 @@ export const StarProductEffectType = {
   energy_refill: 'energy_refill',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
+  permanent_multiplier: 'permanent_multiplier',
+  badge: 'badge',
+  skin: 'skin',
 } as const;
 
 export interface StarProduct {
@@ -286,7 +289,7 @@ export interface StarProduct {
   priceStars: number;
   effectType: StarProductEffectType;
   /**
-     * Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days. Unused (null) for energy_refill.
+     * Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.
      * @nullable
      */
   effectValue: number | null;
@@ -304,6 +307,9 @@ export const CreateStarProductBodyEffectType = {
   energy_refill: 'energy_refill',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
+  permanent_multiplier: 'permanent_multiplier',
+  badge: 'badge',
+  skin: 'skin',
 } as const;
 
 export interface CreateStarProductBody {
@@ -327,6 +333,9 @@ export const UpdateStarProductBodyEffectType = {
   energy_refill: 'energy_refill',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
+  permanent_multiplier: 'permanent_multiplier',
+  badge: 'badge',
+  skin: 'skin',
 } as const;
 
 export interface UpdateStarProductBody {

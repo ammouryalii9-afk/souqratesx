@@ -64,6 +64,52 @@ async function applyStarProductEffect(
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
     }
+    case "permanent_multiplier": {
+      // Percentage points added permanently to the player's mining/tap output.
+      // Stacks additively across purchases (e.g. two +10% items = +20% total).
+      const percent = product.effectValue ?? 0;
+      const currentPercent = typeof state.permanentMultiplierPercent === "number" ? state.permanentMultiplierPercent : 0;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: { ...state, permanentMultiplierPercent: currentPercent + percent },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "badge": {
+      // effectValue is the badge's tier id; frontend maps it to a label/color.
+      // Cosmetic only — no gameplay effect. Owning multiple badges lets the
+      // player switch their equipped badge later (equippedBadgeId defaults to
+      // the most recently purchased one).
+      const badgeId = product.effectValue ?? 0;
+      const ownedBadges = Array.isArray(state.ownedBadgeIds) ? (state.ownedBadgeIds as unknown[]) : [];
+      const nextOwnedBadges = ownedBadges.includes(badgeId) ? ownedBadges : [...ownedBadges, badgeId];
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: { ...state, ownedBadgeIds: nextOwnedBadges, equippedBadgeId: badgeId },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "skin": {
+      // effectValue is the skin's id; frontend maps it to a color theme for
+      // the vault/tap button. Cosmetic only — no gameplay effect.
+      const skinId = product.effectValue ?? 0;
+      const ownedSkins = Array.isArray(state.ownedSkinIds) ? (state.ownedSkinIds as unknown[]) : [];
+      const nextOwnedSkins = ownedSkins.includes(skinId) ? ownedSkins : [...ownedSkins, skinId];
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: { ...state, ownedSkinIds: nextOwnedSkins, equippedSkinId: skinId },
+          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
     case "points": {
       // "points" here means the user's spendable/mined balance — the frontend
       // reads this from state.tempMiningPoints (see VaultContext.refreshFromServer),

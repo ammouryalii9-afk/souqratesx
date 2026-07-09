@@ -132,7 +132,14 @@ export type UpdateSponsoredAdInput = Partial<{
   isActive: boolean;
 }>;
 
-export type StarProductEffectType = "points" | "energy_refill" | "turbo_boost" | "premium_days";
+export type StarProductEffectType =
+  | "points"
+  | "energy_refill"
+  | "turbo_boost"
+  | "premium_days"
+  | "permanent_multiplier"
+  | "badge"
+  | "skin";
 
 export type StarProduct = {
   id: number;
