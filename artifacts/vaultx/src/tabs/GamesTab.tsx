@@ -209,50 +209,89 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
 
     if (gameState !== 'playing') return;
 
+    // --- Resolution handling -------------------------------------------------
+    // Render at devicePixelRatio so the game is crisp on mobile screens, while all
+    // gameplay math below stays in logical CSS pixels (via `logicalWidth/Height`).
+    // This also keeps drawing coordinates aligned with pointer coordinates, which
+    // is what made hits/taps feel "off" before.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const logicalWidth = Math.max(1, Math.round(rect.width));
+    const logicalHeight = Math.max(1, Math.round(rect.height));
+    canvas.width = logicalWidth * dpr;
+    canvas.height = logicalHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     let animationId: number;
-    let playerY = canvas.height / 2;
+    let playerY = logicalHeight / 2;
     let playerVelocity = 0;
-    const gravity = 0.38;
-    const jumpStrength = -7.2;
-    const playerX = 55;
-    const gracePeriodFrames = 45; // ~0.75s of no-obstacle, no-fall-death grace so a run never ends instantly
+    const playerRadius = 12;
+    const playerX = Math.min(60, logicalWidth * 0.15);
+
+    // Physics tuned in px/second (not px/frame) so speed is identical at 30fps or 120fps.
+    const GRAVITY = 900; // px/s^2
+    const JUMP_VELOCITY = -360; // px/s
+    const MAX_FALL_SPEED = 620; // px/s terminal velocity, keeps falls readable
+    const GRACE_PERIOD_MS = 700; // brief no-gravity window right after starting so a run never ends instantly
+    const OBSTACLE_WIDTH = 28;
+    const GAP_SIZE = Math.max(115, logicalHeight * 0.42);
+    const BASE_SPEED = 130; // px/s
+    const BASE_SPAWN_INTERVAL_MS = 1500;
 
     let obstacles: { x: number; gapY: number; passed: boolean }[] = [];
-    let frameCount = 0;
+    let elapsedMs = 0;
+    let lastSpawnMs = 0;
     let currentScore = scoreRef.current;
+    let lastTimestamp: number | null = null;
+    let ended = false;
 
     if (currentScore === 0) {
       sessionEarnedRef.current = 0;
       setSessionEarned(0);
     }
 
-    const draw = () => {
+    const endGame = () => {
+      if (ended) return;
+      ended = true;
+      setGameState('gameover');
+      haptic('error');
+    };
+
+    const draw = (timestamp: number) => {
       if (gameStateRef.current !== 'playing') return;
+      if (ended) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (lastTimestamp === null) lastTimestamp = timestamp;
+      // Cap dt so a dropped/backgrounded tab doesn't cause a huge catch-up jump on resume.
+      const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+      elapsedMs += dt * 1000;
 
-      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, logicalHeight);
       grad.addColorStop(0, '#0A0A0C');
       grad.addColorStop(1, '#0D0D0F');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
       ctx.strokeStyle = 'rgba(245,197,24,0.04)';
       ctx.lineWidth = 1;
-      for (let gx = 0; gx < canvas.width; gx += 40) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke();
+      for (let gx = 0; gx < logicalWidth; gx += 40) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, logicalHeight); ctx.stroke();
       }
-      for (let gy = 0; gy < canvas.height; gy += 40) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke();
+      for (let gy = 0; gy < logicalHeight; gy += 40) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(logicalWidth, gy); ctx.stroke();
       }
 
-      if (frameCount > gracePeriodFrames) {
-        playerVelocity += gravity;
+      const inGracePeriod = elapsedMs < GRACE_PERIOD_MS;
+      if (!inGracePeriod) {
+        playerVelocity = Math.min(MAX_FALL_SPEED, playerVelocity + GRAVITY * dt);
       }
-      playerY += playerVelocity;
-      playerY = Math.max(14, Math.min(canvas.height - 14, playerY));
+      playerY += playerVelocity * dt;
+      playerY = Math.max(playerRadius, Math.min(logicalHeight - playerRadius, playerY));
 
-      const glowStrength = Math.abs(playerVelocity) * 2;
+      const glowStrength = Math.min(16, Math.abs(playerVelocity) * 0.03);
       ctx.shadowColor = '#F5C518';
       ctx.shadowBlur = 10 + glowStrength;
       ctx.fillStyle = '#F5C518';
@@ -262,48 +301,51 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       ctx.fillText('X', playerX, playerY);
       ctx.shadowBlur = 0;
 
-      if (frameCount > gracePeriodFrames && (playerY >= canvas.height - 14 || playerY <= 14)) {
-        setGameState('gameover');
-        haptic('error');
+      if (!inGracePeriod && (playerY >= logicalHeight - playerRadius || playerY <= playerRadius)) {
+        endGame();
         return;
       }
 
-      const spawnInterval = Math.max(70, 105 - Math.floor(currentScore / 250));
-      if (frameCount > gracePeriodFrames && (frameCount - gracePeriodFrames) % spawnInterval === 0) {
-        const gapSize = 125;
-        const gapY = Math.random() * (canvas.height - gapSize - 60) + 30;
-        obstacles.push({ x: canvas.width + 10, gapY, passed: false });
+      const speed = BASE_SPEED + currentScore * 0.25;
+      const spawnInterval = Math.max(850, BASE_SPAWN_INTERVAL_MS - currentScore * 2.5);
+      if (!inGracePeriod && elapsedMs - lastSpawnMs >= spawnInterval) {
+        lastSpawnMs = elapsedMs;
+        const gapY = Math.random() * (logicalHeight - GAP_SIZE - 60) + 30;
+        obstacles.push({ x: logicalWidth + OBSTACLE_WIDTH, gapY, passed: false });
       }
 
-      const speed = 2.6 + currentScore / 400;
       let collided = false;
 
       for (const obs of obstacles) {
-        obs.x -= speed;
+        obs.x -= speed * dt;
 
-        const pillarGrad = ctx.createLinearGradient(obs.x, 0, obs.x + 28, 0);
+        const pillarGrad = ctx.createLinearGradient(obs.x, 0, obs.x + OBSTACLE_WIDTH, 0);
         pillarGrad.addColorStop(0, '#1A1A20');
         pillarGrad.addColorStop(1, '#2A2A35');
         ctx.fillStyle = pillarGrad;
         ctx.shadowColor = 'rgba(245,197,24,0.15)';
         ctx.shadowBlur = 8;
 
-        ctx.fillRect(obs.x, 0, 28, obs.gapY);
-        ctx.fillRect(obs.x, obs.gapY + 125, 28, canvas.height - obs.gapY - 125);
+        ctx.fillRect(obs.x, 0, OBSTACLE_WIDTH, obs.gapY);
+        ctx.fillRect(obs.x, obs.gapY + GAP_SIZE, OBSTACLE_WIDTH, logicalHeight - obs.gapY - GAP_SIZE);
         ctx.shadowBlur = 0;
 
         ctx.strokeStyle = 'rgba(245,197,24,0.25)';
         ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY); ctx.lineTo(obs.x + 28, obs.gapY); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY + 125); ctx.lineTo(obs.x + 28, obs.gapY + 125); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY); ctx.lineTo(obs.x + OBSTACLE_WIDTH, obs.gapY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(obs.x, obs.gapY + GAP_SIZE); ctx.lineTo(obs.x + OBSTACLE_WIDTH, obs.gapY + GAP_SIZE); ctx.stroke();
 
-        if (playerX + 9 > obs.x + 4 && playerX - 9 < obs.x + 24) {
-          if (playerY - 9 < obs.gapY || playerY + 9 > obs.gapY + 125) {
+        // Fair hitbox: shrink the player's collision radius slightly below its visual size
+        // (classic "forgiving hitbox" trick) and only test the X-overlap window precisely.
+        const hitRadius = playerRadius - 3;
+        const overlapsX = playerX + hitRadius > obs.x && playerX - hitRadius < obs.x + OBSTACLE_WIDTH;
+        if (overlapsX) {
+          if (playerY - hitRadius < obs.gapY || playerY + hitRadius > obs.gapY + GAP_SIZE) {
             collided = true;
           }
         }
 
-        if (obs.x + 28 < playerX && !obs.passed) {
+        if (obs.x + OBSTACLE_WIDTH < playerX && !obs.passed) {
           obs.passed = true;
           currentScore += 50;
           scoreRef.current = currentScore;
@@ -314,12 +356,11 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       }
 
       if (collided) {
-        setGameState('gameover');
-        haptic('error');
+        endGame();
         return;
       }
 
-      obstacles = obstacles.filter(obs => obs.x > -40);
+      obstacles = obstacles.filter(obs => obs.x > -OBSTACLE_WIDTH - 10);
 
       ctx.fillStyle = 'rgba(245,197,24,0.9)';
       ctx.font = 'bold 18px Inter, sans-serif';
@@ -329,31 +370,35 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`Speed ×${speed.toFixed(1)}`, canvas.width - 10, 24);
+      ctx.fillText(`Speed ×${(speed / BASE_SPEED).toFixed(1)}`, logicalWidth - 10, 24);
 
-      frameCount++;
       animationId = requestAnimationFrame(draw);
     };
 
-    draw();
+    animationId = requestAnimationFrame(draw);
 
+    // A single pointerdown handler covers mouse, touch, and pen without the double-fire
+    // (mousedown + touchstart both triggering on the same tap) that made jumps feel jittery.
+    let lastJumpAt = 0;
     const handleJump = (e: Event) => {
       e.preventDefault();
-      if (gameStateRef.current === 'playing') {
-        playerVelocity = jumpStrength;
+      const now = performance.now();
+      if (now - lastJumpAt < 90) return; // debounce accidental double taps
+      lastJumpAt = now;
+      if (gameStateRef.current === 'playing' && !ended) {
+        playerVelocity = JUMP_VELOCITY;
         haptic('light');
       }
     };
 
-    canvas.addEventListener('mousedown', handleJump);
-    canvas.addEventListener('touchstart', handleJump, { passive: false });
+    canvas.style.touchAction = 'none';
+    canvas.addEventListener('pointerdown', handleJump);
     const keyHandler = (e: KeyboardEvent) => { if (e.code === 'Space') handleJump(e); };
     window.addEventListener('keydown', keyHandler);
 
     return () => {
       cancelAnimationFrame(animationId);
-      canvas.removeEventListener('mousedown', handleJump);
-      canvas.removeEventListener('touchstart', handleJump);
+      canvas.removeEventListener('pointerdown', handleJump);
       window.removeEventListener('keydown', keyHandler);
     };
   }, [gameState, addPointsToVault]);
@@ -388,7 +433,7 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
     <div className="flex flex-col pb-24 animate-in fade-in duration-300">
       <GameHeader title="Tappy Dodge" onBack={onBack} />
       <div className="relative bg-black mx-4 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-        <canvas ref={canvasRef} width={400} height={300} className="w-full touch-none block" style={{ height: '300px' }} data-testid="canvas-game" />
+        <canvas ref={canvasRef} className="w-full touch-none block" style={{ height: '300px' }} data-testid="canvas-game" />
 
         {gameState === 'idle' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6" style={{ background: 'rgba(10,10,12,0.75)', backdropFilter: 'blur(4px)' }}>
