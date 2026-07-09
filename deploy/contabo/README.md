@@ -48,15 +48,33 @@ cd /opt/souqratex && ./deploy/contabo/deploy.sh
 This pulls the latest `main`, reinstalls deps, rebuilds both the API and the frontend,
 and reloads the API process with pm2 (frontend is a static build served by nginx directly).
 
-### Automating it (optional)
+### Automating it
 
-Add a cron job that pulls+deploys every few minutes, or set up a GitHub webhook that
-calls a small script on the server. A simple cron approach:
+**Option A — GitHub Actions (recommended, deploys instantly on push):**
+
+A workflow is already committed at `.github/workflows/deploy.yml`. It SSHes into Contabo
+and runs `deploy.sh` automatically every time you push to `main`. One-time setup:
+
+1. On Contabo, make sure the deploying user can SSH in with a key (create a dedicated
+   keypair if you don't want to reuse your personal one):
+   ```bash
+   ssh-keygen -t ed25519 -f ~/contabo_deploy_key -N ""
+   cat ~/contabo_deploy_key.pub >> ~/.ssh/authorized_keys   # run this ON Contabo, as the deploy user
+   ```
+2. In your GitHub repo, go to **Settings → Secrets and variables → Actions → New repository secret**
+   and add three secrets:
+   - `CONTABO_HOST` — your server's IP or domain (e.g. `194.163.155.52`)
+   - `CONTABO_USER` — the SSH username you log in with (e.g. `root`)
+   - `CONTABO_SSH_KEY` — the **private** key contents (`cat ~/contabo_deploy_key` — the one WITHOUT `.pub`)
+3. That's it. From now on, `git push origin main` alone triggers the deploy — check progress
+   under the **Actions** tab of your GitHub repo.
+
+**Option B — cron polling (simpler, checks every minute instead of instantly):**
 
 ```bash
 crontab -e
 # add:
-*/5 * * * * cd /opt/souqratex && git fetch origin main -q && [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ] && ./deploy/contabo/deploy.sh >> /var/log/souqratex-deploy.log 2>&1
+* * * * * cd /opt/souqratex && git fetch origin main -q && [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ] && ./deploy/contabo/deploy.sh >> /var/log/souqratex-deploy.log 2>&1
 ```
 
 ## After every deploy to a new/changed domain
