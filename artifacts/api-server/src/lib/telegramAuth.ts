@@ -8,13 +8,18 @@ export type TelegramUser = {
   photo_url?: string;
 };
 
+export type VerifiedInitData = {
+  user: TelegramUser;
+  startParam: string | null;
+};
+
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
 /**
  * Verifies the initData string sent by a Telegram WebApp client using the
  * HMAC-SHA256 scheme documented at https://core.telegram.org/bots/webapps#validating-data-received-via-the-web-app
  */
-export function verifyTelegramInitData(initData: string): TelegramUser | null {
+export function verifyTelegramInitData(initData: string): VerifiedInitData | null {
   if (!botToken) {
     return null;
   }
@@ -50,7 +55,9 @@ export function verifyTelegramInitData(initData: string): TelegramUser | null {
   }
 
   try {
-    return JSON.parse(userRaw) as TelegramUser;
+    const user = JSON.parse(userRaw) as TelegramUser;
+    const startParam = params.get("start_param");
+    return { user, startParam: startParam && startParam.length > 0 ? startParam : null };
   } catch {
     return null;
   }

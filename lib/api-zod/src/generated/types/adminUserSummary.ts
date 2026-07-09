@@ -20,5 +20,9 @@ export interface AdminUserSummary {
   isBanned: boolean;
   isPremium: boolean;
   starsBalance: number;
+  /** @nullable */
+  referrerId: string | null;
+  referralCount: number;
+  referralEarnings: number;
   createdAt: string;
 }

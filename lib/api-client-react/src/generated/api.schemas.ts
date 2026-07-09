@@ -29,6 +29,8 @@ export interface VaultUserProfile {
   /** @nullable */
   photoUrl: string | null;
   lifetimePoints: number;
+  referralCount: number;
+  referralEarnings: number;
 }
 
 /**
@@ -90,6 +92,10 @@ export interface AdminUserSummary {
   isBanned: boolean;
   isPremium: boolean;
   starsBalance: number;
+  /** @nullable */
+  referrerId: string | null;
+  referralCount: number;
+  referralEarnings: number;
   createdAt: string;
 }
 
@@ -114,6 +120,10 @@ export interface AdminUserDetail {
   /** @nullable */
   premiumExpiresAt: string | null;
   starsBalance: number;
+  /** @nullable */
+  referrerId: string | null;
+  referralCount: number;
+  referralEarnings: number;
   /** @nullable */
   notes: string | null;
   state: VaultStateData;

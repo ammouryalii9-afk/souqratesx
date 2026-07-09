@@ -51,6 +51,9 @@ export type AdminUserSummary = {
   isBanned: boolean;
   isPremium: boolean;
   starsBalance: number;
+  referrerId: string | null;
+  referralCount: number;
+  referralEarnings: number;
   createdAt: string;
 };
 

@@ -32,7 +32,9 @@ export const AuthTelegramResponse = zod.object({
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
-  "lifetimePoints": zod.number()
+  "lifetimePoints": zod.number(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number()
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
 })
@@ -48,7 +50,9 @@ export const GetVaultMeResponse = zod.object({
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
-  "lifetimePoints": zod.number()
+  "lifetimePoints": zod.number(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number()
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
 })
@@ -69,7 +73,9 @@ export const UpdateVaultMeResponse = zod.object({
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
-  "lifetimePoints": zod.number()
+  "lifetimePoints": zod.number(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number()
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
 })
@@ -149,6 +155,9 @@ export const GetAdminUsersResponse = zod.object({
   "isBanned": zod.boolean(),
   "isPremium": zod.boolean(),
   "starsBalance": zod.number(),
+  "referrerId": zod.string().nullable(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number(),
   "createdAt": zod.string()
 })),
   "total": zod.number()
@@ -173,6 +182,9 @@ export const GetAdminUserResponse = zod.object({
   "isPremium": zod.boolean(),
   "premiumExpiresAt": zod.string().nullable(),
   "starsBalance": zod.number(),
+  "referrerId": zod.string().nullable(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "createdAt": zod.string(),
@@ -208,6 +220,9 @@ export const UpdateAdminUserResponse = zod.object({
   "isPremium": zod.boolean(),
   "premiumExpiresAt": zod.string().nullable(),
   "starsBalance": zod.number(),
+  "referrerId": zod.string().nullable(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "createdAt": zod.string(),

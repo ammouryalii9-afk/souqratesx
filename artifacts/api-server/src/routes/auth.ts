@@ -5,6 +5,7 @@ import { db, vaultUsersTable } from "@workspace/db";
 import { AuthTelegramBody, AuthTelegramResponse } from "@workspace/api-zod";
 import { verifyTelegramInitData } from "../lib/telegramAuth";
 import { setSessionCookie } from "../lib/session";
+import { linkReferrer } from "../lib/referral";
 
 const router: IRouter = Router();
 
@@ -15,13 +16,14 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
     return;
   }
 
-  const telegramUser = verifyTelegramInitData(parsed.data.initData);
-  if (!telegramUser) {
+  const verified = verifyTelegramInitData(parsed.data.initData);
+  if (!verified) {
     req.log.warn("Failed to verify Telegram initData");
     res.status(401).json({ error: "Invalid Telegram authentication data" });
     return;
   }
 
+  const { user: telegramUser, startParam } = verified;
   const telegramId = String(telegramUser.id);
 
   const [existing] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
@@ -57,6 +59,10 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         state: {},
       })
       .returning();
+
+    if (user) {
+      await linkReferrer(telegramId, startParam);
+    }
   }
 
   if (!user) {
@@ -75,6 +81,8 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        referralCount: user.referralCount,
+        referralEarnings: user.referralEarnings,
       },
       state: user.state,
     }),

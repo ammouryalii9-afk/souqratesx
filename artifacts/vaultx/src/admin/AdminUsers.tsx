@@ -144,6 +144,17 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
               />
             </label>
 
+            <div className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 text-sm">
+              <span className="text-muted-foreground">الإحالات (Referrals)</span>
+              <span>{user.referralCount} صديق · {user.referralEarnings} نقطة</span>
+            </div>
+            {user.referrerId && (
+              <div className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2 text-sm">
+                <span className="text-muted-foreground">أحاله</span>
+                <span dir="ltr">{user.referrerId}</span>
+              </div>
+            )}
+
             <label className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">ملاحظات المدير</span>
               <Input

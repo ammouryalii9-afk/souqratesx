@@ -123,8 +123,8 @@ export const FriendsTab = () => {
           </div>
           <div className="bg-card border border-white/5 rounded-xl p-4 flex flex-col">
             <Coins className="w-5 h-5 text-emerald-400 mb-2" />
-            <span className="text-2xl font-bold text-white">${referralEarnings.toFixed(2)}</span>
-            <span className="text-xs text-muted-foreground">Total Earned</span>
+            <span className="text-2xl font-bold text-white">{Math.floor(referralEarnings).toLocaleString()}</span>
+            <span className="text-xs text-muted-foreground">Points Earned</span>
           </div>
         </div>
       </section>

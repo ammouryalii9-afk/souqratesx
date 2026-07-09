@@ -67,6 +67,9 @@ function toUserSummary(user: typeof vaultUsersTable.$inferSelect) {
     isBanned: user.isBanned,
     isPremium: user.isPremium,
     starsBalance: user.starsBalance,
+    referrerId: user.referrerId,
+    referralCount: user.referralCount,
+    referralEarnings: user.referralEarnings,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -83,6 +86,9 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     isPremium: user.isPremium,
     premiumExpiresAt: user.premiumExpiresAt ? user.premiumExpiresAt.toISOString() : null,
     starsBalance: user.starsBalance,
+    referrerId: user.referrerId,
+    referralCount: user.referralCount,
+    referralEarnings: user.referralEarnings,
     notes: user.notes,
     state: user.state,
     createdAt: user.createdAt.toISOString(),

@@ -24,6 +24,10 @@ export interface AdminUserDetail {
   premiumExpiresAt: string | null;
   starsBalance: number;
   /** @nullable */
+  referrerId: string | null;
+  referralCount: number;
+  referralEarnings: number;
+  /** @nullable */
   notes: string | null;
   state: VaultStateData;
   createdAt: string;

@@ -17,4 +17,6 @@ export interface VaultUserProfile {
   /** @nullable */
   photoUrl: string | null;
   lifetimePoints: number;
+  referralCount: number;
+  referralEarnings: number;
 }

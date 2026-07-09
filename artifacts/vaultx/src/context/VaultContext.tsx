@@ -23,7 +23,6 @@ type SyncedState = {
   miningLevel: number;
   energy: number;
   maxEnergy: number;
-  referralEarnings: number;
   lifetimePoints: number;
   turboUsesToday: number;
   rechargeUsesToday: number;
@@ -106,7 +105,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 100);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
-  const [totalReferrals] = useState(0);
+  const [totalReferrals, setTotalReferrals] = useState(() => Number(localStorage.getItem('totalReferrals')) || 0);
   const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 0);
 
   const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
@@ -170,7 +169,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
         setEnergy(typeof state.energy === 'number' ? state.energy : 100);
         setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
-        setReferralEarnings(typeof state.referralEarnings === 'number' ? state.referralEarnings : 0);
+        setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
+        setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
         setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
         setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
         setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);
@@ -211,8 +211,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('farmState', farmState);
     localStorage.setItem('farmStartTime', farmStartTime.toString());
     localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
+    localStorage.setItem('totalReferrals', totalReferrals.toString());
     localStorage.setItem('referralEarnings', referralEarnings.toString());
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, referralEarnings]);
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -228,7 +229,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         miningLevel,
         energy,
         maxEnergy,
-        referralEarnings,
         lifetimePoints,
         turboUsesToday,
         rechargeUsesToday,
@@ -244,7 +244,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, referralEarnings, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
+  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -315,16 +315,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 3600000);
     return () => clearInterval(interval);
   }, [profitPerHour]);
-
-  // Trickle referral earnings
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (totalReferrals > 0) {
-        setReferralEarnings(prev => prev + (totalReferrals * 0.001));
-      }
-    }, 3600000); // every 1 hour
-    return () => clearInterval(interval);
-  }, [totalReferrals]);
 
   // While the server auth/hydration request is in flight inside Telegram,
   // block progress-mutating actions — otherwise taps made before hydration
@@ -442,7 +432,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
       setEnergy(typeof state.energy === 'number' ? state.energy : 100);
       setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
-      setReferralEarnings(typeof state.referralEarnings === 'number' ? state.referralEarnings : 0);
+      setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
+      setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
       setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
       setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
       setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);

@@ -693,6 +693,10 @@ components:
           type: ["string", "null"]
         lifetimePoints:
           type: integer
+        referralCount:
+          type: integer
+        referralEarnings:
+          type: integer
       required:
         - telegramId
         - username
@@ -700,6 +704,8 @@ components:
         - lastName
         - photoUrl
         - lifetimePoints
+        - referralCount
+        - referralEarnings
     VaultStateData:
       type: object
       description: Freeform game state blob persisted for the user
@@ -804,6 +810,12 @@ components:
           type: boolean
         starsBalance:
           type: integer
+        referrerId:
+          type: ["string", "null"]
+        referralCount:
+          type: integer
+        referralEarnings:
+          type: integer
         createdAt:
           type: string
       required:
@@ -816,6 +828,9 @@ components:
         - isBanned
         - isPremium
         - starsBalance
+        - referrerId
+        - referralCount
+        - referralEarnings
         - createdAt
     AdminUserList:
       type: object
@@ -852,6 +867,12 @@ components:
           type: ["string", "null"]
         starsBalance:
           type: integer
+        referrerId:
+          type: ["string", "null"]
+        referralCount:
+          type: integer
+        referralEarnings:
+          type: integer
         notes:
           type: ["string", "null"]
         state:
@@ -871,6 +892,9 @@ components:
         - isPremium
         - premiumExpiresAt
         - starsBalance
+        - referrerId
+        - referralCount
+        - referralEarnings
         - notes
         - state
         - createdAt
