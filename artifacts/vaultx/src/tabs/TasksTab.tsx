@@ -33,7 +33,7 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
 
 export const TasksTab = () => {
-  const { userId, setTempMiningPoints, addLifetimePoints } = useVault();
+  const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer } = useVault();
   const { toast } = useToast();
 
   const [currentStreak, setCurrentStreak] = useState(() => Number(localStorage.getItem('currentStreak')) || 0);
@@ -85,6 +85,12 @@ export const TasksTab = () => {
         webApp.openInvoice(invoiceUrl, (status) => {
           if (status === 'paid') {
             toast({ title: 'Purchase complete!', description: 'Thank you — your purchase was applied.' });
+            // The webhook applies the purchase server-side; give it a moment to
+            // land, then pull fresh state so the effect (energy/boost) shows up
+            // immediately instead of waiting for the next autosync.
+            setTimeout(() => {
+              refreshFromServer();
+            }, 1500);
           } else if (status === 'failed') {
             toast({ title: 'Payment failed', variant: 'destructive' });
           }

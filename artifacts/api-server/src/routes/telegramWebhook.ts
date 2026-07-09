@@ -6,6 +6,13 @@ import { answerPreCheckoutQuery, sendTelegramMessage, verifyWebhookSecretToken, 
 const router: IRouter = Router();
 
 const PREMIUM_MONTH_MS = 1000 * 60 * 60 * 24 * 30;
+const BOOST_DURATION_MS = 20_000;
+
+type VaultState = Record<string, unknown>;
+
+function isVaultState(value: unknown): value is VaultState {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 router.post("/telegram/webhook", async (req, res): Promise<void> => {
   const secretHeader = req.get("x-telegram-bot-api-secret-token");
@@ -62,6 +69,29 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
             await db
               .update(vaultUsersTable)
               .set({ isPremium: true, premiumExpiresAt: new Date(base + PREMIUM_MONTH_MS) })
+              .where(eq(vaultUsersTable.telegramId, telegramId));
+          } else if (payload.product === "energy_refill") {
+            const state = isVaultState(user.state) ? user.state : {};
+            const maxEnergy = typeof state.maxEnergy === "number" ? state.maxEnergy : 1000;
+            await db
+              .update(vaultUsersTable)
+              .set({
+                state: { ...state, energy: maxEnergy },
+                starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}`,
+              })
+              .where(eq(vaultUsersTable.telegramId, telegramId));
+          } else if (payload.product === "boost") {
+            const state = isVaultState(user.state) ? user.state : {};
+            await db
+              .update(vaultUsersTable)
+              .set({
+                state: {
+                  ...state,
+                  activeTurbo: true,
+                  turboExpiresAt: Date.now() + BOOST_DURATION_MS,
+                },
+                starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}`,
+              })
               .where(eq(vaultUsersTable.telegramId, telegramId));
           } else {
             await db

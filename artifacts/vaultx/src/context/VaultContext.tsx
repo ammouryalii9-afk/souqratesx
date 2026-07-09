@@ -74,6 +74,7 @@ type VaultContextType = {
   claimFarming: () => void;
   buyPassiveCard: (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => void;
   addLifetimePoints: (n: number) => void;
+  refreshFromServer: () => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -422,6 +423,46 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLifetimePoints(p => p + n);
   };
 
+  // Pulls the latest server state and overwrites local values. Used after a
+  // Telegram Stars purchase (e.g. energy refill, boost) is applied server-side
+  // by the webhook, so the effect shows up immediately instead of getting
+  // silently clobbered by the next debounced autosync (which would otherwise
+  // push our stale pre-purchase local state back over the server's change).
+  const refreshFromServer = async () => {
+    if (!isTelegramUser) return;
+    isHydrating.current = true;
+    setIsSyncing(true);
+    try {
+      const res = await apiFetch('/vault/me');
+      if (!res.ok) throw new Error('Failed to refresh state');
+      const data = await res.json();
+      const state = (data.state ?? {}) as Partial<SyncedState>;
+      setTotalBalanceUSD(typeof state.totalBalanceUSD === 'number' ? state.totalBalanceUSD : 0);
+      setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
+      setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
+      setEnergy(typeof state.energy === 'number' ? state.energy : 100);
+      setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
+      setReferralEarnings(typeof state.referralEarnings === 'number' ? state.referralEarnings : 0);
+      setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
+      setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
+      setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);
+      setFarmState(state.farmState ?? 'idle');
+      setFarmStartTime(typeof state.farmStartTime === 'number' ? state.farmStartTime : 0);
+      setPassiveCards(Array.isArray(state.passiveCards) ? state.passiveCards : []);
+      const activeTurboFromServer = (state as Record<string, unknown>).activeTurbo === true;
+      const turboExpiresAtFromServer = typeof (state as Record<string, unknown>).turboExpiresAt === 'number'
+        ? (state as Record<string, unknown>).turboExpiresAt as number
+        : 0;
+      setActiveTurbo(activeTurboFromServer && turboExpiresAtFromServer > Date.now());
+      setTurboExpiresAt(activeTurboFromServer ? turboExpiresAtFromServer : 0);
+    } catch (err) {
+      console.error('Failed to refresh state from server', err);
+    } finally {
+      isHydrating.current = false;
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <VaultContext.Provider
       value={{
@@ -460,6 +501,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         claimFarming,
         buyPassiveCard,
         addLifetimePoints,
+        refreshFromServer,
       }}
     >
       {children}
