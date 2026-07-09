@@ -245,7 +245,7 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
     const GRAVITY = 1350;
     const JUMP_VELOCITY = -430;
     const MAX_FALL_SPEED = 720;
-    const GRACE_PERIOD_MS = 650;
+    const GRACE_PERIOD_MS = 1300;
 
     // --- Difficulty curve -------------------------------------------------------
     // Driven by *distance travelled*, not obstacle count, so it ramps smoothly and
@@ -306,8 +306,9 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
     let flash = 0;
     let distanceSinceSpawn = 0;
 
-    const endGame = () => {
+    const endGame = (reason: string, extra?: Record<string, unknown>) => {
       if (ended) return;
+      console.error('[tappy-debug] endGame', reason, extra);
       ended = true;
       screenShake = 10;
       flash = 1;
@@ -383,7 +384,7 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       ctx.globalAlpha = 1;
 
       if (!inGracePeriod && (hitTop || hitBottom)) {
-        endGame();
+        endGame('boundary', { playerY, H, playerRadius, elapsedMs });
         ctx.restore();
         return;
       }
@@ -444,7 +445,7 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
       }
 
       if (collided) {
-        endGame();
+        endGame('collision', { playerY, playerX, obstacles: obstacles.map(o => ({ x: o.x, gapY: o.gapY })), gap });
         ctx.restore();
         return;
       }
@@ -501,6 +502,7 @@ const TappyDodgeGame = ({ onBack }: { onBack: () => void }) => {
     const handleJump = (e: Event) => {
       e.preventDefault();
       const now = performance.now();
+      console.error('[tappy-debug] pointerdown received', { now, lastJumpAt, gameState: gameStateRef.current, ended });
       if (now - lastJumpAt < 90) return; // debounce accidental double taps
       lastJumpAt = now;
       if (gameStateRef.current === 'playing' && !ended) {
