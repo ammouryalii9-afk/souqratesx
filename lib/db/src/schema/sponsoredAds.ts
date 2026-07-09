@@ -24,6 +24,12 @@ export type SponsoredAd = typeof sponsoredAdsTable.$inferSelect;
 /**
  * Idempotent one-time-per-user claim ledger for sponsored ads — mirrors the
  * unique-constraint pattern used by processed_transactions.
+ *
+ * A row is first inserted when the user starts viewing the ad (`startedAt` set,
+ * `claimedAt` null). The claim endpoint only credits points and stamps
+ * `claimedAt` once the admin-configured minimum watch time has elapsed since
+ * `startedAt` — this "watch condition" is enforced server-side for every ad,
+ * including ones created later, since it's not per-ad logic.
  */
 export const adClaimsTable = pgTable(
   "ad_claims",
@@ -31,7 +37,8 @@ export const adClaimsTable = pgTable(
     id: serial("id").primaryKey(),
     adId: integer("ad_id").notNull(),
     telegramId: text("telegram_id").notNull(),
-    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
   },
   (t) => [unique("ad_claims_ad_telegram_unique").on(t.adId, t.telegramId)],
 );

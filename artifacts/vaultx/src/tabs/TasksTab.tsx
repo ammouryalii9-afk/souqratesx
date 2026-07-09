@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getStarProducts, getAds, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { getTelegramWebApp } from '../lib/telegram';
 
@@ -52,7 +52,7 @@ export const TasksTab = () => {
 
   const [sponsoredAds, setSponsoredAds] = useState<SponsoredAdTask[]>([]);
   const [claimingAdId, setClaimingAdId] = useState<number | null>(null);
-  const [openedAdIds, setOpenedAdIds] = useState<number[]>([]);
+  const [adRemainingSeconds, setAdRemainingSeconds] = useState<Record<number, number>>({});
 
   const loadAds = () => {
     getAds().then(setSponsoredAds).catch(() => setSponsoredAds([]));
@@ -64,14 +64,46 @@ export const TasksTab = () => {
     loadAds();
   }, []);
 
+  // Server is the source of truth for whether the watch condition is satisfied;
+  // this local countdown (seeded from the server's startedAt/minWatchSeconds)
+  // only drives the button's disabled state so the user sees progress.
+  useEffect(() => {
+    const inProgress = sponsoredAds.filter(a => a.startedAt && !a.claimed);
+    if (inProgress.length === 0) return;
+
+    const tick = () => {
+      setAdRemainingSeconds(() => {
+        const next: Record<number, number> = {};
+        for (const ad of inProgress) {
+          const elapsed = (Date.now() - new Date(ad.startedAt as string).getTime()) / 1000;
+          next[ad.id] = Math.max(0, Math.ceil(ad.minWatchSeconds - elapsed));
+        }
+        return next;
+      });
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [sponsoredAds]);
+
   const handleAdAction = async (ad: SponsoredAdTask) => {
     if (ad.claimed || claimingAdId) return;
 
-    if (!openedAdIds.includes(ad.id)) {
-      window.open(ad.linkUrl, '_blank');
-      setOpenedAdIds(prev => [...prev, ad.id]);
+    const remaining = adRemainingSeconds[ad.id];
+    const canClaim = ad.startedAt && (remaining === undefined ? false : remaining <= 0);
+
+    if (!ad.startedAt) {
+      try {
+        const { startedAt, minWatchSeconds } = await startAd(ad.id);
+        window.open(ad.linkUrl, '_blank');
+        setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, startedAt, minWatchSeconds } : a));
+      } catch (err) {
+        toast({ title: 'Could not open ad', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+      }
       return;
     }
+
+    if (!canClaim) return;
 
     setClaimingAdId(ad.id);
     try {
@@ -603,8 +635,10 @@ export const TasksTab = () => {
           </div>
           <div className="space-y-3">
             {sponsoredAds.map((ad) => {
-              const isOpened = openedAdIds.includes(ad.id);
               const isClaiming = claimingAdId === ad.id;
+              const remaining = adRemainingSeconds[ad.id];
+              const isWaiting = Boolean(ad.startedAt) && !ad.claimed && (remaining === undefined || remaining > 0);
+              const canClaim = Boolean(ad.startedAt) && !ad.claimed && remaining !== undefined && remaining <= 0;
               return (
                 <div key={ad.id} data-testid={`row-sponsored-ad-${ad.id}`} className="bg-card border border-white/5 rounded-xl p-4 flex items-center gap-3">
                   {ad.imageUrl && (
@@ -618,15 +652,17 @@ export const TasksTab = () => {
                   <button
                     data-testid={`button-sponsored-ad-${ad.id}`}
                     onClick={() => handleAdAction(ad)}
-                    disabled={ad.claimed || isClaiming}
+                    disabled={ad.claimed || isClaiming || isWaiting}
                     className="min-w-[90px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center gap-1 disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
                   >
                     {ad.claimed ? (
                       <><Check className="w-3.5 h-3.5" /> Done</>
                     ) : isClaiming ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : isOpened ? (
+                    ) : canClaim ? (
                       'Claim'
+                    ) : isWaiting ? (
+                      `${remaining ?? ad.minWatchSeconds}s`
                     ) : (
                       <>Open <ExternalLink className="w-3 h-3" /></>
                     )}

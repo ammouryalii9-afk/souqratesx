@@ -8,3 +8,4 @@
 - [Main agent git restrictions](main-agent-git.md) — `git commit`/destructive git ops are blocked in main agent; platform auto-commits at end of turn, then push to external remotes (e.g. GitHub) in a later turn.
 - [Sponsored ads feature](sponsored-ads.md) — admin-created ads reuse the existing broadcast-job pipeline for Telegram notify, and surface as claimable tasks with a claim-idempotency table.
 - [Generic paid-feature store pattern](star-store-pattern.md) — admin-configurable purchasable effects (Stars store) keyed by effectType+effectValue, not hardcoded product enums.
+- [Reward-claim watch-time gate](reward-claim-verification-gate.md) — enforce "must satisfy condition before crediting points" globally (one admin setting + start/claim split), not per-reward-type, so it covers future reward types automatically.

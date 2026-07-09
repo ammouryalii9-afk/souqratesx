@@ -741,11 +741,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /ads/{id}/start:
+    post:
+      operationId: startAd
+      tags: [ads]
+      summary: Record that the user opened a sponsored ad, starting the server-side minimum watch-time window required before it can be claimed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Watch window started (or already in progress)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdStartResult"
+        "400":
+          description: Ad not found, inactive, or already claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /ads/{id}/claim:
     post:
       operationId: claimAd
       tags: [ads]
-      summary: Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+      summary: Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad, only after the minimum watch time has elapsed since /start)
       parameters:
         - name: id
           in: path
@@ -767,6 +797,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Minimum watch time not yet elapsed, or ad was never started
           content:
             application/json:
               schema:
@@ -1540,6 +1576,13 @@ components:
           type: integer
         claimed:
           type: boolean
+        minWatchSeconds:
+          type: integer
+          description: Minimum seconds that must elapse after calling /ads/{id}/start before /ads/{id}/claim will succeed
+        startedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When the current user started viewing this ad, if they have (null if not started yet)
       required:
         - id
         - title
@@ -1548,7 +1591,20 @@ components:
         - linkUrl
         - rewardPoints
         - claimed
+        - minWatchSeconds
+        - startedAt
     PublicAdList:
       type: array
       items:
         $ref: "#/components/schemas/PublicAd"
+    AdStartResult:
+      type: object
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+        minWatchSeconds:
+          type: integer
+      required:
+        - startedAt
+        - minWatchSeconds

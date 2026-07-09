@@ -67,10 +67,16 @@ export type SponsoredAdTask = {
   linkUrl: string;
   rewardPoints: number;
   claimed: boolean;
+  minWatchSeconds: number;
+  startedAt: string | null;
 };
 
 export function getAds(): Promise<SponsoredAdTask[]> {
   return apiFetch<SponsoredAdTask[]>("/ads");
+}
+
+export function startAd(id: number): Promise<{ startedAt: string; minWatchSeconds: number }> {
+  return apiFetch<{ startedAt: string; minWatchSeconds: number }>(`/ads/${id}/start`, { method: "POST" });
 }
 
 export function claimAd(id: number): Promise<{ creditedPoints: number; lifetimePoints: number }> {

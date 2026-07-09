@@ -579,13 +579,28 @@ export const GetAdsResponseItem = zod.object({
   "imageUrl": zod.string().nullable(),
   "linkUrl": zod.string(),
   "rewardPoints": zod.number(),
-  "claimed": zod.boolean()
+  "claimed": zod.boolean(),
+  "minWatchSeconds": zod.number().describe('Minimum seconds that must elapse after calling \/ads\/{id}\/start before \/ads\/{id}\/claim will succeed'),
+  "startedAt": zod.coerce.date().nullable().describe('When the current user started viewing this ad, if they have (null if not started yet)')
 })
 export const GetAdsResponse = zod.array(GetAdsResponseItem)
 
 
 /**
- * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ * @summary Record that the user opened a sponsored ad, starting the server-side minimum watch-time window required before it can be claimed
+ */
+export const StartAdParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const StartAdResponse = zod.object({
+  "startedAt": zod.coerce.date(),
+  "minWatchSeconds": zod.number()
+})
+
+
+/**
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad, only after the minimum watch time has elapsed since /start)
  */
 export const ClaimAdParams = zod.object({
   "id": zod.coerce.number()

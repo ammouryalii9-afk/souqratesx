@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdStartResult,
   AdminAuditLogList,
   AdminLoginInput,
   AdminSessionStatus,
@@ -2472,6 +2473,77 @@ export function useGetAds<TData = Awaited<ReturnType<typeof getAds>>, TError = E
 
 
 
+export const getStartAdUrl = (id: number,) => {
+
+
+
+
+  return `/api/ads/${id}/start`
+}
+
+/**
+ * @summary Record that the user opened a sponsored ad, starting the server-side minimum watch-time window required before it can be claimed
+ */
+export const startAd = async (id: number, options?: RequestInit): Promise<AdStartResult> => {
+
+  return customFetch<AdStartResult>(getStartAdUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartAdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startAd>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['startAd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startAd>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  startAd(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartAdMutationResult = NonNullable<Awaited<ReturnType<typeof startAd>>>
+
+    export type StartAdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record that the user opened a sponsored ad, starting the server-side minimum watch-time window required before it can be claimed
+ */
+export const useStartAd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startAd>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getStartAdMutationOptions(options));
+    }
+
 export const getClaimAdUrl = (id: number,) => {
 
 
@@ -2481,7 +2553,7 @@ export const getClaimAdUrl = (id: number,) => {
 }
 
 /**
- * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad, only after the minimum watch time has elapsed since /start)
  */
 export const claimAd = async (id: number, options?: RequestInit): Promise<EarnRewardResult> => {
 
@@ -2530,7 +2602,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ClaimAdMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad)
+ * @summary Claim the one-time points reward for a sponsored ad (server-verified, once per user per ad, only after the minimum watch time has elapsed since /start)
  */
 export const useClaimAd = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAd>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}

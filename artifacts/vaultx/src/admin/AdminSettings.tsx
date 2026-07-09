@@ -19,6 +19,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "energyMax", label: "الحد الأقصى للطاقة", type: "number", defaultValue: 1000 },
       { key: "farmingDurationHours", label: "مدة الفارمينج (ساعات)", type: "number", defaultValue: 8 },
       { key: "referralRatePercent", label: "نسبة عمولة الإحالة (%)", type: "number", defaultValue: 10 },
+      { key: "adMinWatchSeconds", label: "الحد الأدنى لمشاهدة الإعلان قبل استلام المكافأة (ثانية) — لكل الإعلانات الحالية والمستقبلية", type: "number", defaultValue: 15 },
     ],
   },
   {

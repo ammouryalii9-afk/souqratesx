@@ -18,6 +18,7 @@ export * from './adminUserList';
 export * from './adminUserPatch';
 export * from './adminUserSummary';
 export * from './adsgramPostbackParams';
+export * from './adStartResult';
 export * from './broadcastJob';
 export * from './broadcastJobList';
 export * from './broadcastJobStatus';

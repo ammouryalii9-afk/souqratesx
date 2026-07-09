@@ -16,4 +16,11 @@ export interface PublicAd {
   linkUrl: string;
   rewardPoints: number;
   claimed: boolean;
+  /** Minimum seconds that must elapse after calling /ads/{id}/start before /ads/{id}/claim will succeed */
+  minWatchSeconds: number;
+  /**
+     * When the current user started viewing this ad, if they have (null if not started yet)
+     * @nullable
+     */
+  startedAt: Date | null;
 }
