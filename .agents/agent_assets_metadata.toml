@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "U5usUwC8l_agnUGAlhf2d"
+uri = "file://تقرير_اقتصاد_المنصة.md"
+type = "text"
+title = "تقرير اقتصاد المنصة - SouqratesX"
