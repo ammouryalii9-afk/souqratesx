@@ -553,6 +553,7 @@ export const GetPublicConfigResponse = zod.object({
   "adsgram": zod.object({
   "enabled": zod.boolean(),
   "blockId": zod.string().nullable(),
+  "bannerBlockId": zod.string().nullable(),
   "rewardPoints": zod.number(),
   "cooldownSeconds": zod.number(),
   "dailyCap": zod.number()

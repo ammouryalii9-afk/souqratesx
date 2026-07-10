@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultContext";
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
+import { AdBanner } from "./components/AdBanner";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
 import { Hexagon } from "lucide-react";
+import { getPublicConfig } from "./lib/gameApi";
 
 function Header() {
   const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
@@ -52,6 +54,13 @@ function Header() {
 
 function MainLayout() {
   const [activeTab, setActiveTab] = useState('vault');
+  const [bannerBlockId, setBannerBlockId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPublicConfig()
+      .then((config) => setBannerBlockId(config.adsgram.bannerBlockId))
+      .catch(() => setBannerBlockId(null));
+  }, []);
 
   return (
     <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
@@ -67,6 +76,7 @@ function MainLayout() {
         </div>
       </main>
 
+      <AdBanner bannerBlockId={bannerBlockId} />
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

@@ -1,9 +1,16 @@
 type AdsgramController = {
   show: () => Promise<void>;
+  destroy?: () => void;
+};
+
+type AdsgramBannerController = {
+  render: (container: HTMLElement) => void;
+  destroy?: () => void;
 };
 
 type AdsgramSdk = {
   init: (params: { blockId: string }) => AdsgramController;
+  initBanner?: (params: { blockId: string }) => AdsgramBannerController;
 };
 
 declare global {
@@ -37,4 +44,19 @@ export async function showAdsgramRewardedAd(blockId: string): Promise<void> {
   }
   const controller = window.Adsgram.init({ blockId });
   await controller.show();
+}
+
+export async function renderAdsgramBanner(blockId: string, container: HTMLElement): Promise<() => void> {
+  await loadAdsgramScript();
+  if (!window.Adsgram) {
+    throw new Error("Adsgram SDK unavailable");
+  }
+  const initBanner = window.Adsgram.initBanner ?? window.Adsgram.init;
+  const controller = initBanner({ blockId }) as AdsgramBannerController & AdsgramController;
+  if (typeof controller.render === "function") {
+    controller.render(container);
+  }
+  return () => {
+    controller.destroy?.();
+  };
 }

@@ -229,6 +229,8 @@ export type PublicConfigAdsgram = {
   enabled: boolean;
   /** @nullable */
   blockId: string | null;
+  /** @nullable */
+  bannerBlockId: string | null;
   rewardPoints: number;
   cooldownSeconds: number;
   dailyCap: number;

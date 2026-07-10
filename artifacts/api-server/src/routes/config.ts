@@ -27,6 +27,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
       adsgram: {
         enabled: Boolean(asString(settings.adsgramBlockId)),
         blockId: asString(settings.adsgramBlockId) || null,
+        bannerBlockId: asString(settings.adsgramBannerBlockId) || null,
         rewardPoints: asNumber(settings.adsgramRewardPoints, 100),
         cooldownSeconds: asNumber(settings.adsgramCooldownSeconds, 30),
         dailyCap: asNumber(settings.adsgramDailyCap, 20),

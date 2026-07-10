@@ -1369,13 +1369,15 @@ components:
               type: boolean
             blockId:
               type: ["string", "null"]
+            bannerBlockId:
+              type: ["string", "null"]
             rewardPoints:
               type: integer
             cooldownSeconds:
               type: integer
             dailyCap:
               type: integer
-          required: [enabled, blockId, rewardPoints, cooldownSeconds, dailyCap]
+          required: [enabled, blockId, bannerBlockId, rewardPoints, cooldownSeconds, dailyCap]
         offerwalls:
           type: array
           items:

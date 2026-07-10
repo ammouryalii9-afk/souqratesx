@@ -26,6 +26,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     title: "Adsgram (إعلانات)",
     fields: [
       { key: "adsgramBlockId", label: "Adsgram Block ID", type: "text", defaultValue: "" },
+      { key: "adsgramBannerBlockId", label: "Adsgram Banner Block ID (بانر غير مزعج، اختياري)", type: "text", defaultValue: "" },
       { key: "adsgramRewardPoints", label: "نقاط مقابل كل عرض إعلان", type: "number", defaultValue: 100 },
       { key: "adsgramCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
       { key: "adsgramDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },

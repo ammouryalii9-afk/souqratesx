@@ -4,6 +4,7 @@ export type PublicConfig = {
   adsgram: {
     enabled: boolean;
     blockId: string | null;
+    bannerBlockId: string | null;
     rewardPoints: number;
     cooldownSeconds: number;
     dailyCap: number;
