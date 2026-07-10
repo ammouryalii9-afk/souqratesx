@@ -15,6 +15,12 @@ const REGISTRY: EarnProvider[] = [
   createOfferwallProvider("ayetstudios", "AyeT-Studios"),
   createOfferwallProvider("offertoro", "OfferToro"),
   createOfferwallProvider("torox", "Torox"),
+  createOfferwallProvider("yandexads", "Yandex Ads"),
+  createOfferwallProvider("adsterra", "Adsterra"),
+  createOfferwallProvider("propellerads", "PropellerAds"),
+  createOfferwallProvider("cpalead", "CPALead"),
+  createOfferwallProvider("monetag", "Monetag"),
+  createOfferwallProvider("adscendmedia", "Adscend Media"),
 ];
 
 const providersByKey = new Map<string, EarnProvider>(REGISTRY.map((p) => [p.key, p]));
@@ -157,6 +163,66 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         apiKey: asStr(settings["toroxApiKey"]),
         url: asStr(settings["toroxOfferwallUrl"]),
         postbackSecret: asStr(settings["toroxPostbackSecret"]),
+      },
+    },
+    {
+      key: "yandexads",
+      name: "Yandex Ads",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["yandexadsApiKey"]),
+        url: asStr(settings["yandexadsOfferwallUrl"]),
+        postbackSecret: asStr(settings["yandexadsPostbackSecret"]),
+      },
+    },
+    {
+      key: "adsterra",
+      name: "Adsterra",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["adsterraApiKey"]),
+        url: asStr(settings["adsterraOfferwallUrl"]),
+        postbackSecret: asStr(settings["adsterraPostbackSecret"]),
+      },
+    },
+    {
+      key: "propellerads",
+      name: "PropellerAds",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["propelleradsApiKey"]),
+        url: asStr(settings["propelleradsOfferwallUrl"]),
+        postbackSecret: asStr(settings["propelleradsPostbackSecret"]),
+      },
+    },
+    {
+      key: "cpalead",
+      name: "CPALead",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["cpaleadApiKey"]),
+        url: asStr(settings["cpaleadOfferwallUrl"]),
+        postbackSecret: asStr(settings["cpaleadPostbackSecret"]),
+      },
+    },
+    {
+      key: "monetag",
+      name: "Monetag",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["monetagApiKey"]),
+        url: asStr(settings["monetagOfferwallUrl"]),
+        postbackSecret: asStr(settings["monetagPostbackSecret"]),
+      },
+    },
+    {
+      key: "adscendmedia",
+      name: "Adscend Media",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["adscendmediaApiKey"]),
+        url: asStr(settings["adscendmediaOfferwallUrl"]),
+        postbackSecret: asStr(settings["adscendmediaPostbackSecret"]),
       },
     },
   ];

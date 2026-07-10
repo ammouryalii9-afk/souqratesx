@@ -15,6 +15,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const ayetstudiosUrl = asString(settings.ayetstudiosOfferwallUrl);
   const offertoroUrl = asString(settings.offertoroOfferwallUrl);
   const toroxUrl = asString(settings.toroxOfferwallUrl);
+  const yandexadsUrl = asString(settings.yandexadsOfferwallUrl);
+  const adsterraUrl = asString(settings.adsterraOfferwallUrl);
+  const propelleradsUrl = asString(settings.propelleradsOfferwallUrl);
+  const cpaleadUrl = asString(settings.cpaleadOfferwallUrl);
+  const monetagUrl = asString(settings.monetagOfferwallUrl);
+  const adscendmediaUrl = asString(settings.adscendmediaOfferwallUrl);
 
   res.json(
     GetPublicConfigResponse.parse({
@@ -73,6 +79,42 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "Torox",
           url: toroxUrl || null,
           enabled: Boolean(toroxUrl && asString(settings.toroxApiKey)),
+        },
+        {
+          id: "yandexads",
+          name: "Yandex Ads",
+          url: yandexadsUrl || null,
+          enabled: Boolean(yandexadsUrl && asString(settings.yandexadsApiKey)),
+        },
+        {
+          id: "adsterra",
+          name: "Adsterra",
+          url: adsterraUrl || null,
+          enabled: Boolean(adsterraUrl && asString(settings.adsterraApiKey)),
+        },
+        {
+          id: "propellerads",
+          name: "PropellerAds",
+          url: propelleradsUrl || null,
+          enabled: Boolean(propelleradsUrl && asString(settings.propelleradsApiKey)),
+        },
+        {
+          id: "cpalead",
+          name: "CPALead",
+          url: cpaleadUrl || null,
+          enabled: Boolean(cpaleadUrl && asString(settings.cpaleadApiKey)),
+        },
+        {
+          id: "monetag",
+          name: "Monetag",
+          url: monetagUrl || null,
+          enabled: Boolean(monetagUrl && asString(settings.monetagApiKey)),
+        },
+        {
+          id: "adscendmedia",
+          name: "Adscend Media",
+          url: adscendmediaUrl || null,
+          enabled: Boolean(adscendmediaUrl && asString(settings.adscendmediaApiKey)),
         },
       ],
       stars: {

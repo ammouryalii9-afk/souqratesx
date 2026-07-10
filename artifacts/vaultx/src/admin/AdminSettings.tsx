@@ -92,6 +92,54 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "Yandex Ads (Offerwall)",
+    fields: [
+      { key: "yandexadsApiKey", label: "Yandex Ads API Key", type: "text", defaultValue: "" },
+      { key: "yandexadsOfferwallUrl", label: "رابط Yandex Ads", type: "text", defaultValue: "" },
+      { key: "yandexadsPostbackSecret", label: "Yandex Ads Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "Adsterra (Offerwall)",
+    fields: [
+      { key: "adsterraApiKey", label: "Adsterra API Key", type: "text", defaultValue: "" },
+      { key: "adsterraOfferwallUrl", label: "رابط Adsterra", type: "text", defaultValue: "" },
+      { key: "adsterraPostbackSecret", label: "Adsterra Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "PropellerAds (Offerwall)",
+    fields: [
+      { key: "propelleradsApiKey", label: "PropellerAds API Key", type: "text", defaultValue: "" },
+      { key: "propelleradsOfferwallUrl", label: "رابط PropellerAds", type: "text", defaultValue: "" },
+      { key: "propelleradsPostbackSecret", label: "PropellerAds Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "CPALead (Offerwall)",
+    fields: [
+      { key: "cpaleadApiKey", label: "CPALead API Key", type: "text", defaultValue: "" },
+      { key: "cpaleadOfferwallUrl", label: "رابط CPALead", type: "text", defaultValue: "" },
+      { key: "cpaleadPostbackSecret", label: "CPALead Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "Monetag (Offerwall)",
+    fields: [
+      { key: "monetagApiKey", label: "Monetag API Key", type: "text", defaultValue: "" },
+      { key: "monetagOfferwallUrl", label: "رابط Monetag", type: "text", defaultValue: "" },
+      { key: "monetagPostbackSecret", label: "Monetag Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "Adscend Media (Offerwall)",
+    fields: [
+      { key: "adscendmediaApiKey", label: "Adscend Media API Key", type: "text", defaultValue: "" },
+      { key: "adscendmediaOfferwallUrl", label: "رابط Adscend Media", type: "text", defaultValue: "" },
+      { key: "adscendmediaPostbackSecret", label: "Adscend Media Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "عضوية Premium",
     fields: [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },
