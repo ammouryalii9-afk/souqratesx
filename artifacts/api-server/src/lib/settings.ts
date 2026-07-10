@@ -10,7 +10,9 @@ export async function getSettingsMap(): Promise<Record<string, unknown>> {
 }
 
 export function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
 }
 
 export function asNumber(value: unknown, fallback: number): number {

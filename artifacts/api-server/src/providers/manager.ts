@@ -82,7 +82,7 @@ export async function getUnifiedOffers(ctx: ProviderContext): Promise<EarnOffer[
  * Call this both at boot and after every `PUT /admin/settings`.
  */
 export async function syncProvidersFromSettings(settings: Record<string, unknown>): Promise<void> {
-  const asStr = (v: unknown) => (typeof v === "string" ? v : "");
+  const asStr = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : "");
   const asNum = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 
   const seeds: { key: string; name: string; type: "rewarded_ad" | "offerwall"; config: Record<string, unknown> }[] = [
