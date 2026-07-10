@@ -52,6 +52,14 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "Lootably (Offerwall)",
+    fields: [
+      { key: "lootablyApiKey", label: "Lootably API Key", type: "text", defaultValue: "" },
+      { key: "lootablyOfferwallUrl", label: "رابط Lootably", type: "text", defaultValue: "" },
+      { key: "lootablyPostbackSecret", label: "Lootably Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "عضوية Premium",
     fields: [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },

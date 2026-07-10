@@ -10,6 +10,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const cpaUrl = asString(settings.cpaOfferwallUrl);
   const monlixUrl = asString(settings.monlixOfferwallUrl);
   const bitlabsUrl = asString(settings.bitlabsOfferwallUrl);
+  const lootablyUrl = asString(settings.lootablyOfferwallUrl);
 
   res.json(
     GetPublicConfigResponse.parse({
@@ -38,6 +39,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "Bitlabs Surveys",
           url: bitlabsUrl || null,
           enabled: Boolean(bitlabsUrl && asString(settings.bitlabsApiKey)),
+        },
+        {
+          id: "lootably",
+          name: "Lootably",
+          url: lootablyUrl || null,
+          enabled: Boolean(lootablyUrl && asString(settings.lootablyApiKey)),
         },
       ],
       stars: {

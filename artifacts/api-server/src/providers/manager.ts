@@ -10,6 +10,7 @@ const REGISTRY: EarnProvider[] = [
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
   createOfferwallProvider("bitlabs", "Bitlabs"),
+  createOfferwallProvider("lootably", "Lootably"),
 ];
 
 const providersByKey = new Map<string, EarnProvider>(REGISTRY.map((p) => [p.key, p]));
@@ -103,6 +104,16 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
       name: "Bitlabs",
       type: "offerwall",
       config: { apiKey: asStr(settings["bitlabsApiKey"]), url: asStr(settings["bitlabsOfferwallUrl"]), postbackSecret: asStr(settings["bitlabsPostbackSecret"]) },
+    },
+    {
+      key: "lootably",
+      name: "Lootably",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["lootablyApiKey"]),
+        url: asStr(settings["lootablyOfferwallUrl"]),
+        postbackSecret: asStr(settings["lootablyPostbackSecret"]),
+      },
     },
   ];
 
