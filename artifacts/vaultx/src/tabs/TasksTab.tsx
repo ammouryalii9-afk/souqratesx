@@ -675,27 +675,32 @@ export const TasksTab = () => {
       )}
 
       {/* Offerwalls / Surveys */}
-      <section>
-        <h2 className="text-xl font-bold text-white mb-4">Offers & Surveys</h2>
-        <div className="space-y-3">
-          {(config?.offerwalls ?? [{ id: 'cpa', name: 'CPA Offerwall', url: null, enabled: false }, { id: 'monlix', name: 'Monlix Surveys', url: null, enabled: false }, { id: 'bitlabs', name: 'Bitlabs Surveys', url: null, enabled: false }]).map((offer) => (
-            <div key={offer.id} className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <h3 className="font-semibold text-white text-sm mb-1">{offer.name}</h3>
-                <p className="text-xs font-medium text-muted-foreground">{offer.enabled ? 'Complete offers for points' : 'Not activated yet'}</p>
-              </div>
-              <button
-                data-testid={`button-offerwall-${offer.id}`}
-                onClick={() => openOfferwall(offer)}
-                disabled={!offer.enabled}
-                className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 disabled:opacity-40 transition-colors"
-              >
-                Open <ExternalLink className="w-3 h-3" />
-              </button>
+      {(() => {
+        const activeOffers = (config?.offerwalls ?? []).filter((offer) => offer.enabled);
+        if (activeOffers.length === 0) return null;
+        return (
+          <section>
+            <h2 className="text-xl font-bold text-white mb-4">Offers & Surveys</h2>
+            <div className="space-y-3">
+              {activeOffers.map((offer) => (
+                <div key={offer.id} className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                  <div className="flex-1 pr-4">
+                    <h3 className="font-semibold text-white text-sm mb-1">{offer.name}</h3>
+                    <p className="text-xs font-medium text-muted-foreground">Complete offers for points</p>
+                  </div>
+                  <button
+                    data-testid={`button-offerwall-${offer.id}`}
+                    onClick={() => openOfferwall(offer)}
+                    className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-colors"
+                  >
+                    Open <ExternalLink className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* Telegram Stars Store */}
       <section>
