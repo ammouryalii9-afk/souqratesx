@@ -3,12 +3,14 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { createAdsgramProvider } from "./adsgram";
 import { createMonetagProvider } from "./monetag";
+import { createCpxResearchProvider } from "./cpxResearch";
 import { createOfferwallProvider } from "./offerwall";
 import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
 
 const REGISTRY: EarnProvider[] = [
   createAdsgramProvider(),
   createMonetagProvider(),
+  createCpxResearchProvider(),
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
   createOfferwallProvider("bitlabs", "Bitlabs"),
@@ -227,13 +229,24 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         postbackSecret: asStr(settings["adscendmediaPostbackSecret"]),
       },
     },
+    {
+      key: "cpxresearch",
+      name: "CPX Research",
+      type: "offerwall",
+      config: {
+        appId: asStr(settings["cpxresearchAppId"]),
+        secureHash: asStr(settings["cpxresearchSecureHash"]),
+      },
+    },
   ];
 
   for (const seed of seeds) {
     const enabled =
       seed.type === "rewarded_ad"
         ? Boolean((seed.config["blockId"] as string) || (seed.config["zoneId"] as string) || "")
-        : Boolean((seed.config["url"] as string) || "");
+        : seed.key === "cpxresearch"
+          ? Boolean((seed.config["appId"] as string) && (seed.config["secureHash"] as string))
+          : Boolean((seed.config["url"] as string) || "");
     await db
       .insert(providersTable)
       .values({ key: seed.key, name: seed.name, type: seed.type, enabled, priority: 0, config: seed.config })

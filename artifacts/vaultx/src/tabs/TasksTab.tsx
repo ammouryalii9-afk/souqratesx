@@ -155,7 +155,8 @@ export const TasksTab = () => {
 
   const openOfferwall = (offer: PublicConfig['offerwalls'][number]) => {
     if (!offer.enabled || !offer.url) return;
-    const url = offer.url.includes('?') ? `${offer.url}&sub1=${userId}` : `${offer.url}?sub1=${userId}`;
+    const idParam = offer.id === 'cpxresearch' ? 'ext_user_id' : 'sub1';
+    const url = offer.url.includes('?') ? `${offer.url}&${idParam}=${userId}` : `${offer.url}?${idParam}=${userId}`;
     window.open(url, '_blank');
   };
 

@@ -122,4 +122,33 @@ router.get("/earn/offerwall/postback", rateLimit("postback", 60, 60_000), async 
   res.json(OfferwallPostbackResponse.parse({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints }));
 });
 
+router.get("/earn/cpxresearch/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
+  const telegramId = typeof req.query.user_id === "string" ? req.query.user_id : "";
+
+  if (!telegramId) {
+    res.status(400).json({ error: "Missing user_id" });
+    return;
+  }
+
+  const provider = getProvider("cpxresearch");
+  if (!provider) {
+    res.status(500).json({ error: "CPX Research provider not registered" });
+    return;
+  }
+
+  const result = await processReward(provider, { telegramId, raw: { ...req.query } });
+  if (!result.ok) {
+    if (result.reason === "Invalid postback secret") {
+      req.log.warn("Rejected CPX Research postback with invalid hash");
+      res.status(403).json({ error: "Invalid postback secret" });
+      return;
+    }
+    res.status(400).json({ error: result.reason ?? "Unknown/banned user or invalid transaction" });
+    return;
+  }
+
+  req.log.info({ telegramId, creditedPoints: result.creditedPoints }, "CPX Research postback credited");
+  res.json(OfferwallPostbackResponse.parse({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints }));
+});
+
 export default router;

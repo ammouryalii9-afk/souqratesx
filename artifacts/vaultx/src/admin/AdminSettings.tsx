@@ -142,6 +142,13 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "CPX Research (استبيانات)",
+    fields: [
+      { key: "cpxresearchAppId", label: "CPX Research App ID", type: "text", defaultValue: "" },
+      { key: "cpxresearchSecureHash", label: "CPX Research Secure Hash", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "عضوية Premium",
     fields: [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },

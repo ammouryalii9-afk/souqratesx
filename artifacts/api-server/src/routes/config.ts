@@ -20,6 +20,8 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const propelleradsUrl = asString(settings.propelleradsOfferwallUrl);
   const cpaleadUrl = asString(settings.cpaleadOfferwallUrl);
   const adscendmediaUrl = asString(settings.adscendmediaOfferwallUrl);
+  const cpxresearchAppId = asString(settings.cpxresearchAppId);
+  const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
 
   res.json(
     GetPublicConfigResponse.parse({
@@ -116,6 +118,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "Adscend Media",
           url: adscendmediaUrl || null,
           enabled: Boolean(adscendmediaUrl && asString(settings.adscendmediaApiKey)),
+        },
+        {
+          id: "cpxresearch",
+          name: "CPX Research",
+          url: cpxresearchUrl || null,
+          enabled: Boolean(cpxresearchAppId && asString(settings.cpxresearchSecureHash)),
         },
       ],
       stars: {
