@@ -1,0 +1,94 @@
+I want you to redesign the earning system of my project into a scalable provider architecture.
+
+Current stack:
+
+* Node.js + TypeScript
+* Express 5
+* PostgreSQL
+* Drizzle ORM
+* React + Vite Telegram Mini App
+* pnpm monorepo
+
+Goals:
+
+1. Build a Provider Engine that supports unlimited earning providers without modifying existing code.
+2. Every provider must implement the same interface, for example:
+
+* initialize()
+* isEnabled()
+* getOffers(user)
+* verifyReward(payload)
+* rewardUser()
+* healthCheck()
+
+3. Create a Provider Manager responsible for:
+
+* Loading provider configuration from the admin_settings table.
+* Enabling/disabling providers dynamically.
+* Selecting the best provider automatically.
+* Falling back to another provider if one fails.
+* Returning a unified response regardless of provider.
+
+4. Create a Reward Engine responsible for:
+
+* Preventing duplicate rewards.
+* Verifying callbacks securely using provider secrets.
+* Logging every reward.
+* Crediting the user’s wallet.
+* Supporting retries.
+* Being completely provider-independent.
+
+5. Create database tables if needed, including:
+
+* providers
+* provider_settings
+* provider_logs
+* reward_transactions
+* provider_statistics
+
+6. Add provider statistics such as:
+
+* fill_rate
+* success_rate
+* average_reward
+* average_response_time
+* ecpm
+* daily_revenue
+* total_rewards
+
+7. Build a Revenue Optimizer that automatically chooses the best provider using:
+
+* User country
+* Device
+* Operating system
+* Fill rate
+* eCPM
+* Historical success rate
+* Provider priority
+* Availability
+
+8. The Mini App should never know which provider is being used. It should simply request:
+    GET /earn/offers
+
+and receive a unified list of earning opportunities.
+
+9. Every provider must live in its own module, for example:
+    /providers
+    adsgram/
+    bitlabs/
+    monlix/
+    offertoro/
+    cpa/
+    future-providers/
+
+Adding a new provider should only require creating a new module and registering it.
+
+10. Secrets and API keys must never be hardcoded. Everything must be loaded from the database or environment variables.
+11. Implement dependency injection where appropriate.
+12. Follow SOLID principles.
+13. Use strong TypeScript typing everywhere.
+14. Use Zod validation for every request and callback.
+15. Add detailed logging and centralized error handling.
+16. Make the entire system production-ready, modular, secure, maintainable, and easy to extend for dozens of providers in the future.
+
+Do not break existing APIs. Refactor incrementally while preserving backward compatibility.

@@ -257,6 +257,26 @@ export interface EarnRewardResult {
   lifetimePoints: number;
 }
 
+export type EarnOfferType = typeof EarnOfferType[keyof typeof EarnOfferType];
+
+
+export const EarnOfferType = {
+  rewarded_ad: 'rewarded_ad',
+  offerwall: 'offerwall',
+} as const;
+
+export interface EarnOffer {
+  providerKey: string;
+  type: EarnOfferType;
+  title: string;
+  rewardPoints: number;
+  url?: string;
+}
+
+export interface EarnOffersResponse {
+  offers: EarnOffer[];
+}
+
 export interface StarsInvoiceInput {
   productId: number;
 }

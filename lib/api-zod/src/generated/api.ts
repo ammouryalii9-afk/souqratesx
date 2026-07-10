@@ -613,6 +613,20 @@ export const ClaimAdResponse = zod.object({
 
 
 /**
+ * @summary Unified list of currently available earning opportunities across all enabled providers
+ */
+export const GetEarnOffersResponse = zod.object({
+  "offers": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "type": zod.enum(['rewarded_ad', 'offerwall']),
+  "title": zod.string(),
+  "rewardPoints": zod.number(),
+  "url": zod.string().optional()
+}))
+})
+
+
+/**
  * @summary Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
  */
 export const ClaimAdsgramRewardResponse = zod.object({

@@ -35,6 +35,7 @@ import type {
   BroadcastRequest,
   CreateSponsoredAdBody,
   CreateStarProductBody,
+  EarnOffersResponse,
   EarnRewardResult,
   ErrorResponse,
   GetAdminUsersParams,
@@ -2614,6 +2615,83 @@ export const useClaimAd = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getClaimAdMutationOptions(options));
     }
+
+export const getGetEarnOffersUrl = () => {
+
+
+
+
+  return `/api/earn/offers`
+}
+
+/**
+ * @summary Unified list of currently available earning opportunities across all enabled providers
+ */
+export const getEarnOffers = async ( options?: RequestInit): Promise<EarnOffersResponse> => {
+
+  return customFetch<EarnOffersResponse>(getGetEarnOffersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEarnOffersQueryKey = () => {
+    return [
+    `/api/earn/offers`
+    ] as const;
+    }
+
+
+export const getGetEarnOffersQueryOptions = <TData = Awaited<ReturnType<typeof getEarnOffers>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEarnOffersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEarnOffers>>> = ({ signal }) => getEarnOffers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEarnOffers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEarnOffersQueryResult = NonNullable<Awaited<ReturnType<typeof getEarnOffers>>>
+export type GetEarnOffersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Unified list of currently available earning opportunities across all enabled providers
+ */
+
+export function useGetEarnOffers<TData = Awaited<ReturnType<typeof getEarnOffers>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEarnOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEarnOffersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getClaimAdsgramRewardUrl = () => {
 

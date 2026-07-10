@@ -807,6 +807,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /earn/offers:
+    get:
+      operationId: getEarnOffers
+      tags: [earn]
+      summary: Unified list of currently available earning opportunities across all enabled providers
+      responses:
+        "200":
+          description: Offers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnOffersResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /earn/adsgram/reward:
     post:
       operationId: claimAdsgramReward
@@ -1392,6 +1410,34 @@ components:
       required:
         - creditedPoints
         - lifetimePoints
+    EarnOffer:
+      type: object
+      properties:
+        providerKey:
+          type: string
+        type:
+          type: string
+          enum: [rewarded_ad, offerwall]
+        title:
+          type: string
+        rewardPoints:
+          type: integer
+        url:
+          type: string
+      required:
+        - providerKey
+        - type
+        - title
+        - rewardPoints
+    EarnOffersResponse:
+      type: object
+      properties:
+        offers:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarnOffer"
+      required:
+        - offers
     StarsInvoiceInput:
       type: object
       properties:

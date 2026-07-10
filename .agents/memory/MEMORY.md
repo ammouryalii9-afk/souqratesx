@@ -10,3 +10,4 @@
 - [Generic paid-feature store pattern](star-store-pattern.md) — admin-configurable purchasable effects (Stars store) keyed by effectType+effectValue, not hardcoded product enums.
 - [Reward-claim watch-time gate](reward-claim-verification-gate.md) — enforce "must satisfy condition before crediting points" globally (one admin setting + start/claim split), not per-reward-type, so it covers future reward types automatically.
 - [VaultX spendable vs lifetime points](vaultx-spendable-vs-lifetime-points.md) — `state.tempMiningPoints` is the usable/spendable balance; `lifetimePoints` is a read-only leaderboard counter. Any server-side credit must bump both or the credit is invisible in-game.
+- [Earning provider engine](earning-provider-engine.md) — SouqratesX's Adsgram/CPA/Monlix/Bitlabs rewards run through a generic provider interface + reward engine, not per-route logic.

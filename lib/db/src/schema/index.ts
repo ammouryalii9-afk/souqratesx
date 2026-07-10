@@ -25,3 +25,4 @@ export * from "./userActivityLog";
 export * from "./broadcastJobs";
 export * from "./sponsoredAds";
 export * from "./starProducts";
+export * from "./providers";

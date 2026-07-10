@@ -43,6 +43,7 @@ import {
   sendPlainTelegramMessage,
 } from "../lib/telegramBot";
 import { logger } from "../lib/logger";
+import { syncProvidersFromSettings } from "../providers/manager";
 
 const router: IRouter = Router();
 
@@ -306,6 +307,8 @@ router.put("/admin/settings", async (req, res): Promise<void> => {
   for (const row of rows) {
     settings[row.key] = row.value;
   }
+
+  await syncProvidersFromSettings(settings);
 
   res.json(UpdateAdminSettingsResponse.parse(settings));
 });
