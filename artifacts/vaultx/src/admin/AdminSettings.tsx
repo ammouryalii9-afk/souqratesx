@@ -60,6 +60,38 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "Revlum (Offerwall)",
+    fields: [
+      { key: "revlumApiKey", label: "Revlum API Key", type: "text", defaultValue: "" },
+      { key: "revlumOfferwallUrl", label: "رابط Revlum", type: "text", defaultValue: "" },
+      { key: "revlumPostbackSecret", label: "Revlum Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "AyeT-Studios (Offerwall)",
+    fields: [
+      { key: "ayetstudiosApiKey", label: "AyeT-Studios API Key", type: "text", defaultValue: "" },
+      { key: "ayetstudiosOfferwallUrl", label: "رابط AyeT-Studios", type: "text", defaultValue: "" },
+      { key: "ayetstudiosPostbackSecret", label: "AyeT-Studios Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "OfferToro (Offerwall)",
+    fields: [
+      { key: "offertoroApiKey", label: "OfferToro API Key", type: "text", defaultValue: "" },
+      { key: "offertoroOfferwallUrl", label: "رابط OfferToro", type: "text", defaultValue: "" },
+      { key: "offertoroPostbackSecret", label: "OfferToro Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
+    title: "Torox (Offerwall)",
+    fields: [
+      { key: "toroxApiKey", label: "Torox API Key", type: "text", defaultValue: "" },
+      { key: "toroxOfferwallUrl", label: "رابط Torox", type: "text", defaultValue: "" },
+      { key: "toroxPostbackSecret", label: "Torox Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "عضوية Premium",
     fields: [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },

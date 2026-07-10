@@ -11,6 +11,10 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const monlixUrl = asString(settings.monlixOfferwallUrl);
   const bitlabsUrl = asString(settings.bitlabsOfferwallUrl);
   const lootablyUrl = asString(settings.lootablyOfferwallUrl);
+  const revlumUrl = asString(settings.revlumOfferwallUrl);
+  const ayetstudiosUrl = asString(settings.ayetstudiosOfferwallUrl);
+  const offertoroUrl = asString(settings.offertoroOfferwallUrl);
+  const toroxUrl = asString(settings.toroxOfferwallUrl);
 
   res.json(
     GetPublicConfigResponse.parse({
@@ -45,6 +49,30 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "Lootably",
           url: lootablyUrl || null,
           enabled: Boolean(lootablyUrl && asString(settings.lootablyApiKey)),
+        },
+        {
+          id: "revlum",
+          name: "Revlum",
+          url: revlumUrl || null,
+          enabled: Boolean(revlumUrl && asString(settings.revlumApiKey)),
+        },
+        {
+          id: "ayetstudios",
+          name: "AyeT-Studios",
+          url: ayetstudiosUrl || null,
+          enabled: Boolean(ayetstudiosUrl && asString(settings.ayetstudiosApiKey)),
+        },
+        {
+          id: "offertoro",
+          name: "OfferToro",
+          url: offertoroUrl || null,
+          enabled: Boolean(offertoroUrl && asString(settings.offertoroApiKey)),
+        },
+        {
+          id: "torox",
+          name: "Torox",
+          url: toroxUrl || null,
+          enabled: Boolean(toroxUrl && asString(settings.toroxApiKey)),
         },
       ],
       stars: {

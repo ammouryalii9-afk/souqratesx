@@ -11,6 +11,10 @@ const REGISTRY: EarnProvider[] = [
   createOfferwallProvider("monlix", "Monlix"),
   createOfferwallProvider("bitlabs", "Bitlabs"),
   createOfferwallProvider("lootably", "Lootably"),
+  createOfferwallProvider("revlum", "Revlum"),
+  createOfferwallProvider("ayetstudios", "AyeT-Studios"),
+  createOfferwallProvider("offertoro", "OfferToro"),
+  createOfferwallProvider("torox", "Torox"),
 ];
 
 const providersByKey = new Map<string, EarnProvider>(REGISTRY.map((p) => [p.key, p]));
@@ -113,6 +117,46 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         apiKey: asStr(settings["lootablyApiKey"]),
         url: asStr(settings["lootablyOfferwallUrl"]),
         postbackSecret: asStr(settings["lootablyPostbackSecret"]),
+      },
+    },
+    {
+      key: "revlum",
+      name: "Revlum",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["revlumApiKey"]),
+        url: asStr(settings["revlumOfferwallUrl"]),
+        postbackSecret: asStr(settings["revlumPostbackSecret"]),
+      },
+    },
+    {
+      key: "ayetstudios",
+      name: "AyeT-Studios",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["ayetstudiosApiKey"]),
+        url: asStr(settings["ayetstudiosOfferwallUrl"]),
+        postbackSecret: asStr(settings["ayetstudiosPostbackSecret"]),
+      },
+    },
+    {
+      key: "offertoro",
+      name: "OfferToro",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["offertoroApiKey"]),
+        url: asStr(settings["offertoroOfferwallUrl"]),
+        postbackSecret: asStr(settings["offertoroPostbackSecret"]),
+      },
+    },
+    {
+      key: "torox",
+      name: "Torox",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["toroxApiKey"]),
+        url: asStr(settings["toroxOfferwallUrl"]),
+        postbackSecret: asStr(settings["toroxPostbackSecret"]),
       },
     },
   ];
