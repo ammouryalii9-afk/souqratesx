@@ -94,6 +94,7 @@ type VaultContextType = {
   tapMine: () => number;
 
   activateTurbo: () => void;
+  grantAdTurbo: () => void;
   rechargeEnergy: () => void;
   startFarming: () => void;
   claimFarming: () => void;
@@ -453,6 +454,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const grantAdTurbo = () => {
+    if (isHydrationPending()) return;
+    if (!activeTurbo) {
+      setActiveTurbo(true);
+      setTurboExpiresAt(Date.now() + 20000);
+    }
+  };
+
   const startFarming = () => {
     if (isHydrationPending()) return;
     if (farmState === 'idle') {
@@ -577,6 +586,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         expandBattery,
         tapMine,
         activateTurbo,
+        grantAdTurbo,
         rechargeEnergy,
         startFarming,
         claimFarming,

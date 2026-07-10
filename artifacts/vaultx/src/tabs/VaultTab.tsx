@@ -29,8 +29,8 @@ let floatId = 0;
 export const VaultTab = () => {
   const { 
     totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, claimEarnings, tapMine,
-    activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo,
-    rechargeUsesToday, rechargeEnergy,
+    activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
+    rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
     lifetimePoints, profitPerHour, equippedSkinId
   } = useVault();
@@ -42,6 +42,11 @@ export const VaultTab = () => {
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const [isTapping, setIsTapping] = useState(false);
+
+  const [adEnergyProgress, setAdEnergyProgress] = useState(() => Number(localStorage.getItem('adEnergyProgress')) || 0);
+  const [adTurboProgress, setAdTurboProgress] = useState(() => Number(localStorage.getItem('adTurboProgress')) || 0);
+  const [energyAdLoading, setEnergyAdLoading] = useState(false);
+  const [turboAdLoading, setTurboAdLoading] = useState(false);
   
   const [turboRemaining, setTurboRemaining] = useState(0);
   const [farmProgress, setFarmProgress] = useState(0);
@@ -52,6 +57,68 @@ export const VaultTab = () => {
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('adEnergyProgress', adEnergyProgress.toString());
+  }, [adEnergyProgress]);
+
+  useEffect(() => {
+    localStorage.setItem('adTurboProgress', adTurboProgress.toString());
+  }, [adTurboProgress]);
+
+  const watchRewardedAd = async () => {
+    if (config?.adsgram.enabled && config.adsgram.blockId) {
+      await showAdsgramRewardedAd(config.adsgram.blockId);
+    } else if (config?.monetag.enabled && config.monetag.zoneId) {
+      await showMonetagRewardedAd(config.monetag.zoneId);
+    } else {
+      throw new Error('No ad provider is available right now');
+    }
+  };
+
+  const handleWatchAdForEnergy = async () => {
+    if (energyAdLoading || energy >= maxEnergy) return;
+    setEnergyAdLoading(true);
+    try {
+      await watchRewardedAd();
+      setAdEnergyProgress(prev => {
+        const next = prev + 1;
+        if (next >= 3) {
+          setEnergy(maxEnergy);
+          toast({ title: 'Energy Refilled!', description: 'Your energy is now full' });
+          return 0;
+        }
+        toast({ title: 'Ad Watched!', description: `${next}/3 videos watched` });
+        return next;
+      });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setEnergyAdLoading(false);
+    }
+  };
+
+  const handleWatchAdForTurbo = async () => {
+    if (turboAdLoading || activeTurbo) return;
+    setTurboAdLoading(true);
+    try {
+      await watchRewardedAd();
+      setAdTurboProgress(prev => {
+        const next = prev + 1;
+        if (next >= 3) {
+          grantAdTurbo();
+          toast({ title: 'Turbo Activated!', description: '5x mining speed for 20s' });
+          return 0;
+        }
+        toast({ title: 'Ad Watched!', description: `${next}/3 videos watched` });
+        return next;
+      });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setTurboAdLoading(false);
+    }
+  };
 
   useEffect(() => {
     let timer: any;
@@ -285,6 +352,38 @@ export const VaultTab = () => {
           </div>
           <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" />
         </div>
+      </div>
+
+      {/* Watch Ads Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          data-testid="button-ad-energy"
+          onClick={handleWatchAdForEnergy}
+          disabled={energyAdLoading || energy >= maxEnergy}
+          className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
+        >
+          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
+            <Battery className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-bold text-white leading-tight">{energyAdLoading ? 'Watching...' : 'Watch 3 Ads'}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">Full Energy · {adEnergyProgress}/3</span>
+          </div>
+        </button>
+        <button
+          data-testid="button-ad-turbo"
+          onClick={handleWatchAdForTurbo}
+          disabled={turboAdLoading || activeTurbo}
+          className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
+        >
+          <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20">
+            <FastForward className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-bold text-white leading-tight">{turboAdLoading ? 'Watching...' : 'Watch 3 Ads'}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">Get Turbo · {adTurboProgress}/3</span>
+          </div>
+        </button>
       </div>
 
       {/* Boosts Row */}
