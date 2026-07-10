@@ -12,3 +12,4 @@
 - [VaultX spendable vs lifetime points](vaultx-spendable-vs-lifetime-points.md) — `state.tempMiningPoints` is the usable/spendable balance; `lifetimePoints` is a read-only leaderboard counter. Any server-side credit must bump both or the credit is invisible in-game.
 - [Earning provider engine](earning-provider-engine.md) — SouqratesX's Adsgram/CPA/Monlix/Bitlabs rewards run through a generic provider interface + reward engine, not per-route logic.
 - [Admin settings numeric text fields](admin-settings-numeric-values.md) — a "text"-type settings field value can still arrive as a JSON number; string-coercion helpers reading `admin_settings` must accept numbers too.
+- [Placeholder ad simulations](placeholder-ad-simulations.md) — some earlier game-loop flows fake a rewarded-ad wait with a client-side timer instead of calling a real ad SDK; audit for these when wiring real ad providers.

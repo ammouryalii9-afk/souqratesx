@@ -13,6 +13,9 @@ import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
+import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
+import { showAdsgramRewardedAd } from '../lib/adsgram';
+import { showMonetagRewardedAd } from '../lib/monetag';
 
 interface FloatingPoint {
   id: number;
@@ -36,6 +39,7 @@ export const VaultTab = () => {
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState(0);
+  const [config, setConfig] = useState<PublicConfig | null>(null);
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const [isTapping, setIsTapping] = useState(false);
   
@@ -44,6 +48,10 @@ export const VaultTab = () => {
   const [farmYield, setFarmYield] = useState(0);
 
   const league = getLeague(lifetimePoints);
+
+  useEffect(() => {
+    getPublicConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
 
   useEffect(() => {
     let timer: any;
@@ -109,12 +117,9 @@ export const VaultTab = () => {
     }, 900);
   }, [energy, tapMine]);
 
-  const handleClaim = () => {
-    if (tempMiningPoints === 0) return;
-    setIsClaiming(true);
+  const runFallbackProgress = () => {
     setClaimProgress(0);
-
-    const duration = 15000;
+    const duration = 3000;
     const interval = 100;
     const steps = duration / interval;
     let currentStep = 0;
@@ -124,13 +129,39 @@ export const VaultTab = () => {
       setClaimProgress((currentStep / steps) * 100);
       if (currentStep >= steps) {
         clearInterval(timer);
-        setTimeout(() => {
-          setIsClaiming(false);
-          claimEarnings();
-          toast({ title: "Success!", description: "Earnings transferred to your Vault" });
-        }, 500);
+        setIsClaiming(false);
+        claimEarnings();
+        toast({ title: "Success!", description: "Earnings transferred to your Vault" });
       }
     }, interval);
+  };
+
+  const handleClaim = async () => {
+    if (tempMiningPoints === 0 || isClaiming) return;
+    setIsClaiming(true);
+    setClaimProgress(0);
+
+    const useAdsgram = config?.adsgram.enabled && config.adsgram.blockId;
+    const useMonetag = !useAdsgram && config?.monetag.enabled && config.monetag.zoneId;
+
+    if (!useAdsgram && !useMonetag) {
+      runFallbackProgress();
+      return;
+    }
+
+    try {
+      if (useAdsgram) {
+        await showAdsgramRewardedAd(config!.adsgram.blockId as string);
+      } else if (useMonetag) {
+        await showMonetagRewardedAd(config!.monetag.zoneId as string);
+      }
+      setIsClaiming(false);
+      claimEarnings();
+      toast({ title: "Success!", description: "Earnings transferred to your Vault" });
+    } catch (err) {
+      setIsClaiming(false);
+      toast({ title: "Ad not completed", description: err instanceof Error ? err.message : "Try again to claim your earnings", variant: "destructive" });
+    }
   };
 
   return (
@@ -345,13 +376,12 @@ export const VaultTab = () => {
         <DialogContent className="sm:max-w-md border-white/10 bg-card/90 backdrop-blur-2xl p-8">
           <DialogTitle className="text-center text-xl font-bold text-white tracking-tight">Watching Ad</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground text-sm mt-2">
-            Simulating rewarded video...
+            {(config?.adsgram.enabled && config.adsgram.blockId) || (config?.monetag.enabled && config.monetag.zoneId)
+              ? 'Please watch the ad to unlock your earnings...'
+              : 'Preparing your transfer...'}
           </DialogDescription>
           <div className="py-6 flex flex-col gap-4">
             <Progress value={claimProgress} className="h-2.5 bg-black/40" />
-            <p className="text-center text-primary font-mono text-sm font-bold">
-              {Math.ceil(15 - (claimProgress / 100) * 15)}s remaining
-            </p>
           </div>
         </DialogContent>
       </Dialog>
