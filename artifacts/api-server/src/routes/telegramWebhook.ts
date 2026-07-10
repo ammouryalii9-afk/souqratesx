@@ -150,7 +150,7 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
   try {
     if (update.pre_checkout_query) {
       await answerPreCheckoutQuery(update.pre_checkout_query.id, true);
-    } else if (update.message?.text === "/start" && update.message.from?.id) {
+    } else if (update.message?.text?.startsWith("/start") && update.message.from?.id) {
       const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
       const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
       const appUrl = `${proto}://${host}/`;
