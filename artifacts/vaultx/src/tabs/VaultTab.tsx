@@ -137,42 +137,44 @@ export const VaultTab = () => {
     <div className="flex flex-col space-y-5 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Balance Card */}
-      <div className="rounded-xl bg-gradient-to-br from-[#2D2405] to-[#120F03] border border-primary/20 p-5 flex flex-col items-center relative overflow-hidden shadow-[0_8px_32px_rgba(245,197,24,0.1)]">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10" />
-        <h2 className="text-muted-foreground text-xs font-medium mb-1 uppercase tracking-wider">Total Vault Balance</h2>
-        <div className="text-4xl font-bold text-white mb-4 tracking-tight">
+      <div className="rounded-[24px] bg-card/60 backdrop-blur-2xl border border-white/10 p-6 flex flex-col items-center relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
+        <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">Total Vault Balance</h2>
+        <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm">
           ${totalBalanceUSD.toFixed(2)}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative z-10 w-full">
           <button
             data-testid="button-withdraw"
             onClick={handleWithdraw}
-            className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 px-7 py-2 rounded-full font-semibold text-sm transition-all active:scale-95"
+            className="flex-1 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/40 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] shadow-inner"
           >
             Withdraw
           </button>
-          <div className="px-3 py-1 bg-white/5 rounded-full text-xs text-primary font-medium border border-white/5">
-            Level {miningLevel} Miner
+          <div className="flex-1 py-2.5 bg-white/5 rounded-xl text-sm text-center text-white font-semibold border border-white/5 shadow-inner">
+            Level <span className="text-primary">{miningLevel}</span>
           </div>
         </div>
       </div>
 
       {/* Info Row */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: league.color, color: '#000' }}>
-            {league.icon} {league.name} Miner
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-center">
+          <span className="text-[11px] font-bold px-3 py-1 rounded-full border border-white/10 shadow-sm" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
+            <span className="mr-1.5">{league.icon}</span> {league.name} Miner
           </span>
         </div>
-        <div className="flex justify-between items-center text-xs font-medium bg-black/40 border border-white/5 rounded-lg px-4 py-2">
-          <span className="text-emerald-400">Profit: +{profitPerHour.toLocaleString()} pts/hr</span>
-          <span className="text-primary">Total: {lifetimePoints.toLocaleString()} pts</span>
+        <div className="flex justify-between items-center text-xs font-bold bg-card/50 backdrop-blur-xl border border-white/5 rounded-xl px-4 py-3 shadow-inner">
+          <span className="text-primary flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> +{profitPerHour.toLocaleString()} /hr</span>
+          <span className="text-white flex items-center gap-1.5"><Vault className="w-3.5 h-3.5 text-cyan-400" /> {lifetimePoints.toLocaleString()} pts</span>
         </div>
       </div>
 
       {/* ── TAP TO MINE CORE ── */}
-      <div className="flex flex-col items-center justify-center py-4 relative select-none">
-        <p className="text-xs text-primary/50 uppercase tracking-widest mb-4 font-medium">
+      <div className="flex flex-col items-center justify-center py-6 relative select-none">
+        <p className="text-xs text-primary/70 uppercase tracking-widest mb-6 font-semibold animate-pulse">
           {energy > 0 ? 'Tap the Vault to Mine' : 'No Energy — Recharging...'}
         </p>
 
@@ -181,40 +183,43 @@ export const VaultTab = () => {
           onClick={handleTap}
           onTouchStart={handleTap}
           disabled={energy <= 0}
-          className="relative w-52 h-52 rounded-full focus:outline-none disabled:cursor-not-allowed"
-          style={{ transform: isTapping ? 'scale(0.94)' : 'scale(1)', transition: 'transform 0.1s ease' }}
+          className="relative w-56 h-56 rounded-full focus:outline-none disabled:cursor-not-allowed group"
+          style={{ transform: isTapping ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
           <div
-            className={`absolute inset-0 rounded-full border-2 transition-colors duration-300 ${activeTurbo ? 'border-cyan-400/80 animate-pulse' : !skin && energy > 0 ? 'border-primary/40' : !skin ? 'border-white/10' : ''}`}
-            style={!activeTurbo && skin && energy > 0 ? { borderColor: `${skin.accent}66` } : undefined}
+            className={`absolute inset-0 rounded-full border border-primary/20 transition-all duration-300 group-hover:border-primary/40`}
+            style={!activeTurbo && skin && energy > 0 ? { borderColor: `${skin.accent}40` } : undefined}
           />
           <div
-            className={`absolute inset-2 rounded-full border ${!skin ? 'border-primary/20' : ''} ${energy > 0 ? 'animate-[spin_8s_linear_infinite]' : ''} ${activeTurbo ? 'border-cyan-400/50' : ''}`}
-            style={!activeTurbo && skin ? { borderColor: `${skin.accent}33` } : undefined}
+            className={`absolute inset-3 rounded-full border border-primary/10 ${energy > 0 ? 'animate-[spin_10s_linear_infinite]' : ''}`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}20` } : undefined}
           />
 
           {energy > 0 && !isCapped && !activeTurbo && (
-            <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(245,197,24,0.18)] animate-pulse" style={skin ? { boxShadow: `0 0 60px ${skin.glow}` } : undefined} />
+            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(52,211,153,0.15)] animate-pulse" style={skin ? { boxShadow: `0 0 80px ${skin.glow}` } : undefined} />
           )}
           {activeTurbo && (
-            <div className="absolute inset-0 rounded-full shadow-[0_0_60px_rgba(34,211,238,0.4)] animate-pulse" />
+            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(34,211,238,0.3)] animate-pulse" />
           )}
 
           <div
-            className={`absolute inset-4 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-[#002b36] to-[#0A0900] border-cyan-400/60' : !skin ? 'from-[#2A2205] to-[#0A0900] border-primary/40' : 'from-[#1a1a1a] to-[#0A0900]'} flex flex-col items-center justify-center border shadow-inner overflow-hidden`}
-            style={!activeTurbo && skin ? { borderColor: `${skin.accent}66` } : undefined}
+            className={`absolute inset-5 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-cyan-950 to-background border-cyan-400/50' : !skin ? 'from-primary/10 to-background border-primary/30' : 'from-[#1a1a1a] to-[#0A0900]'} flex flex-col items-center justify-center border shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}50` } : undefined}
           >
-            <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`} />
-            <span className="text-[10px] text-primary/60 font-medium uppercase tracking-widest mb-1">Mined</span>
-            <span className="text-3xl font-bold text-white tabular-nums leading-none">
+            <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/10 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
+            <span className="text-[10px] text-primary/70 font-bold uppercase tracking-widest mb-1 relative z-10">Mined</span>
+            <span className="text-4xl font-black text-white tabular-nums leading-none tracking-tight relative z-10 drop-shadow-sm">
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
-            <span className="text-[10px] text-primary/40 mt-1">pts</span>
-            <span className={`text-[10px] mt-2 font-semibold ${activeTurbo ? 'text-cyan-400' : 'text-primary/50'}`}>
-              +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
-            </span>
+            <span className="text-[11px] text-muted-foreground mt-1 relative z-10 font-medium">pts</span>
+            <div className={`mt-3 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md relative z-10 flex items-center gap-1`}>
+              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
+              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
+                +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
+              </span>
+            </div>
             {activeTurbo && (
-              <span className="absolute bottom-4 text-xs font-bold text-red-500 animate-pulse">TURBO x5 ({turboRemaining}s)</span>
+              <span className="absolute bottom-6 text-[10px] font-bold text-cyan-400 animate-pulse bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-400/30">TURBO ({turboRemaining}s)</span>
             )}
           </div>
 
@@ -225,8 +230,8 @@ export const VaultTab = () => {
               style={{ left: `${fp.x}%`, top: `${fp.y}%`, transform: 'translate(-50%, -50%)' }}
             >
               <span
-                className="font-bold text-primary text-lg leading-none absolute"
-                style={{ animation: 'floatUp 0.9s ease-out forwards' }}
+                className="font-black text-primary text-xl tracking-tighter absolute drop-shadow-md"
+                style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards' }}
               >
                 +{fp.value}
               </span>
@@ -238,16 +243,16 @@ export const VaultTab = () => {
           ))}
         </button>
 
-        <div className="mt-6 w-full max-w-xs">
-          <div className="flex justify-between text-xs font-medium mb-2">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <Zap className="w-3 h-3 text-primary" /> Energy
+        <div className="mt-8 w-full max-w-[280px]">
+          <div className="flex justify-between text-xs font-bold mb-2.5 px-1">
+            <span className="text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+              <Zap className="w-3.5 h-3.5 text-primary" /> Energy
             </span>
-            <span className={energy === 0 ? 'text-destructive' : 'text-white'}>
-              {energy} / {maxEnergy}
+            <span className={energy === 0 ? 'text-destructive font-mono' : 'text-white font-mono'}>
+              {energy} <span className="text-muted-foreground">/ {maxEnergy}</span>
             </span>
           </div>
-          <Progress value={(energy / maxEnergy) * 100} className="h-2 bg-white/5" />
+          <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" />
         </div>
       </div>
 
@@ -257,54 +262,68 @@ export const VaultTab = () => {
           data-testid="button-turbo"
           onClick={activateTurbo}
           disabled={turboUsesToday >= 3 || activeTurbo}
-          className="bg-card border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-50"
+          className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
         >
-          <FastForward className="w-5 h-5 text-cyan-400" />
-          <span className="text-xs font-bold text-white">Turbo Tap</span>
-          <span className="text-[10px] text-muted-foreground">{3 - turboUsesToday} left</span>
+          <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20">
+            <FastForward className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-bold text-white leading-tight">Turbo</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - turboUsesToday} left</span>
+          </div>
         </button>
         <button
           data-testid="button-recharge"
           onClick={rechargeEnergy}
           disabled={rechargeUsesToday >= 3}
-          className="bg-card border border-white/5 p-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-50"
+          className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
         >
-          <Battery className="w-5 h-5 text-emerald-400" />
-          <span className="text-xs font-bold text-white">Full Recharge</span>
-          <span className="text-[10px] text-muted-foreground">{3 - rechargeUsesToday} left</span>
+          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
+            <Battery className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-bold text-white leading-tight">Recharge</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - rechargeUsesToday} left</span>
+          </div>
         </button>
       </div>
 
       {/* Farming Section */}
-      <div className="bg-card border border-white/5 rounded-xl p-4 flex flex-col gap-3">
+      <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-[40px] pointer-events-none" />
         {farmState === 'idle' && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-3">
-              <div className="bg-emerald-500/10 p-2 rounded-lg"><Sprout className="w-5 h-5 text-emerald-500" /></div>
+              <div className="bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                <Sprout className="w-5 h-5 text-emerald-400" />
+              </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Start Farming</h3>
-                <p className="text-xs text-muted-foreground">Farm 500 pts/hr for up to 8 hours</p>
+                <h3 className="text-sm font-bold text-white tracking-tight">Start Farming</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Farm 500 pts/hr for 8h</p>
               </div>
             </div>
-            <button data-testid="button-farm-start" onClick={startFarming} className="bg-emerald-500 text-black px-4 py-2 rounded-lg text-xs font-bold active:scale-95">Start Farm</button>
+            <button data-testid="button-farm-start" onClick={startFarming} className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">Start</button>
           </div>
         )}
         {farmState === 'farming' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-white font-bold flex items-center gap-1"><Sprout className="w-4 h-4 text-emerald-500"/> Harvesting...</span>
-              <span className="text-primary font-bold">{farmYield.toLocaleString()} pts</span>
+          <div className="flex flex-col gap-3 relative z-10">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white font-bold flex items-center gap-2">
+                <Sprout className="w-4 h-4 text-emerald-400 animate-pulse"/> 
+                Harvesting
+              </span>
+              <span className="text-primary font-bold font-mono bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">{farmYield.toLocaleString()} pts</span>
             </div>
-            <Progress value={farmProgress} className="h-2 bg-white/5 [&>div]:bg-emerald-500" />
+            <Progress value={farmProgress} className="h-2.5 bg-black/40 [&>div]:bg-emerald-400 [&>div]:shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
           </div>
         )}
         {farmState === 'ready' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Sprout className="w-5 h-5 text-emerald-500 animate-pulse" />
-              <span className="text-emerald-500 font-bold">Farm Ready!</span>
+          <div className="flex flex-col gap-3 relative z-10">
+            <div className="flex items-center justify-center gap-2 mb-1 bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">
+              <Sprout className="w-5 h-5 text-emerald-400 animate-bounce" />
+              <span className="text-emerald-400 font-bold tracking-wide">Farm Ready!</span>
             </div>
-            <button data-testid="button-farm-claim" onClick={claimFarming} className="w-full bg-emerald-500 text-black font-bold py-3 rounded-lg animate-pulse active:scale-95 text-sm">
+            <button data-testid="button-farm-claim" onClick={claimFarming} className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wide py-3.5 rounded-xl active:scale-[0.98] text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]">
               Claim 4,000 pts
             </button>
           </div>
@@ -316,22 +335,22 @@ export const VaultTab = () => {
         data-testid="button-claim"
         onClick={handleClaim}
         disabled={tempMiningPoints === 0 || isClaiming}
-        className="w-full bg-primary text-black font-bold py-4 rounded-xl shadow-[0_4px_20px_rgba(245,197,24,0.3)] disabled:opacity-40 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2 text-base"
+        className="w-full bg-white text-black font-black tracking-wide py-4.5 rounded-[16px] shadow-[0_4px_20px_rgba(255,255,255,0.15)] disabled:opacity-40 disabled:shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-2.5 text-base border border-white/20 mt-2"
       >
         <Download className="w-5 h-5" />
         Transfer Earnings to Vault
       </button>
 
       <Dialog open={isClaiming} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md border-white/10 bg-[#0D0D0F]">
-          <DialogTitle className="text-center text-xl">Watching Reward Video</DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground text-sm">
-            Simulating AdsGram SDK integration...
+        <DialogContent className="sm:max-w-md border-white/10 bg-card/90 backdrop-blur-2xl p-8">
+          <DialogTitle className="text-center text-xl font-bold text-white tracking-tight">Watching Ad</DialogTitle>
+          <DialogDescription className="text-center text-muted-foreground text-sm mt-2">
+            Simulating rewarded video...
           </DialogDescription>
-          <div className="py-8">
-            <Progress value={claimProgress} className="h-3" />
-            <p className="text-center text-muted-foreground text-sm mt-4">
-              Please wait... {Math.ceil(15 - (claimProgress / 100) * 15)}s
+          <div className="py-6 flex flex-col gap-4">
+            <Progress value={claimProgress} className="h-2.5 bg-black/40" />
+            <p className="text-center text-primary font-mono text-sm font-bold">
+              {Math.ceil(15 - (claimProgress / 100) * 15)}s remaining
             </p>
           </div>
         </DialogContent>
@@ -339,37 +358,38 @@ export const VaultTab = () => {
 
       <style>{`
         @keyframes floatUp {
-          0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-          60%  { opacity: 1; transform: translate(-50%, calc(-50% - 40px)) scale(1); }
-          100% { opacity: 0; transform: translate(-50%, calc(-50% - 70px)) scale(0.8); }
+          0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          50%  { opacity: 1; transform: translate(-50%, calc(-50% - 35px)) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, calc(-50% - 65px)) scale(0.8); }
         }
         .dot {
           position: absolute;
           width: 4px;
           height: 4px;
-          background: #F5C518;
+          background: hsl(var(--primary));
           border-radius: 50%;
           opacity: 0;
+          box-shadow: 0 0 8px hsl(var(--primary));
         }
-        .burst-1 { animation: burst1 0.6s ease-out forwards; }
-        .burst-2 { animation: burst2 0.6s ease-out forwards; }
-        .burst-3 { animation: burst3 0.6s ease-out forwards; }
-        .burst-4 { animation: burst4 0.6s ease-out forwards; }
+        .burst-1 { animation: burst1 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-2 { animation: burst2 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-3 { animation: burst3 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-4 { animation: burst4 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         @keyframes burst1 {
-          0% { opacity: 1; transform: translate(0, 0); }
-          100% { opacity: 0; transform: translate(-20px, -20px); }
+          0% { opacity: 1; transform: translate(0, 0) scale(1); }
+          100% { opacity: 0; transform: translate(-25px, -25px) scale(0); }
         }
         @keyframes burst2 {
-          0% { opacity: 1; transform: translate(0, 0); }
-          100% { opacity: 0; transform: translate(20px, -15px); }
+          0% { opacity: 1; transform: translate(0, 0) scale(1); }
+          100% { opacity: 0; transform: translate(25px, -15px) scale(0); }
         }
         @keyframes burst3 {
-          0% { opacity: 1; transform: translate(0, 0); }
-          100% { opacity: 0; transform: translate(-15px, 20px); }
+          0% { opacity: 1; transform: translate(0, 0) scale(1); }
+          100% { opacity: 0; transform: translate(-15px, 25px) scale(0); }
         }
         @keyframes burst4 {
-          0% { opacity: 1; transform: translate(0, 0); }
-          100% { opacity: 0; transform: translate(20px, 20px); }
+          0% { opacity: 1; transform: translate(0, 0) scale(1); }
+          100% { opacity: 0; transform: translate(25px, 25px) scale(0); }
         }
       `}</style>
     </div>

@@ -7,7 +7,7 @@ import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
-import { Coins } from "lucide-react";
+import { Hexagon } from "lucide-react";
 
 function Header() {
   const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
@@ -15,27 +15,36 @@ function Header() {
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   
   return (
-    <header className="sticky top-0 z-40 bg-[#0D0D0F]/90 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-[#8A6F00] flex items-center justify-center shadow-[0_0_15px_rgba(245,197,24,0.3)]">
-          <Coins className="w-5 h-5 text-black" />
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shadow-[0_0_20px_rgba(52,211,153,0.3)] border border-primary/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-primary/20 animate-pulse mix-blend-overlay"></div>
+          <Hexagon className="w-5 h-5 text-primary-foreground fill-current" />
         </div>
-        <span className="font-bold tracking-tight text-lg text-white">SouqrateX</span>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: league.color, color: '#000'}}>
-          {league.name}
-        </span>
-        {badge && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{background: badge.color, color: '#000'}}>
-            {badge.label}
-          </span>
-        )}
+        <div className="flex flex-col">
+          <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
+          <div className="flex gap-1 mt-1">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
+              {league.name}
+            </span>
+            {badge && (
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
+                {badge.label}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-      <div className="bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex flex-col items-end justify-center">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground font-medium uppercase">Bal</span>
-          <span className="text-sm font-bold text-primary leading-none">${totalBalanceUSD.toFixed(2)}</span>
+      <div className="bg-card px-4 py-2 rounded-2xl border border-white/10 shadow-inner flex flex-col items-end justify-center relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Balance</span>
+          <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${totalBalanceUSD.toFixed(2)}</span>
         </div>
-        <span className="text-[10px] text-emerald-400 font-bold leading-none mt-0.5">+{profitPerHour}/hr</span>
+        <div className="flex items-center gap-1 mt-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+          <span className="text-[11px] text-primary font-bold tabular-nums tracking-wide">+{profitPerHour}/hr</span>
+        </div>
       </div>
     </header>
   );
@@ -45,7 +54,8 @@ function MainLayout() {
   const [activeTab, setActiveTab] = useState('vault');
 
   return (
-    <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl">
+    <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
       <Header />
       
       <main className="flex-1 overflow-x-hidden relative">

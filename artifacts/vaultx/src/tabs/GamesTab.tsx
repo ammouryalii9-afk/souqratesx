@@ -127,35 +127,35 @@ export const GamesTab = () => {
       <div className="px-4 mt-6 space-y-4">
         <h2 className="text-lg font-bold text-white">Booster Upgrades</h2>
 
-        <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className="bg-primary/10 p-3 rounded-lg shrink-0"><Zap className="w-5 h-5 text-primary" /></div>
+        <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
+          <div className="bg-primary/10 p-3 rounded-xl border border-primary/20 shrink-0"><Zap className="w-5 h-5 text-primary" /></div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white text-sm">Laser Drill Upgrade</h3>
-            <p className="text-xs text-muted-foreground">Multiplies mining & tap speed</p>
-            <div className="text-xs text-primary mt-0.5 font-medium">Level {miningLevel} active</div>
+            <h3 className="font-bold text-white text-sm tracking-tight">Laser Drill Upgrade</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Multiplies mining & tap speed</p>
+            <div className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md inline-block mt-2 font-bold border border-primary/20">Level {miningLevel} active</div>
           </div>
           <div className="shrink-0">
             {miningLevel < 4 ? (
-              <button data-testid="button-buy-drill" onClick={handleBuyLevel} disabled={tempMiningPoints < (nextLevelCost || 0)} className="bg-primary text-black text-xs font-bold px-4 py-2 rounded-lg disabled:opacity-40 disabled:bg-white/10 disabled:text-white/40 transition-colors whitespace-nowrap">
+              <button data-testid="button-buy-drill" onClick={handleBuyLevel} disabled={tempMiningPoints < (nextLevelCost || 0)} className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(52,211,153,0.3)] active:scale-[0.98] whitespace-nowrap">
                 {nextLevelCost?.toLocaleString()} pts
               </button>
             ) : (
-              <span className="text-xs text-emerald-400 font-bold px-2 bg-emerald-500/10 border border-emerald-500/20 py-1.5 rounded-lg">Max</span>
+              <span className="text-xs text-primary font-bold px-3 bg-primary/10 border border-primary/20 py-2 rounded-xl">Max</span>
             )}
           </div>
         </div>
 
-        <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center gap-4">
-          <div className="bg-blue-500/10 p-3 rounded-lg shrink-0"><Battery className="w-5 h-5 text-blue-400" /></div>
+        <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
+          <div className="bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20 shrink-0"><Battery className="w-5 h-5 text-cyan-400" /></div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white text-sm">Battery Expansion</h3>
-            <p className="text-xs text-muted-foreground">Max energy 100 → 200</p>
+            <h3 className="font-bold text-white text-sm tracking-tight">Battery Expansion</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Max energy 100 → 200</p>
           </div>
           <div className="shrink-0">
             {hasBatteryUpgrade ? (
-              <span className="text-xs text-emerald-400 font-bold px-2 bg-emerald-500/10 border border-emerald-500/20 py-1.5 rounded-lg">Installed</span>
+              <span className="text-xs text-cyan-400 font-bold px-3 bg-cyan-500/10 border border-cyan-500/20 py-2 rounded-xl">Installed</span>
             ) : (
-              <button data-testid="button-buy-battery" onClick={handleBuyBattery} disabled={tempMiningPoints < batteryCost} className="bg-primary text-black text-xs font-bold px-4 py-2 rounded-lg disabled:opacity-40 disabled:bg-white/10 disabled:text-white/40 transition-colors whitespace-nowrap">
+              <button data-testid="button-buy-battery" onClick={handleBuyBattery} disabled={tempMiningPoints < batteryCost} className="bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] active:scale-[0.98] whitespace-nowrap">
                 {batteryCost.toLocaleString()} pts
               </button>
             )}
@@ -167,11 +167,11 @@ export const GamesTab = () => {
 };
 
 const GameHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
-  <div className="flex items-center gap-3 px-4 pt-4 pb-2">
-    <button data-testid="button-back-to-games" onClick={onBack} className="p-2 rounded-full bg-white/5 active:scale-90 transition-transform">
+  <div className="flex items-center gap-3 px-4 pt-4 pb-4">
+    <button data-testid="button-back-to-games" onClick={onBack} className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 active:scale-[0.9] transition-all border border-white/5">
       <ArrowLeft className="w-4 h-4 text-white" />
     </button>
-    <h2 className="text-lg font-bold text-white">{title}</h2>
+    <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
   </div>
 );
 
@@ -233,23 +233,33 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-300">
       <GameHeader title="Speed Tap" onBack={onBack} />
-      <div className="mx-4 rounded-xl bg-card border border-white/5 p-6 flex flex-col items-center gap-4">
+      <div className="mx-4 rounded-[24px] bg-card/60 backdrop-blur-xl border border-white/10 p-8 flex flex-col items-center gap-6 shadow-sm">
         {phase === 'idle' && (
           <>
-            <Timer className="w-10 h-10 text-blue-400" />
-            <p className="text-sm text-muted-foreground text-center">Tap the button as many times as you can in {SPEED_TAP_DURATION} seconds. Each tap = <span className="text-primary font-bold">+{SPEED_TAP_PTS_PER_TAP} pts</span>.</p>
-            <button data-testid="button-start-speedtap" onClick={start} className="bg-primary text-black px-8 py-3 rounded-full font-bold shadow-[0_0_24px_rgba(245,197,24,0.4)] active:scale-95 transition-transform">Start</button>
+            <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(34,211,238,0.2)]">
+              <Timer className="w-8 h-8 text-cyan-400" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center leading-relaxed">Tap the button as many times as you can in <span className="text-white font-bold">{SPEED_TAP_DURATION} seconds</span>.<br/>Each tap = <span className="text-primary font-bold">+{SPEED_TAP_PTS_PER_TAP} pts</span>.</p>
+            <button data-testid="button-start-speedtap" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
           </>
         )}
 
         {phase === 'playing' && (
           <>
-            <div className="text-4xl font-bold text-white">{timeLeft}s</div>
-            <div className="text-sm text-muted-foreground">Taps: <span className="text-primary font-bold">{taps}</span></div>
+            <div className="flex items-center justify-between w-full px-2">
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Time Left</span>
+                <span className="text-3xl font-black text-white tabular-nums">{timeLeft}s</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Taps</span>
+                <span className="text-3xl font-black text-primary tabular-nums">{taps}</span>
+              </div>
+            </div>
             <button
               data-testid="button-tap-speedtap"
               onClick={handleTap}
-              className="w-40 h-40 rounded-full bg-primary text-black text-xl font-bold shadow-[0_0_40px_rgba(245,197,24,0.5)] active:scale-90 transition-transform select-none"
+              className="w-48 h-48 rounded-full bg-gradient-to-b from-primary to-emerald-700 text-primary-foreground text-3xl font-black shadow-[0_0_50px_rgba(52,211,153,0.4)] active:scale-[0.92] transition-transform select-none border-4 border-white/20 mt-4 flex items-center justify-center"
             >
               TAP!
             </button>
@@ -258,13 +268,16 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
 
         {phase === 'done' && (
           <>
-            <h2 className="text-2xl font-bold text-white">Time's Up!</h2>
-            <p className="text-white text-lg font-semibold">{taps} taps</p>
-            <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-xl px-5 py-2.5">
-              <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to your Vault!</span>
+            <h2 className="text-3xl font-black text-white tracking-tight mt-2">Time's Up!</h2>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Total Taps</span>
+              <span className="text-white text-5xl font-black">{taps}</span>
             </div>
-            <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 text-white px-6 py-2.5 rounded-full font-medium active:scale-95 transition-transform text-sm">Play Again</button>
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-5 py-3 w-full justify-center shadow-inner mt-2">
+              <TrendingUp className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
+            </div>
+            <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">Play Again</button>
           </>
         )}
       </div>
@@ -382,33 +395,47 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-300">
       <GameHeader title="Memory Match" onBack={onBack} />
-      <div className="mx-4 rounded-xl bg-card border border-white/5 p-5 flex flex-col items-center gap-4">
+      <div className="mx-4 rounded-[24px] bg-card/60 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-center gap-6 shadow-sm">
         {phase === 'idle' && (
           <>
-            <Brain className="w-10 h-10 text-emerald-400" />
-            <p className="text-sm text-muted-foreground text-center">Flip cards and match all {MEMORY_EMOJIS.length} pairs within {MEMORY_TIME_LIMIT}s. Each pair = <span className="text-primary font-bold">+{MEMORY_REWARD_PER_PAIR} pts</span>.</p>
-            <button data-testid="button-start-memory" onClick={start} className="bg-primary text-black px-8 py-3 rounded-full font-bold shadow-[0_0_24px_rgba(245,197,24,0.4)] active:scale-95 transition-transform">Start</button>
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-[0_0_30px_rgba(52,211,153,0.2)]">
+              <Brain className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center leading-relaxed">Flip cards and match all <span className="text-white font-bold">{MEMORY_EMOJIS.length} pairs</span> within <span className="text-white font-bold">{MEMORY_TIME_LIMIT}s</span>.<br/>Each pair = <span className="text-primary font-bold">+{MEMORY_REWARD_PER_PAIR} pts</span>.</p>
+            <button data-testid="button-start-memory" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
           </>
         )}
 
         {phase === 'playing' && (
           <>
-            <div className="w-full flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Pairs: <span className="text-primary font-bold">{matchedPairs}/{MEMORY_EMOJIS.length}</span></span>
-              <span className="text-sm font-bold text-white">{timeLeft}s</span>
+            <div className="w-full flex items-center justify-between bg-black/40 rounded-xl px-4 py-3 border border-white/5 shadow-inner">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Pairs Matched</span>
+                <span className="text-lg font-bold text-primary tabular-nums leading-none">{matchedPairs} <span className="text-muted-foreground text-sm">/ {MEMORY_EMOJIS.length}</span></span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Time Left</span>
+                <span className="text-lg font-bold text-white tabular-nums leading-none">{timeLeft}s</span>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-2 w-full">
+            <div className="grid grid-cols-4 gap-2.5 w-full perspective-[1000px]">
               {cards.map(card => (
                 <button
                   key={card.id}
                   data-testid={`memory-card-${card.id}`}
                   onClick={() => handleFlip(card.id)}
                   disabled={card.matched}
-                  className={`aspect-square rounded-lg flex items-center justify-center text-2xl font-bold transition-all duration-200 ${
-                    card.matched ? 'bg-emerald-500/20 border border-emerald-500/40' : card.flipped ? 'bg-primary/20 border border-primary/40' : 'bg-white/5 border border-white/10 active:scale-95'
+                  className={`aspect-square rounded-xl flex items-center justify-center text-3xl transition-all duration-300 transform-gpu ${
+                    card.matched 
+                      ? 'bg-primary/20 border border-primary/40 shadow-[0_0_15px_rgba(52,211,153,0.2)] rotate-y-180 scale-95' 
+                      : card.flipped 
+                        ? 'bg-cyan-500/20 border border-cyan-500/40 shadow-[0_0_15px_rgba(34,211,238,0.2)] rotate-y-180' 
+                        : 'bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.92] shadow-sm'
                   }`}
                 >
-                  {card.flipped || card.matched ? card.symbol : ''}
+                  <div className={`transition-opacity duration-200 ${card.flipped || card.matched ? 'opacity-100' : 'opacity-0'}`}>
+                    {card.symbol}
+                  </div>
                 </button>
               ))}
             </div>
@@ -417,13 +444,16 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
 
         {phase === 'done' && (
           <>
-            <h2 className="text-2xl font-bold text-white">{matchedPairs === MEMORY_EMOJIS.length ? 'Cleared!' : "Time's Up!"}</h2>
-            <p className="text-white text-lg font-semibold">{matchedPairs}/{MEMORY_EMOJIS.length} pairs matched</p>
-            <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-xl px-5 py-2.5">
-              <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to your Vault!</span>
+            <h2 className="text-3xl font-black text-white tracking-tight mt-2">{matchedPairs === MEMORY_EMOJIS.length ? 'Cleared!' : "Time's Up!"}</h2>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pairs Matched</span>
+              <span className="text-white text-5xl font-black">{matchedPairs}<span className="text-xl text-muted-foreground">/{MEMORY_EMOJIS.length}</span></span>
             </div>
-            <button data-testid="button-again-memory" onClick={start} className="bg-white/10 text-white px-6 py-2.5 rounded-full font-medium active:scale-95 transition-transform text-sm">Play Again</button>
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-5 py-3 w-full justify-center shadow-inner mt-2">
+              <TrendingUp className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
+            </div>
+            <button data-testid="button-again-memory" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">Play Again</button>
           </>
         )}
       </div>
@@ -482,17 +512,20 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-300">
       <GameHeader title="Lucky Wheel" onBack={onBack} />
-      <div className="mx-4 rounded-xl bg-card border border-white/5 p-6 flex flex-col items-center gap-5">
-        <p className="text-sm text-muted-foreground text-center">Free spin, pure luck. <span className="text-primary font-bold">{spinsLeft}</span> of {MAX_SPINS_PER_DAY} spins left today.</p>
+      <div className="mx-4 rounded-[24px] bg-card/60 backdrop-blur-xl border border-white/10 p-8 flex flex-col items-center gap-6 shadow-sm overflow-hidden relative">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[60px] pointer-events-none" />
+        
+        <p className="text-sm text-muted-foreground text-center relative z-10 leading-relaxed">Free spin, pure luck.<br/><span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md inline-block mt-1">{spinsLeft}</span> of {MAX_SPINS_PER_DAY} spins left today.</p>
 
-        <div className="relative w-56 h-56">
+        <div className="relative w-64 h-64 mt-2">
+          <div className="absolute inset-0 rounded-full shadow-[0_0_50px_rgba(52,211,153,0.15)] animate-pulse" />
           <div
-            className="w-full h-full rounded-full relative overflow-hidden border-4 border-primary/40 shadow-[0_0_40px_rgba(245,197,24,0.25)]"
+            className="w-full h-full rounded-full relative overflow-hidden border-8 border-background shadow-[0_0_0_2px_rgba(255,255,255,0.1)]"
             style={{
               transform: `rotate(${rotation}deg)`,
               transition: isSpinning ? 'transform 3.2s cubic-bezier(0.15, 0.85, 0.25, 1)' : 'none',
               background: `conic-gradient(${WHEEL_SEGMENTS.map((_, i) => {
-                const colors = ['#F5C518', '#0D0D0F', '#F5C518', '#0D0D0F', '#F5C518', '#0D0D0F', '#F5C518', '#0D0D0F'];
+                const colors = ['hsl(var(--primary))', '#0A0D14', 'hsl(var(--primary))', '#0A0D14', 'hsl(var(--primary))', '#0A0D14', 'hsl(var(--primary))', '#0A0D14'];
                 const start = (i / WHEEL_SEGMENTS.length) * 360;
                 const end = ((i + 1) / WHEEL_SEGMENTS.length) * 360;
                 return `${colors[i]} ${start}deg ${end}deg`;
@@ -509,8 +542,8 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
                   style={{ transform: `rotate(${angle}deg)` }}
                 >
                   <span
-                    className="text-xs font-bold mt-4"
-                    style={{ color: i % 2 === 0 ? '#0D0D0F' : '#F5C518' }}
+                    className="text-[13px] font-black mt-5 tracking-tighter"
+                    style={{ color: i % 2 === 0 ? '#0A0D14' : 'hsl(var(--primary))' }}
                   >
                     {val}
                   </span>
@@ -518,23 +551,33 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
               );
             })}
           </div>
-          <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[16px] border-t-primary" />
+          
+          {/* Wheel Pointer */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-8 drop-shadow-md z-20 flex flex-col items-center">
+            <div className="w-4 h-4 bg-white rounded-full border-2 border-primary mb-[-8px] z-10" />
+            <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[14px] border-l-transparent border-r-transparent border-t-white" />
+          </div>
+          
+          {/* Wheel Center */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-background rounded-full border-4 border-primary/30 shadow-inner z-10 flex items-center justify-center">
+            <div className="w-4 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+          </div>
         </div>
 
         {lastWin !== null && !isSpinning && (
-          <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-xl px-5 py-2.5">
+          <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-5 py-2.5 w-full justify-center shadow-inner mt-2 animate-in slide-in-from-bottom-2 fade-in">
             <TrendingUp className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-sm font-bold text-primary">+{lastWin.toLocaleString()} pts added to your Vault!</span>
+            <span className="text-sm font-bold text-primary">Won {lastWin.toLocaleString()} pts!</span>
           </div>
         )}
 
-        <button
-          data-testid="button-spin-wheel"
-          onClick={spin}
-          disabled={isSpinning || spinsLeft <= 0}
-          className="bg-primary text-black px-9 py-3 rounded-full font-bold shadow-[0_0_24px_rgba(245,197,24,0.4)] active:scale-95 transition-transform disabled:opacity-40 disabled:shadow-none"
+        <button 
+          data-testid="button-spin-wheel-game" 
+          onClick={spin} 
+          disabled={spinsLeft <= 0 || isSpinning} 
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2 disabled:opacity-50 disabled:shadow-none disabled:bg-white/10 disabled:text-white/40"
         >
-          {isSpinning ? 'Spinning...' : spinsLeft > 0 ? 'Spin' : 'No spins left today'}
+          {isSpinning ? 'Spinning...' : spinsLeft <= 0 ? 'Come back tomorrow' : 'Spin Wheel'}
         </button>
       </div>
     </div>
