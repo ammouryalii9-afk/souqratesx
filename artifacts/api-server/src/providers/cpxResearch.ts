@@ -56,7 +56,7 @@ export function createCpxResearchProvider(): EarnProvider {
         return { verified: false, amount: 0, txId: transId || "unknown", reason: "Missing trans_id or hash" };
       }
 
-      const expectedHash = createHash("md5").update(`${transId}${config.secureHash}`).digest("hex");
+      const expectedHash = createHash("md5").update(`${transId}-${config.secureHash}`).digest("hex");
       if (expectedHash !== receivedHash) {
         return { verified: false, amount: 0, txId: transId, reason: "Invalid postback secret" };
       }
