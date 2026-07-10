@@ -48,6 +48,7 @@ export const TasksTab = () => {
 
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [adLoading, setAdLoading] = useState(false);
+  const [bannerAdLoading, setBannerAdLoading] = useState(false);
   const [monetagLoading, setMonetagLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
   const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
@@ -134,6 +135,22 @@ export const TasksTab = () => {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
       setAdLoading(false);
+    }
+  };
+
+  const handleWatchBannerAd = async () => {
+    if (!config?.adsgram.enabled || !config.adsgram.bannerBlockId || bannerAdLoading) return;
+    setBannerAdLoading(true);
+    try {
+      await showAdsgramRewardedAd(config.adsgram.bannerBlockId);
+      const result = await claimAdsgramReward();
+      setTempMiningPoints(prev => prev + result.creditedPoints);
+      addLifetimePoints(result.creditedPoints);
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setBannerAdLoading(false);
     }
   };
 
@@ -643,6 +660,24 @@ export const TasksTab = () => {
             {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
           </button>
         </div>
+        {config?.adsgram.bannerBlockId && (
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
+            <div className="flex-1 pr-4">
+              <h3 className="font-semibold text-white text-sm mb-1">Watch a bot ad</h3>
+              <p className="text-xs font-medium text-primary">
+                +{config.adsgram.rewardPoints.toLocaleString()} pts per ad
+              </p>
+            </div>
+            <button
+              data-testid="button-watch-banner-ad"
+              onClick={handleWatchBannerAd}
+              disabled={!config?.adsgram.enabled || bannerAdLoading}
+              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            >
+              {bannerAdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+            </button>
+          </div>
+        )}
         {config?.monetag.enabled && (
           <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
             <div className="flex-1 pr-4">
