@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
+import { showMonetagRewardedAd } from '../lib/monetag';
 import { getTelegramWebApp } from '../lib/telegram';
 
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
@@ -47,6 +48,7 @@ export const TasksTab = () => {
 
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [adLoading, setAdLoading] = useState(false);
+  const [monetagLoading, setMonetagLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
   const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
 
@@ -132,6 +134,22 @@ export const TasksTab = () => {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
       setAdLoading(false);
+    }
+  };
+
+  const handleWatchMonetagAd = async () => {
+    if (!config?.monetag.enabled || !config.monetag.zoneId || monetagLoading) return;
+    setMonetagLoading(true);
+    try {
+      await showMonetagRewardedAd(config.monetag.zoneId);
+      const result = await claimMonetagReward();
+      setTempMiningPoints(prev => prev + result.creditedPoints);
+      addLifetimePoints(result.creditedPoints);
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setMonetagLoading(false);
     }
   };
 
@@ -624,6 +642,24 @@ export const TasksTab = () => {
             {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
           </button>
         </div>
+        {config?.monetag.enabled && (
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
+            <div className="flex-1 pr-4">
+              <h3 className="font-semibold text-white text-sm mb-1">Watch another rewarded ad</h3>
+              <p className="text-xs font-medium text-primary">
+                +{config.monetag.rewardPoints.toLocaleString()} pts per ad
+              </p>
+            </div>
+            <button
+              data-testid="button-watch-monetag-ad"
+              onClick={handleWatchMonetagAd}
+              disabled={!config?.monetag.enabled || monetagLoading}
+              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            >
+              {monetagLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Sponsored Ads (Admin-managed) */}

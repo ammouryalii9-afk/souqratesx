@@ -236,6 +236,15 @@ export type PublicConfigAdsgram = {
   dailyCap: number;
 };
 
+export type PublicConfigMonetag = {
+  enabled: boolean;
+  /** @nullable */
+  zoneId: string | null;
+  rewardPoints: number;
+  cooldownSeconds: number;
+  dailyCap: number;
+};
+
 export type PublicConfigOfferwallsItem = {
   id: string;
   name: string;
@@ -250,6 +259,7 @@ export type PublicConfigStars = {
 
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
+  monetag: PublicConfigMonetag;
   offerwalls: PublicConfigOfferwallsItem[];
   stars: PublicConfigStars;
 }

@@ -2,11 +2,13 @@ import { db, providersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { createAdsgramProvider } from "./adsgram";
+import { createMonetagProvider } from "./monetag";
 import { createOfferwallProvider } from "./offerwall";
 import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
 
 const REGISTRY: EarnProvider[] = [
   createAdsgramProvider(),
+  createMonetagProvider(),
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
   createOfferwallProvider("bitlabs", "Bitlabs"),
@@ -19,7 +21,6 @@ const REGISTRY: EarnProvider[] = [
   createOfferwallProvider("adsterra", "Adsterra"),
   createOfferwallProvider("propellerads", "PropellerAds"),
   createOfferwallProvider("cpalead", "CPALead"),
-  createOfferwallProvider("monetag", "Monetag"),
   createOfferwallProvider("adscendmedia", "Adscend Media"),
 ];
 
@@ -208,11 +209,12 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
     {
       key: "monetag",
       name: "Monetag",
-      type: "offerwall",
+      type: "rewarded_ad",
       config: {
-        apiKey: asStr(settings["monetagApiKey"]),
-        url: asStr(settings["monetagOfferwallUrl"]),
-        postbackSecret: asStr(settings["monetagPostbackSecret"]),
+        zoneId: asStr(settings["monetagZoneId"]),
+        rewardPoints: asNum(settings["monetagRewardPoints"], 100),
+        cooldownSeconds: asNum(settings["monetagCooldownSeconds"], 30),
+        dailyCap: asNum(settings["monetagDailyCap"], 20),
       },
     },
     {
@@ -229,7 +231,9 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
 
   for (const seed of seeds) {
     const enabled =
-      seed.type === "rewarded_ad" ? Boolean((seed.config["blockId"] as string) || "") : Boolean((seed.config["url"] as string) || "");
+      seed.type === "rewarded_ad"
+        ? Boolean((seed.config["blockId"] as string) || (seed.config["zoneId"] as string) || "")
+        : Boolean((seed.config["url"] as string) || "");
     await db
       .insert(providersTable)
       .values({ key: seed.key, name: seed.name, type: seed.type, enabled, priority: 0, config: seed.config })

@@ -1378,6 +1378,20 @@ components:
             dailyCap:
               type: integer
           required: [enabled, blockId, bannerBlockId, rewardPoints, cooldownSeconds, dailyCap]
+        monetag:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            zoneId:
+              type: ["string", "null"]
+            rewardPoints:
+              type: integer
+            cooldownSeconds:
+              type: integer
+            dailyCap:
+              type: integer
+          required: [enabled, zoneId, rewardPoints, cooldownSeconds, dailyCap]
         offerwalls:
           type: array
           items:
@@ -1400,6 +1414,7 @@ components:
           required: [enabled]
       required:
         - adsgram
+        - monetag
         - offerwalls
         - stars
     EarnRewardResult:

@@ -19,7 +19,6 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const adsterraUrl = asString(settings.adsterraOfferwallUrl);
   const propelleradsUrl = asString(settings.propelleradsOfferwallUrl);
   const cpaleadUrl = asString(settings.cpaleadOfferwallUrl);
-  const monetagUrl = asString(settings.monetagOfferwallUrl);
   const adscendmediaUrl = asString(settings.adscendmediaOfferwallUrl);
 
   res.json(
@@ -31,6 +30,13 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         rewardPoints: asNumber(settings.adsgramRewardPoints, 100),
         cooldownSeconds: asNumber(settings.adsgramCooldownSeconds, 30),
         dailyCap: asNumber(settings.adsgramDailyCap, 20),
+      },
+      monetag: {
+        enabled: Boolean(asString(settings.monetagZoneId)),
+        zoneId: asString(settings.monetagZoneId) || null,
+        rewardPoints: asNumber(settings.monetagRewardPoints, 100),
+        cooldownSeconds: asNumber(settings.monetagCooldownSeconds, 30),
+        dailyCap: asNumber(settings.monetagDailyCap, 20),
       },
       offerwalls: [
         {
@@ -104,12 +110,6 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "CPALead",
           url: cpaleadUrl || null,
           enabled: Boolean(cpaleadUrl && asString(settings.cpaleadApiKey)),
-        },
-        {
-          id: "monetag",
-          name: "Monetag",
-          url: monetagUrl || null,
-          enabled: Boolean(monetagUrl && asString(settings.monetagApiKey)),
         },
         {
           id: "adscendmedia",

@@ -558,6 +558,13 @@ export const GetPublicConfigResponse = zod.object({
   "cooldownSeconds": zod.number(),
   "dailyCap": zod.number()
 }),
+  "monetag": zod.object({
+  "enabled": zod.boolean(),
+  "zoneId": zod.string().nullable(),
+  "rewardPoints": zod.number(),
+  "cooldownSeconds": zod.number(),
+  "dailyCap": zod.number()
+}),
   "offerwalls": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),

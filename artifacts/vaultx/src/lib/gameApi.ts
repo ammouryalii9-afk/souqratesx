@@ -9,6 +9,13 @@ export type PublicConfig = {
     cooldownSeconds: number;
     dailyCap: number;
   };
+  monetag: {
+    enabled: boolean;
+    zoneId: string | null;
+    rewardPoints: number;
+    cooldownSeconds: number;
+    dailyCap: number;
+  };
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
   stars: { enabled: boolean };
 };
@@ -38,6 +45,10 @@ export function getPublicConfig(): Promise<PublicConfig> {
 
 export function claimAdsgramReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
   return apiFetch("/earn/adsgram/reward", { method: "POST" });
+}
+
+export function claimMonetagReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
+  return apiFetch("/earn/monetag/reward", { method: "POST" });
 }
 
 export type StarProduct = {

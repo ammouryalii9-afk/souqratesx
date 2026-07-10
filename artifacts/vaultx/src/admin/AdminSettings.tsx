@@ -125,11 +125,12 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
-    title: "Monetag (Offerwall)",
+    title: "Monetag (إعلان مكافأة)",
     fields: [
-      { key: "monetagApiKey", label: "Monetag API Key", type: "text", defaultValue: "" },
-      { key: "monetagOfferwallUrl", label: "رابط Monetag", type: "text", defaultValue: "" },
-      { key: "monetagPostbackSecret", label: "Monetag Postback Secret", type: "text", defaultValue: "" },
+      { key: "monetagZoneId", label: "Monetag Zone ID", type: "text", defaultValue: "" },
+      { key: "monetagRewardPoints", label: "نقاط مقابل كل عرض إعلان", type: "number", defaultValue: 100 },
+      { key: "monetagCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
+      { key: "monetagDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },
     ],
   },
   {

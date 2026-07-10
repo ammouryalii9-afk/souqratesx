@@ -41,6 +41,7 @@ export * from './publicAd';
 export * from './publicAdList';
 export * from './publicConfig';
 export * from './publicConfigAdsgram';
+export * from './publicConfigMonetag';
 export * from './publicConfigOfferwallsItem';
 export * from './publicConfigStars';
 export * from './sponsoredAd';
