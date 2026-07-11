@@ -142,6 +142,14 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "AdGem (Offerwall)",
+    fields: [
+      { key: "adgemApiKey", label: "AdGem API Key / Token", type: "text", defaultValue: "" },
+      { key: "adgemOfferwallUrl", label: "رابط AdGem", type: "text", defaultValue: "" },
+      { key: "adgemPostbackSecret", label: "AdGem Postback Secret", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "CPX Research (استبيانات)",
     fields: [
       { key: "cpxresearchAppId", label: "CPX Research App ID", type: "text", defaultValue: "" },

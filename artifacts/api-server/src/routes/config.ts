@@ -20,6 +20,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const propelleradsUrl = asString(settings.propelleradsOfferwallUrl);
   const cpaleadUrl = asString(settings.cpaleadOfferwallUrl);
   const adscendmediaUrl = asString(settings.adscendmediaOfferwallUrl);
+  const adgemUrl = asString(settings.adgemOfferwallUrl);
   const cpxresearchAppId = asString(settings.cpxresearchAppId);
   const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
 
@@ -118,6 +119,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "Adscend Media",
           url: adscendmediaUrl || null,
           enabled: Boolean(adscendmediaUrl && asString(settings.adscendmediaApiKey)),
+        },
+        {
+          id: "adgem",
+          name: "AdGem",
+          url: adgemUrl || null,
+          enabled: Boolean(adgemUrl && asString(settings.adgemApiKey)),
         },
         {
           id: "cpxresearch",

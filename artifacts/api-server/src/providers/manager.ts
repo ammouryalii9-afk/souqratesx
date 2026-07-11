@@ -24,6 +24,7 @@ const REGISTRY: EarnProvider[] = [
   createOfferwallProvider("propellerads", "PropellerAds"),
   createOfferwallProvider("cpalead", "CPALead"),
   createOfferwallProvider("adscendmedia", "Adscend Media"),
+  createOfferwallProvider("adgem", "AdGem"),
 ];
 
 const providersByKey = new Map<string, EarnProvider>(REGISTRY.map((p) => [p.key, p]));
@@ -227,6 +228,16 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         apiKey: asStr(settings["adscendmediaApiKey"]),
         url: asStr(settings["adscendmediaOfferwallUrl"]),
         postbackSecret: asStr(settings["adscendmediaPostbackSecret"]),
+      },
+    },
+    {
+      key: "adgem",
+      name: "AdGem",
+      type: "offerwall",
+      config: {
+        apiKey: asStr(settings["adgemApiKey"]),
+        url: asStr(settings["adgemOfferwallUrl"]),
+        postbackSecret: asStr(settings["adgemPostbackSecret"]),
       },
     },
     {
