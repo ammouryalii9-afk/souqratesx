@@ -27,7 +27,7 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-3 pt-2 -mb-3">
+  <div className="flex items-center gap-3">
     <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary/70">{children}</span>
     <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent" />
   </div>
