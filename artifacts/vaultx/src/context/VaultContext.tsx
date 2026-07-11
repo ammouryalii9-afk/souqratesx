@@ -39,16 +39,16 @@ type SyncedState = {
 };
 
 export const BADGES: Record<number, { label: string; color: string }> = {
-  1: { label: 'مستكشف', color: '#c0c0c0' },
-  2: { label: 'محترف', color: '#ffd700' },
-  3: { label: 'أسطورة', color: '#ff4d4d' },
+  1: { label: 'Explorer', color: '#c0c0c0' },
+  2: { label: 'Pro', color: '#ffd700' },
+  3: { label: 'Legend', color: '#ff4d4d' },
 };
 
 export const SKINS: Record<number, { name: string; accent: string; glow: string }> = {
-  1: { name: 'كلاسيك', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)' },
-  2: { name: 'نيون أزرق', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)' },
-  3: { name: 'زمردي', accent: '#34d399', glow: 'rgba(52,211,153,0.35)' },
-  4: { name: 'ملكي بنفسجي', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
+  1: { name: 'Classic', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)' },
+  2: { name: 'Neon Blue', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)' },
+  3: { name: 'Emerald', accent: '#34d399', glow: 'rgba(52,211,153,0.35)' },
+  4: { name: 'Royal Purple', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
 };
 
 type VaultContextType = {

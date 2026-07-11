@@ -265,4 +265,9 @@ export const adminApi = {
   updateStarProduct: (id: number, patch: UpdateStarProductInput) =>
     adminFetch<StarProduct>(`/admin/star-products/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteStarProduct: (id: number) => adminFetch<AdminSessionStatus>(`/admin/star-products/${id}`, { method: "DELETE" }),
+  sendReminders: (inactiveDays: number, message?: string) =>
+    adminFetch<{ ok: boolean; total: number; sent: number; failed: number }>("/admin/reminders/send", {
+      method: "POST",
+      body: JSON.stringify({ inactiveDays, ...(message ? { message } : {}) }),
+    }),
 };

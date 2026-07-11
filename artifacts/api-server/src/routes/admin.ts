@@ -41,6 +41,7 @@ import {
   setTelegramBotCommands,
   isTelegramBotConfigured,
   sendPlainTelegramMessage,
+  sendReminderToUser,
 } from "../lib/telegramBot";
 import { logger } from "../lib/logger";
 import { syncProvidersFromSettings } from "../providers/manager";
@@ -933,6 +934,76 @@ router.get("/admin/anticheat", async (req, res): Promise<void> => {
     topEarners: topEarners.rows,
     capPerHour,
   });
+});
+
+// ─── Reminders ────────────────────────────────────────────────────────────────
+
+/**
+ * POST /admin/reminders/send
+ * Sends a Telegram message to all users who have been inactive for >= `inactiveDays` days.
+ * Runs in the background and streams progress via the response.
+ */
+router.post("/admin/reminders/send", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  if (!isTelegramBotConfigured()) {
+    res.status(400).json({ error: "TELEGRAM_BOT_TOKEN is not configured" });
+    return;
+  }
+
+  const inactiveDays = Math.max(1, Math.min(90, Number(req.body?.inactiveDays) || 3));
+  const customMessage: string = typeof req.body?.message === "string" && req.body.message.trim()
+    ? req.body.message.trim()
+    : null!;
+
+  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
+  const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
+  const appUrl = `${proto}://${host}/`;
+
+  const text = customMessage ||
+    `⚡ You have unclaimed mining rewards waiting!\n\nYour miners have been working while you were away. Come back and collect your points before they overflow!\n\n🏆 Don't fall behind on the leaderboard — tap to resume mining now.`;
+
+  // Fetch inactive users (updatedAt older than N days, not banned)
+  const cutoff = new Date(Date.now() - inactiveDays * 24 * 60 * 60 * 1000);
+  const inactiveUsers = await db
+    .select({ telegramId: vaultUsersTable.telegramId })
+    .from(vaultUsersTable)
+    .where(
+      and(
+        eq(vaultUsersTable.isBanned, false),
+        sql`${vaultUsersTable.updatedAt} < ${cutoff}`,
+        sql`${vaultUsersTable.telegramId} is not null`,
+        sql`length(${vaultUsersTable.telegramId}) > 0`,
+      )
+    )
+    .limit(5000);
+
+  req.log.info({ count: inactiveUsers.length, inactiveDays }, "Starting reminder send to inactive users");
+
+  let sent = 0;
+  let failed = 0;
+
+  // Send in batches to avoid Telegram rate limits (30 msg/s)
+  for (let i = 0; i < inactiveUsers.length; i++) {
+    const user = inactiveUsers[i];
+    if (!user?.telegramId) continue;
+    try {
+      const ok = await sendReminderToUser(user.telegramId, text, appUrl);
+      if (ok) sent++; else failed++;
+    } catch {
+      failed++;
+    }
+    // ~25 messages/second to stay under Telegram's 30/s limit
+    if ((i + 1) % 25 === 0) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  req.log.info({ sent, failed, total: inactiveUsers.length }, "Reminder send completed");
+  res.json({ ok: true, total: inactiveUsers.length, sent, failed });
 });
 
 // ─── Provider Reports ─────────────────────────────────────────────────────────

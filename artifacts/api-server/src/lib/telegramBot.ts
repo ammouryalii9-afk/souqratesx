@@ -79,7 +79,7 @@ export async function sendTelegramMessage(chatId: number, text: string, webAppUr
     text,
     reply_markup: webAppUrl
       ? {
-          inline_keyboard: [[{ text: "\u{1F680} \u0627\u0644\u0639\u0628 \u0627\u0644\u0627\u0646", web_app: { url: webAppUrl } }]],
+          inline_keyboard: [[{ text: "🚀 Play Now", web_app: { url: webAppUrl } }]],
         }
       : undefined,
   });
@@ -94,13 +94,13 @@ export async function sendPlainTelegramMessage(chatId: string, text: string): Pr
 
 export async function setTelegramMenuButton(appUrl: string): Promise<void> {
   await callBotApi("setChatMenuButton", {
-    menu_button: { type: "web_app", text: "\u0641\u062A\u062D \u0627\u0644\u062A\u0637\u0628\u064A\u0642", web_app: { url: appUrl } },
+    menu_button: { type: "web_app", text: "Open App", web_app: { url: appUrl } },
   });
 }
 
 export async function setTelegramBotCommands(): Promise<void> {
   await callBotApi("setMyCommands", {
-    commands: [{ command: "start", description: "\u0627\u0641\u062A\u062D SouqratesX" }],
+    commands: [{ command: "start", description: "Open SouqratesX" }],
   });
 }
 
@@ -122,4 +122,29 @@ export type TelegramUpdate = {
 
 export function logTelegramWebhookError(context: string, err: unknown): void {
   logger.error({ err, context }, "Telegram webhook processing error");
+}
+
+/**
+ * Send a reminder message to a single user by their numeric Telegram ID.
+ * Returns true on success, false if the user has blocked the bot or another
+ * non-fatal error occurred (e.g. chat not found).
+ */
+export async function sendReminderToUser(chatId: string, text: string, webAppUrl: string): Promise<boolean> {
+  try {
+    await callBotApi("sendMessage", {
+      chat_id: chatId,
+      text,
+      reply_markup: {
+        inline_keyboard: [[{ text: "🚀 Play Now", web_app: { url: webAppUrl } }]],
+      },
+    });
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // These errors are expected for users who blocked the bot — don't throw.
+    if (msg.includes("Forbidden") || msg.includes("chat not found") || msg.includes("user is deactivated")) {
+      return false;
+    }
+    throw err;
+  }
 }

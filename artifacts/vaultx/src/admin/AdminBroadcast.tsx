@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminApi, type BroadcastJob } from "./adminApi";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, Bell } from "lucide-react";
 
 const AUDIENCE_LABELS: Record<string, string> = {
   all: "جميع المستخدمين",
@@ -16,12 +16,22 @@ const STATUS_LABELS: Record<string, string> = {
   failed: "فشل",
 };
 
+const DEFAULT_REMINDER =
+  "⚡ Your mining rewards are waiting!\n\nYour idle miners kept working — come back and collect your points before they overflow.\n\n🏆 Don't fall behind on the leaderboard — tap to resume mining now.";
+
 export function AdminBroadcast() {
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<"all" | "premium" | "active">("all");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<BroadcastJob[]>([]);
+
+  // Reminder state
+  const [reminderDays, setReminderDays] = useState(3);
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderResult, setReminderResult] = useState<{ total: number; sent: number; failed: number } | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
 
   function loadJobs() {
     adminApi.broadcasts().then(setJobs).catch(() => {});
@@ -49,8 +59,81 @@ export function AdminBroadcast() {
     }
   }
 
+  async function handleSendReminders() {
+    if (!confirm(`إرسال رسالة تذكيرية لجميع المستخدمين الذين لم يفتحوا التطبيق منذ ${reminderDays} أيام؟`)) return;
+    setReminderSending(true);
+    setReminderResult(null);
+    setReminderError(null);
+    try {
+      const result = await adminApi.sendReminders(reminderDays, reminderMessage.trim() || undefined);
+      setReminderResult(result);
+    } catch (e) {
+      setReminderError(e instanceof Error ? e.message : "فشل إرسال التذكيرات");
+    } finally {
+      setReminderSending(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4" data-testid="section-admin-broadcast">
+
+      {/* ── Reminder Section ─────────────────────────────────── */}
+      <div className="bg-white/5 border border-primary/30 rounded-xl p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 text-primary" />
+          <h3 className="font-bold text-white text-sm">رسائل تذكيرية للمستخدمين الغائبين</h3>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          ترسل رسالة تلقائية عبر تيليجرام لكل مستخدم لم يفتح التطبيق منذ عدد محدد من الأيام.
+          يعمل هذا النظام أيضاً تلقائياً كل 24 ساعة من الخادم.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <label className="text-muted-foreground text-xs whitespace-nowrap">غياب أكثر من</label>
+          <input
+            type="number"
+            min={1}
+            max={90}
+            value={reminderDays}
+            onChange={(e) => setReminderDays(Math.max(1, Math.min(90, Number(e.target.value))))}
+            className="w-20 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-sm text-white text-center focus:outline-none focus:border-primary"
+          />
+          <label className="text-muted-foreground text-xs">يوم</label>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-muted-foreground text-xs">نص الرسالة (اتركه فارغاً للرسالة الافتراضية بالإنجليزي)</label>
+          <textarea
+            value={reminderMessage}
+            onChange={(e) => setReminderMessage(e.target.value)}
+            placeholder={DEFAULT_REMINDER}
+            rows={4}
+            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        {reminderResult && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-xs">
+            <p className="text-emerald-400 font-medium">✓ تم إرسال التذكيرات</p>
+            <p className="text-muted-foreground mt-1">
+              إجمالي: {reminderResult.total} | نجح: {reminderResult.sent} | فشل: {reminderResult.failed}
+            </p>
+          </div>
+        )}
+        {reminderError && <p className="text-red-400 text-xs">{reminderError}</p>}
+
+        <Button
+          disabled={reminderSending}
+          onClick={handleSendReminders}
+          className="gap-2"
+          variant="outline"
+        >
+          <Bell className="w-4 h-4" />
+          {reminderSending ? "جارٍ الإرسال... (قد يستغرق دقائق)" : "إرسال تذكيرات الآن"}
+        </Button>
+      </div>
+
+      {/* ── Broadcast Section ─────────────────────────────────── */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <h3 className="font-bold text-white text-sm">إرسال رسالة جماعية عبر تيليجرام</h3>
         <textarea
