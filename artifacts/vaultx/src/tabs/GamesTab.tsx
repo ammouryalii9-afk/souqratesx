@@ -24,8 +24,6 @@ const GAME_LIST: { id: GameId; name: string; desc: string; icon: typeof Gamepad2
   { id: 'speed-tap', name: 'Speed Tap', desc: '10 seconds, tap as fast as you can', icon: Timer, color: '#60A5FA' },
   { id: 'memory-match', name: 'Memory Match', desc: 'Match all pairs before time runs out', icon: Brain, color: '#34D399' },
   { id: 'lucky-wheel', name: 'Lucky Wheel', desc: '3 free spins a day, pure luck', icon: Sparkles, color: '#F472B6' },
-  { id: 'knife-hit', name: 'Knife Hit', desc: 'Throw knives at a spinning log', icon: Sword, color: '#FB923C' },
-  { id: 'stack-tower', name: 'Stack Tower', desc: 'Stack blocks as high as you can', icon: Layers, color: '#A78BFA' },
 ];
 
 export const GamesTab = () => {
