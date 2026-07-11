@@ -517,6 +517,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addLifetimePoints = (n: number) => {
     if (isHydrationPending()) return;
     setLifetimePoints(p => p + n);
+    setTempMiningPoints(p => p + n);
   };
 
   // Pulls the latest server state and overwrites local values. Used after a
