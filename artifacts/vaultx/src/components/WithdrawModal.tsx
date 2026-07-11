@@ -117,7 +117,7 @@ export function WithdrawModal({ onClose }: Props) {
   const usdValue = points / POINTS_PER_USD;
   const tonValue = tonPrice ? usdValue / tonPrice : null;
   const walletValid = isValidTonWallet(wallet);
-  const hasEnough = points <= tempMiningPoints;
+  const hasEnough = points <= lifetimePoints;
   const meetsMinimum = points >= MIN_POINTS;
   const canSubmit = points > 0 && meetsMinimum && hasEnough && walletValid && !submitting && isTelegramUser && tonPrice !== null;
 
@@ -150,7 +150,7 @@ export function WithdrawModal({ onClose }: Props) {
         <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-shrink-0 border-b border-white/5">
           <div>
             <h2 className="font-bold text-white text-lg">Withdraw</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Convert your mined points to TON</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Convert your total points to TON</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all">
             <X className="w-4 h-4" />
@@ -186,8 +186,8 @@ export function WithdrawModal({ onClose }: Props) {
             className="flex items-center justify-between px-4 py-3 rounded-xl"
             style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.15)' }}
           >
-            <span className="text-xs text-muted-foreground">Available Mined Balance</span>
-            <span className="text-sm font-bold text-primary">{Math.floor(tempMiningPoints).toLocaleString()} pts</span>
+            <span className="text-xs text-muted-foreground">Available Balance (Total)</span>
+            <span className="text-sm font-bold text-primary">{Math.floor(lifetimePoints).toLocaleString()} pts</span>
           </div>
 
           {submitted ? (
@@ -225,7 +225,7 @@ export function WithdrawModal({ onClose }: Props) {
                     className="w-full h-12 rounded-xl px-4 pr-20 text-white font-semibold bg-white/5 border border-white/10 focus:border-primary/50 focus:outline-none transition-colors"
                   />
                   <button
-                    onClick={() => setPointsInput(String(Math.floor(tempMiningPoints)))}
+                    onClick={() => setPointsInput(String(Math.floor(lifetimePoints)))}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-primary hover:text-primary/80 transition-colors"
                   >
                     MAX
@@ -253,7 +253,7 @@ export function WithdrawModal({ onClose }: Props) {
                 {points > 0 && !hasEnough && (
                   <p className="text-xs text-red-400 mt-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    Exceeds your mined balance
+                    Exceeds your total balance
                   </p>
                 )}
               </div>
@@ -373,10 +373,10 @@ export function WithdrawModal({ onClose }: Props) {
           )}
         </div>
 
-        {/* Lifetime total info */}
+        {/* Mined balance info (spendable on upgrades — not used for withdrawals) */}
         <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between flex-shrink-0">
-          <span className="text-xs text-muted-foreground">Lifetime Points</span>
-          <span className="text-xs font-bold text-white">{lifetimePoints.toLocaleString()}</span>
+          <span className="text-xs text-muted-foreground">Mined Balance</span>
+          <span className="text-xs font-bold text-white">{Math.floor(tempMiningPoints).toLocaleString()}</span>
         </div>
       </div>
     </div>

@@ -76,11 +76,12 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!user || user.isBanned) { res.status(403).json({ error: "User not found or banned" }); return; }
 
-  const state = (user.state ?? {}) as Record<string, unknown>;
-  const tempMiningPoints = typeof state["tempMiningPoints"] === "number" ? state["tempMiningPoints"] : 0;
+  // Withdrawals are calculated from the player's Total (lifetimePoints), not the
+  // spendable "Mined" balance. Mined is left untouched by withdrawals.
+  const lifetimePoints = typeof user.lifetimePoints === "number" ? user.lifetimePoints : 0;
 
-  if (tempMiningPoints < pointsAmount) {
-    res.status(400).json({ error: `Insufficient mined balance. You have ${Math.floor(tempMiningPoints).toLocaleString()} pts.` });
+  if (lifetimePoints < pointsAmount) {
+    res.status(400).json({ error: `Insufficient balance. You have ${Math.floor(lifetimePoints).toLocaleString()} pts.` });
     return;
   }
 
@@ -99,22 +100,17 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const usdAmount = pointsAmount / POINTS_PER_USD;
   const tonAmount = usdAmount / tonPriceUsd;
 
-  // Atomically deduct points from lifetimePoints + state.tempMiningPoints
+  // Atomically deduct points from the Total (lifetimePoints) only — the guard in the
+  // WHERE clause prevents overdraw under concurrent requests. Mined is not touched.
   const [updated] = await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: sql`GREATEST(0, ${vaultUsersTable.lifetimePoints} - ${pointsAmount})`,
-      state: sql`jsonb_set(
-        COALESCE(${vaultUsersTable.state}, '{}'::jsonb),
-        '{tempMiningPoints}',
-        to_jsonb(GREATEST(0, COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::numeric, 0) - ${pointsAmount}))
-      )`,
+      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} - ${pointsAmount}`,
     })
     .where(
       and(
         eq(vaultUsersTable.telegramId, telegramId),
         sql`${vaultUsersTable.lifetimePoints} >= ${pointsAmount}`,
-        sql`COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::numeric, 0) >= ${pointsAmount}`,
       ),
     )
     .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
@@ -220,16 +216,12 @@ router.post("/admin/withdrawals/:id/reject", async (req, res): Promise<void> => 
   if (!request) { res.status(404).json({ error: "Request not found" }); return; }
   if (request.status !== "pending") { res.status(409).json({ error: "Request already processed" }); return; }
 
-  // Restore deducted points
+  // Restore deducted points to the Total (lifetimePoints) — withdrawals only draw down
+  // Total, so refunds only restore Total (Mined was never touched).
   await db
     .update(vaultUsersTable)
     .set({
       lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${request.pointsAmount}`,
-      state: sql`jsonb_set(
-        COALESCE(${vaultUsersTable.state}, '{}'::jsonb),
-        '{tempMiningPoints}',
-        to_jsonb(COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::numeric, 0) + ${request.pointsAmount})
-      )`,
     })
     .where(eq(vaultUsersTable.telegramId, request.telegramId));
 
