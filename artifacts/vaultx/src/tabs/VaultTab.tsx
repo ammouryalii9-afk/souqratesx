@@ -16,7 +16,6 @@ import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { showMonetagRewardedAd } from '../lib/monetag';
-import vaultChest from '../assets/vault-chest.png';
 
 interface FloatingPoint {
   id: number;
@@ -282,55 +281,67 @@ export const VaultTab = () => {
           onClick={handleTap}
           onTouchStart={handleTap}
           disabled={energy <= 0}
-          className="relative w-64 h-64 focus:outline-none disabled:cursor-not-allowed group flex items-center justify-center"
+          className="relative w-56 h-56 rounded-full focus:outline-none disabled:cursor-not-allowed group"
           style={{ transform: isTapping ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
-          <div className="absolute inset-0 bg-[var(--glow-green)] blur-[80px] opacity-20 rounded-full mix-blend-screen" />
-          <div className="absolute inset-4 bg-primary blur-[60px] opacity-20 rounded-full mix-blend-screen" />
-          
-          <img 
-            src={vaultChest} 
-            alt="Vault Chest" 
-            className={`w-full h-full object-contain relative z-10 transition-transform duration-300 drop-shadow-[0_0_25px_rgba(0,200,83,0.4)] ${isTapping ? 'scale-95' : 'scale-100'} ${activeTurbo ? 'drop-shadow-[0_0_40px_rgba(34,211,238,0.6)]' : ''}`}
-            draggable="false"
+          <div
+            className={`absolute inset-0 rounded-full border border-primary/20 transition-all duration-300 group-hover:border-primary/40`}
+            style={!activeTurbo && skin && energy > 0 ? { borderColor: `${skin.accent}40` } : undefined}
+          />
+          <div
+            className={`absolute inset-3 rounded-full border border-primary/10 ${energy > 0 ? 'animate-[spin_10s_linear_infinite]' : ''}`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}20` } : undefined}
           />
 
-          <div className="absolute -bottom-6 flex flex-col items-center justify-center z-20 pointer-events-none">
-            <span className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1 drop-shadow-md">Mined</span>
-            <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+          {energy > 0 && !isCapped && !activeTurbo && (
+            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(52,211,153,0.15)] animate-pulse" style={skin ? { boxShadow: `0 0 80px ${skin.glow}` } : undefined} />
+          )}
+          {activeTurbo && (
+            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(34,211,238,0.3)] animate-pulse" />
+          )}
+
+          <div
+            className={`absolute inset-5 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-cyan-950 to-background border-cyan-400/50' : !skin ? 'from-primary/10 to-background border-primary/30' : 'from-[#1a1a1a] to-[#0A0900]'} flex flex-col items-center justify-center border shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden`}
+            style={!activeTurbo && skin ? { borderColor: `${skin.accent}50` } : undefined}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/10 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
+            <span className="text-[10px] text-primary/70 font-bold uppercase tracking-widest mb-1 relative z-10">Mined</span>
+            <span className="text-4xl font-black text-white tabular-nums leading-none tracking-tight relative z-10 drop-shadow-sm">
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
-            <span className="text-[11px] text-primary mt-1 font-bold">pts</span>
+            <span className="text-[11px] text-muted-foreground mt-1 relative z-10 font-medium">pts</span>
+            <div className={`mt-3 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md relative z-10 flex items-center gap-1`}>
+              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
+              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
+                +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
+              </span>
+            </div>
+            {activeTurbo && (
+              <span className="absolute bottom-6 text-[10px] font-bold text-cyan-400 animate-pulse bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-400/30">TURBO ({turboRemaining}s)</span>
+            )}
           </div>
-
-          <div className={`absolute -top-4 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md z-20 flex items-center gap-1`}>
-            <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
-            <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
-              +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
-            </span>
-          </div>
-          
-          {activeTurbo && (
-            <span className="absolute -bottom-16 text-[10px] font-bold text-cyan-400 animate-pulse bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-400/30">TURBO ({turboRemaining}s)</span>
-          )}
 
           {floatingPoints.map(fp => (
             <div
               key={fp.id}
-              className="absolute pointer-events-none z-30"
+              className="absolute pointer-events-none"
               style={{ left: `${fp.x}%`, top: `${fp.y}%`, transform: 'translate(-50%, -50%)' }}
             >
               <span
-                className="font-black text-primary text-2xl tracking-tighter absolute drop-shadow-[0_0_8px_rgba(245,197,24,0.8)]"
+                className="font-black text-primary text-xl tracking-tighter absolute drop-shadow-md"
                 style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards' }}
               >
                 +{fp.value}
               </span>
+              <div className="dot burst-1" />
+              <div className="dot burst-2" />
+              <div className="dot burst-3" />
+              <div className="dot burst-4" />
             </div>
           ))}
         </button>
 
-        <div className="mt-16 w-full max-w-[280px]">
+        <div className="mt-8 w-full max-w-[280px]">
           <div className="flex justify-between text-xs font-bold mb-2.5 px-1">
             <span className="text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5 text-primary" /> Energy

@@ -31,12 +31,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
             >
               <div className={cn(
                 "relative p-2 rounded-xl transition-all duration-300",
-                isActive ? "bg-primary/20 text-primary scale-110" : "text-muted-foreground group-hover:text-white group-hover:bg-white/5"
+                isActive ? "bg-primary/10 text-primary scale-110" : "text-muted-foreground group-hover:text-white group-hover:bg-white/5"
               )}>
                 <Icon 
                   className={cn(
                     "w-5 h-5 transition-all duration-300", 
-                    isActive && "drop-shadow-[0_0_12px_rgba(245,197,24,0.6)]"
+                    isActive && "drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
                   )} 
                 />
               </div>

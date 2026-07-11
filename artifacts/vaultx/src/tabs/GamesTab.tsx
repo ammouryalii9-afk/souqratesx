@@ -8,32 +8,22 @@ import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
 
-import imgSpeedTap from '../assets/game-speed-tap.png';
-import imgMemoryMatch from '../assets/game-memory-match.png';
-import imgLuckyWheel from '../assets/game-lucky-wheel.png';
-import imgMiningRig from '../assets/game-mining-rig.png';
-import imgSolarFarm from '../assets/game-solar-farm.png';
-import imgWindTurbine from '../assets/game-wind-turbine.png';
-import imgDataCenter from '../assets/game-data-center.png';
-import imgQuantumChip from '../assets/game-quantum-chip.png';
-import imgBlackHole from '../assets/game-black-hole.png';
-
 type GameState = 'idle' | 'playing' | 'gameover';
 type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
 
 const PASSIVE_CARDS = [
-  { id: 'mining-rig', name: 'Mining Rig', base: 50, levelCost: (lvl: number) => lvl * 2000, img: imgMiningRig },
-  { id: 'solar-farm', name: 'Solar Farm', base: 200, levelCost: (lvl: number) => lvl * 8000, img: imgSolarFarm },
-  { id: 'wind-turbine', name: 'Wind Turbine', base: 500, levelCost: (lvl: number) => lvl * 20000, img: imgWindTurbine },
-  { id: 'data-center', name: 'Data Center', base: 1500, levelCost: (lvl: number) => lvl * 60000, img: imgDataCenter },
-  { id: 'quantum-chip', name: 'Quantum Chip', base: 5000, levelCost: (lvl: number) => lvl * 200000, img: imgQuantumChip },
-  { id: 'black-hole', name: 'Black Hole Miner', base: 20000, levelCost: (lvl: number) => lvl * 800000, img: imgBlackHole },
+  { id: 'mining-rig', name: 'Mining Rig', base: 50, levelCost: (lvl: number) => lvl * 2000, icon: Pickaxe },
+  { id: 'solar-farm', name: 'Solar Farm', base: 200, levelCost: (lvl: number) => lvl * 8000, icon: Sun },
+  { id: 'wind-turbine', name: 'Wind Turbine', base: 500, levelCost: (lvl: number) => lvl * 20000, icon: Wind },
+  { id: 'data-center', name: 'Data Center', base: 1500, levelCost: (lvl: number) => lvl * 60000, icon: Server },
+  { id: 'quantum-chip', name: 'Quantum Chip', base: 5000, levelCost: (lvl: number) => lvl * 200000, icon: Cpu },
+  { id: 'black-hole', name: 'Black Hole Miner', base: 20000, levelCost: (lvl: number) => lvl * 800000, icon: Zap },
 ];
 
-const GAME_LIST: { id: GameId; name: string; desc: string; img: string; color: string }[] = [
-  { id: 'speed-tap', name: 'Speed Tap', desc: '10 seconds, tap as fast as you can', img: imgSpeedTap, color: '#60A5FA' },
-  { id: 'memory-match', name: 'Memory Match', desc: 'Match all pairs before time runs out', img: imgMemoryMatch, color: '#34D399' },
-  { id: 'lucky-wheel', name: 'Lucky Wheel', desc: '3 free spins a day, pure luck', img: imgLuckyWheel, color: '#F472B6' },
+const GAME_LIST: { id: GameId; name: string; desc: string; icon: typeof Gamepad2; color: string }[] = [
+  { id: 'speed-tap', name: 'Speed Tap', desc: '10 seconds, tap as fast as you can', icon: Timer, color: '#60A5FA' },
+  { id: 'memory-match', name: 'Memory Match', desc: 'Match all pairs before time runs out', icon: Brain, color: '#34D399' },
+  { id: 'lucky-wheel', name: 'Lucky Wheel', desc: '3 free spins a day, pure luck', icon: Sparkles, color: '#F472B6' },
 ];
 
 export const GamesTab = () => {
@@ -77,19 +67,19 @@ export const GamesTab = () => {
 
       <div className="px-4 mt-3 grid grid-cols-2 gap-3">
         {GAME_LIST.map((g) => {
+          const Icon = g.icon;
           return (
             <button
               key={g.id}
               data-testid={`open-game-${g.id}`}
               onClick={() => { haptic('select'); setActiveGame(g.id); }}
-              className="bg-card border border-white/5 rounded-xl p-4 flex flex-col items-center gap-2 text-center active:scale-95 transition-transform overflow-hidden relative"
+              className="bg-card border border-white/5 rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform"
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/50 pointer-events-none" />
-              <img src={g.img} alt={g.name} className="w-16 h-16 object-cover rounded-lg shadow-lg relative z-10" />
-              <div className="relative z-10 w-full mt-1">
-                <h3 className="font-semibold text-white text-sm whitespace-nowrap">{g.name}</h3>
-                <p className="text-[10px] text-muted-foreground leading-snug truncate">{g.desc}</p>
+              <div className="p-2.5 rounded-lg" style={{ background: `${g.color}1A` }}>
+                <Icon className="w-6 h-6" style={{ color: g.color }} />
               </div>
+              <h3 className="font-semibold text-white text-sm">{g.name}</h3>
+              <p className="text-xs text-muted-foreground leading-snug">{g.desc}</p>
             </button>
           );
         })}
@@ -110,27 +100,25 @@ export const GamesTab = () => {
             const cost = def.levelCost(nextLevel);
             const currentYield = owned ? owned.ptsPerHour : 0;
             const nextYield = def.base * nextLevel;
+            const Icon = def.icon;
 
             return (
-              <div key={def.id} className={`bg-card border ${owned ? 'border-primary/50 shadow-[0_0_10px_rgba(245,197,24,0.1)]' : 'border-white/5'} rounded-xl p-3 flex flex-col gap-2 relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-full h-24 opacity-30 mask-image:linear-gradient(to_bottom,black,transparent)">
-                  <img src={def.img} alt={def.name} className="w-full h-full object-cover blur-[2px]" />
-                </div>
-                <div className="flex items-start justify-between relative z-10">
-                  <div className={`w-10 h-10 rounded-lg overflow-hidden border shadow-sm ${owned ? 'border-primary/50' : 'border-white/10'}`}>
-                    <img src={def.img} alt={def.name} className="w-full h-full object-cover" />
+              <div key={def.id} className={`bg-card border ${owned ? 'border-primary/50 shadow-[0_0_10px_rgba(245,197,24,0.1)]' : 'border-white/5'} rounded-xl p-3 flex flex-col gap-2`}>
+                <div className="flex items-start justify-between">
+                  <div className={`p-2 rounded-lg ${owned ? 'bg-primary/20' : 'bg-white/5'}`}>
+                    <Icon className={`w-5 h-5 ${owned ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-black/50 rounded-full border border-white/10 text-primary backdrop-blur-sm shadow-sm">Lv {level}</span>
+                  <span className="text-xs font-bold text-muted-foreground">Lv {level}</span>
                 </div>
-                <div className="relative z-10">
-                  <h3 className="font-bold text-white text-sm">{def.name}</h3>
-                  <p className="text-xs text-[var(--glow-green)] font-semibold mt-0.5">+{currentYield.toLocaleString()} /hr</p>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">{def.name}</h3>
+                  <p className="text-xs text-emerald-400 font-medium">+{currentYield.toLocaleString()} /hr</p>
                 </div>
                 <button
                   data-testid={`buy-passive-${def.id}`}
                   onClick={() => { buyPassiveCard(def.id, cost, nextLevel, nextYield, def.name); haptic('light'); }}
                   disabled={tempMiningPoints < cost}
-                  className="mt-1 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 rounded-lg disabled:opacity-40 transition-colors relative z-10 border border-white/5"
+                  className="mt-1 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-1.5 rounded-lg disabled:opacity-40 transition-colors"
                 >
                   Buy Lv{nextLevel} ({cost.toLocaleString()})
                 </button>
