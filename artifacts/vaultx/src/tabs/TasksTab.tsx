@@ -26,6 +26,13 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 
 const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
 
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 pt-2 -mb-3">
+    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary/70">{children}</span>
+    <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent" />
+  </div>
+);
+
 export const TasksTab = () => {
   const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
   const { toast } = useToast();
@@ -431,8 +438,38 @@ export const TasksTab = () => {
     localStorage.setItem('dailyComboResult', isCorrect ? 'success' : 'failed');
   };
 
+  const dailyGames = [
+    { label: 'Daily Cipher', done: cipherSolved, reward: 30000 },
+    { label: 'Daily Combo', done: comboResult !== 'none', reward: 50000 },
+    { label: 'Daily Spin', done: spinHasSpun, reward: 10000 },
+  ];
+  const dailyDone = dailyGames.filter(g => g.done).length;
+  const dailyRemaining = dailyGames.reduce((sum, g) => sum + (g.done ? 0 : g.reward), 0);
+  const dailyPct = Math.round((dailyDone / dailyGames.length) * 100);
+
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
+
+      {/* Daily Rewards progress summary — at-a-glance clarity for today's challenges */}
+      <section>
+        <div className="rounded-2xl p-4" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.08), rgba(52,211,153,0.02))', border: '1px solid rgba(52,211,153,0.15)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold text-white">Daily Rewards</h2>
+            </div>
+            <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20 tabular-nums">{dailyDone}/{dailyGames.length}</span>
+          </div>
+          <div className="h-2 rounded-full bg-white/5 overflow-hidden mb-3">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${dailyPct}%`, background: 'linear-gradient(90deg, hsl(152,76%,42%), hsl(152,76%,55%))' }} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {dailyDone === dailyGames.length
+              ? '🎉 All daily rewards claimed — come back tomorrow!'
+              : `${dailyGames.length - dailyDone} left today · earn up to ${dailyRemaining.toLocaleString()} pts below`}
+          </p>
+        </div>
+      </section>
 
       <EngagementHub />
 
@@ -680,6 +717,8 @@ export const TasksTab = () => {
         </div>
       </section>
 
+      <SectionLabel>Earn Points</SectionLabel>
+
       {/* Watch Ads */}
       <section>
         <div className="flex items-center gap-2 mb-4">
@@ -797,6 +836,8 @@ export const TasksTab = () => {
           </section>
         );
       })()}
+
+      <SectionLabel>Store &amp; Partners</SectionLabel>
 
       {/* Telegram Stars Store */}
       <section>

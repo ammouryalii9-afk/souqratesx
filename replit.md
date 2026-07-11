@@ -64,7 +64,8 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Tap-to-mine core loop with miner level upgrades and energy system
 - Idle mining, passive income cards, and an 8-hour farming cycle
 - Games tab: 3 mini-games for extra points — Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins). (A 4th game, "Tappy Dodge", was removed — its physics/lifecycle bugs were too costly to keep debugging.)
-- Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel
+- Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel. The Tasks tab opens with a "Daily Rewards" progress summary card (X/3 of cipher/combo/spin done + progress bar + remaining points) for at-a-glance clarity, and is split into labeled sections (daily rewards → "Earn Points" → "Store & Partners") to reduce clutter.
+- Automatic daily reminder notifications: `runDailyReminders()` runs once/day in the api-server PRIMARY process only (not per worker — see `index.ts` cluster fork) and DMs (via `sendReminderToUser`) every non-banned user inactive >3 days a "your mining rewards are waiting" message with a web_app launch button. Requires `TELEGRAM_BOT_TOKEN` + `REPLIT_DOMAINS`. Separate from the admin manual "send reminders" tool.
 - Referral system with trickling referral earnings
 - Global leaderboard by lifetime points
 - Real Telegram user identity and permanent server-side progress persistence (works across devices)
