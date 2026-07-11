@@ -176,16 +176,20 @@ export function logTelegramWebhookError(context: string, err: unknown): void {
  * Returns "member" | "administrator" | "creator" | "restricted" | "left" | "kicked" | null (error).
  * NOTE: the bot must be an admin of private channels/groups to use this.
  */
-export async function getChatMemberStatus(chatIdentifier: string, telegramUserId: string): Promise<string | null> {
+export async function getChatMemberStatus(
+  chatIdentifier: string,
+  telegramUserId: string,
+): Promise<{ status: string | null; error?: string }> {
   try {
     const chat = chatIdentifier.startsWith("@") ? chatIdentifier : `@${chatIdentifier}`;
     const result = await callBotApi<{ status: string }>("getChatMember", {
       chat_id: isNaN(Number(chatIdentifier)) ? chat : Number(chatIdentifier),
       user_id: Number(telegramUserId),
     });
-    return result.status;
-  } catch {
-    return null;
+    return { status: result.status };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return { status: null, error };
   }
 }
 

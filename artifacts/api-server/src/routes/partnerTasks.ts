@@ -77,11 +77,17 @@ router.post("/partner-tasks/:id/verify", rateLimit("partner-verify", 10, 60_000)
 
   // Verify Telegram membership if bot is configured
   if (isTelegramBotConfigured()) {
-    const status = await getChatMemberStatus(task.channelUsername, telegramId);
-    const isJoined = status === "member" || status === "administrator" || status === "creator" || status === "restricted";
-    if (!isJoined) {
-      res.status(403).json({ error: "not_joined", message: "Please join the channel first, then verify." });
-      return;
+    const { status, error } = await getChatMemberStatus(task.channelUsername, telegramId);
+    if (status === null) {
+      // API error (bot not in channel, wrong username, etc.) — log but don't block the user
+      req.log.warn({ telegramId, taskId, channel: task.channelUsername, error },
+        "getChatMember API error — granting partner task benefit of doubt");
+    } else {
+      const isJoined = status === "member" || status === "administrator" || status === "creator" || status === "restricted";
+      if (!isJoined) {
+        res.status(403).json({ error: "not_joined", message: "Please join the channel first, then verify." });
+        return;
+      }
     }
   }
 
