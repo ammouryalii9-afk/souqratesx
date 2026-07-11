@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, vaultUsersTable, processedTransactionsTable, starProductsTable } from "@workspace/db";
-import { answerPreCheckoutQuery, sendTelegramMessage, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
+import { answerPreCheckoutQuery, sendTelegramMessage, sendStartMessage, answerCallbackQuery, sendCallbackReply, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
+import { getSettingsMap, asString } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
@@ -154,11 +155,30 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
       const host = req.get("x-forwarded-host") ?? req.get("host") ?? "";
       const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
       const appUrl = `${proto}://${host}/`;
-      await sendTelegramMessage(
-        update.message.from.id,
-        `👋 Welcome to SouqratesX!\n\nTap, mine & earn points — then cash out later. Your progress is saved permanently across all devices.\n\n⚡ Tap the button below to start mining now!`,
-        appUrl,
-      );
+      const settings = await getSettingsMap();
+      const startText = asString(settings.botStartMessage) ||
+        `👋 <b>مرحباً بك في SouqratesX!</b>\n\nاستخرج النقاط، طوّر منجمك، واكسب مكافآت حقيقية.\nتقدمك يُحفظ تلقائياً على جميع أجهزتك.\n\n⚡ اضغط <b>فتح التطبيق</b> للبدء الآن!`;
+      const helpText = asString(settings.botHelpText) ||
+        `ℹ️ <b>المساعدة</b>\n\n• انقر على المنجم لكسب النقاط\n• طوّر المنجم لزيادة الإنتاج\n• أكمل المهام اليومية لمضاعفة أرباحك\n• ادعُ أصدقاءك للحصول على مكافآت إضافية\n\nللتواصل مع الدعم: @SouqratesSupport`;
+      const policyText = asString(settings.botPolicyText) ||
+        `📜 <b>سياسة الاستخدام</b>\n\n• الاستخدام الشخصي فقط\n• يُحظر استخدام برامج التلاعب أو الأتمتة\n• تحتفظ المنصة بحق إيقاف الحسابات المخالفة\n• لا نشارك بياناتك مع أطراف ثالثة\n• النقاط المكتسبة قابلة للسحب وفق الشروط المعلنة`;
+      await sendStartMessage(update.message.from.id, startText, appUrl, helpText, policyText);
+    } else if (update.callback_query?.id && update.callback_query.from?.id) {
+      const cq = update.callback_query;
+      const settings = await getSettingsMap();
+      if (cq.data?.startsWith("help:")) {
+        const helpText = asString(settings.botHelpText) ||
+          `ℹ️ <b>المساعدة</b>\n\n• انقر على المنجم لكسب النقاط\n• طوّر المنجم لزيادة الإنتاج\n• أكمل المهام اليومية لمضاعفة أرباحك\n• ادعُ أصدقاءك للحصول على مكافآت إضافية\n\nللتواصل مع الدعم: @SouqratesSupport`;
+        await answerCallbackQuery(cq.id);
+        await sendCallbackReply(cq.from.id, helpText);
+      } else if (cq.data?.startsWith("policy:")) {
+        const policyText = asString(settings.botPolicyText) ||
+          `📜 <b>سياسة الاستخدام</b>\n\n• الاستخدام الشخصي فقط\n• يُحظر استخدام برامج التلاعب أو الأتمتة\n• تحتفظ المنصة بحق إيقاف الحسابات المخالفة\n• لا نشارك بياناتك مع أطراف ثالثة\n• النقاط المكتسبة قابلة للسحب وفق الشروط المعلنة`;
+        await answerCallbackQuery(cq.id);
+        await sendCallbackReply(cq.from.id, policyText);
+      } else {
+        await answerCallbackQuery(cq.id);
+      }
     } else if (update.message?.successful_payment) {
       const payment = update.message.successful_payment;
       const fromId = update.message.from?.id;

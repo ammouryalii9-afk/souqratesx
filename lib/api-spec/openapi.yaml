@@ -1406,6 +1406,14 @@ components:
               enabled:
                 type: boolean
             required: [id, name, url, enabled]
+        botMessages:
+          type: object
+          properties:
+            termsText:
+              type: string
+            welcomeText:
+              type: string
+          required: [termsText, welcomeText]
         exoclick:
           type: object
           properties:
@@ -1423,6 +1431,7 @@ components:
               type: boolean
           required: [enabled]
       required:
+        - botMessages
         - adsgram
         - monetag
         - exoclick

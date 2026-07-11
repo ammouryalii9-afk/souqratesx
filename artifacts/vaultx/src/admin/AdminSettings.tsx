@@ -7,7 +7,7 @@ import { Save } from "lucide-react";
 type FieldDef = {
   key: string;
   label: string;
-  type: "number" | "text";
+  type: "number" | "text" | "textarea";
   defaultValue: number | string;
 };
 
@@ -134,6 +134,16 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "رسائل البوت والشروط",
+    fields: [
+      { key: "botStartMessage", label: "رسالة /start (HTML مدعوم)", type: "textarea" as const, defaultValue: "" },
+      { key: "botHelpText", label: "نص المساعدة (زر ℹ️ المساعدة)", type: "textarea" as const, defaultValue: "" },
+      { key: "botPolicyText", label: "سياسة الاستخدام (زر 📜 السياسة)", type: "textarea" as const, defaultValue: "" },
+      { key: "appWelcomeText", label: "نص الترحيب داخل التطبيق (بطاقة الشروط)", type: "textarea" as const, defaultValue: "" },
+      { key: "appTermsText", label: "نص الشروط داخل التطبيق (بطاقة الشروط)", type: "textarea" as const, defaultValue: "" },
+    ],
+  },
+  {
     title: "ExoClick (إعلان بيني - Mobile Fullpage Interstitial)",
     fields: [
       { key: "exoclickZoneId", label: "ExoClick Zone ID", type: "text", defaultValue: "" },
@@ -233,17 +243,30 @@ export function AdminSettings() {
             {section.fields.map((field) => (
               <label key={field.key} className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">{field.label}</span>
-                <Input
-                  type={field.type}
-                  data-testid={`input-setting-${field.key}`}
-                  value={(values[field.key] as string | number | undefined) ?? field.defaultValue}
-                  onChange={(e) =>
-                    setValues((prev) => ({
-                      ...prev,
-                      [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value,
-                    }))
-                  }
-                />
+                {field.type === "textarea" ? (
+                  <textarea
+                    rows={4}
+                    data-testid={`input-setting-${field.key}`}
+                    value={(values[field.key] as string | undefined) ?? (field.defaultValue as string)}
+                    onChange={(e) =>
+                      setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                    className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                    dir="auto"
+                  />
+                ) : (
+                  <Input
+                    type={field.type as "text" | "number"}
+                    data-testid={`input-setting-${field.key}`}
+                    value={(values[field.key] as string | number | undefined) ?? field.defaultValue}
+                    onChange={(e) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value,
+                      }))
+                    }
+                  />
+                )}
               </label>
             ))}
           </div>

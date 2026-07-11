@@ -53,8 +53,8 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D0D0F] text-white">
-      <header className="sticky top-0 z-30 bg-[#0D0D0F]/95 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between">
+    <div className="h-[100dvh] flex flex-col bg-[#0D0D0F] text-white overflow-hidden">
+      <header className="shrink-0 z-30 bg-[#0D0D0F]/95 backdrop-blur-md border-b border-white/5 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
             background: "linear-gradient(145deg, rgba(52,211,153,0.25) 0%, rgba(52,211,153,0.08) 100%)",
@@ -74,7 +74,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </Button>
       </header>
 
-      <nav className="sticky top-16 z-20 bg-[#0D0D0F]/95 backdrop-blur-md border-b border-white/5 overflow-x-auto">
+      <nav className="shrink-0 z-20 bg-[#0D0D0F]/95 backdrop-blur-md border-b border-white/5 overflow-x-auto">
         {TAB_GROUPS.map((group) => (
           <div key={group.label} className="flex items-center px-2 gap-0.5 border-b border-white/3 last:border-0">
             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mr-2 shrink-0 hidden sm:block">{group.label}</span>
@@ -102,7 +102,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         ))}
       </nav>
 
-      <main className="p-4 max-w-3xl mx-auto">
+      <main className="flex-1 overflow-y-auto p-4 max-w-3xl mx-auto w-full">
         {tab === "overview"   && <AdminOverview />}
         {tab === "analytics"  && <AdminAnalytics />}
         {tab === "anticheat"  && <AdminAntiCheat />}

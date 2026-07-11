@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
 import { initExoclick } from "./lib/exoclick";
+import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 
 function Header() {
   const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
@@ -110,9 +111,14 @@ function MainLayout() {
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(checkTermsAccepted);
 
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;
+  }
+
+  if (!termsAccepted) {
+    return <OnboardingCard onAccept={() => setTermsAccepted(true)} />;
   }
 
   return (

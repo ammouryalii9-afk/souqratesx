@@ -68,7 +68,7 @@ export async function answerPreCheckoutQuery(preCheckoutQueryId: string, ok: boo
 export async function setTelegramWebhook(webhookUrl: string): Promise<void> {
   await callBotApi("setWebhook", {
     url: webhookUrl,
-    allowed_updates: ["pre_checkout_query", "message"],
+    allowed_updates: ["pre_checkout_query", "message", "callback_query"],
     secret_token: getWebhookSecretToken(),
   });
 }
@@ -82,6 +82,46 @@ export async function sendTelegramMessage(chatId: number, text: string, webAppUr
           inline_keyboard: [[{ text: "🚀 Play Now", web_app: { url: webAppUrl } }]],
         }
       : undefined,
+  });
+}
+
+export async function sendStartMessage(
+  chatId: number,
+  text: string,
+  webAppUrl: string,
+  helpText: string,
+  policyText: string,
+): Promise<void> {
+  await callBotApi("sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🚀 فتح التطبيق", web_app: { url: webAppUrl } }],
+        [
+          { text: "ℹ️ المساعدة", callback_data: `help:${chatId}` },
+          { text: "📜 سياسة الاستخدام", callback_data: `policy:${chatId}` },
+        ],
+      ],
+    },
+  });
+  // Store help/policy texts as closure for callback use — passed separately
+  void helpText; void policyText;
+}
+
+export async function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void> {
+  await callBotApi("answerCallbackQuery", {
+    callback_query_id: callbackQueryId,
+    text: text ?? "",
+  });
+}
+
+export async function sendCallbackReply(chatId: number, text: string): Promise<void> {
+  await callBotApi("sendMessage", {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
   });
 }
 
@@ -118,6 +158,7 @@ export type TelegramSuccessfulPayment = {
 export type TelegramUpdate = {
   pre_checkout_query?: { id: string; from: { id: number }; invoice_payload: string; total_amount: number };
   message?: { from?: { id: number }; text?: string; successful_payment?: TelegramSuccessfulPayment };
+  callback_query?: { id: string; from: { id: number }; data?: string };
 };
 
 export function logTelegramWebhookError(context: string, err: unknown): void {

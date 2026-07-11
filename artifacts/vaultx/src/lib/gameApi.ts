@@ -1,6 +1,10 @@
 const API_BASE = "/api";
 
 export type PublicConfig = {
+  botMessages: {
+    termsText: string;
+    welcomeText: string;
+  };
   adsgram: {
     enabled: boolean;
     blockId: string | null;

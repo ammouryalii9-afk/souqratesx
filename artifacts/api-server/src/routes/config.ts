@@ -24,8 +24,15 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const cpxresearchAppId = asString(settings.cpxresearchAppId);
   const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
 
+  const defaultTerms = `مرحباً بك في SouqratesX!\n\nبالضغط على "قبول" فإنك توافق على:\n• الاستخدام الشخصي فقط للتطبيق\n• عدم استخدام أي أدوات أو برامج تلاعب\n• أن النقاط المكتسبة قابلة للتحويل وفق الشروط المعلنة\n• حق المنصة في إيقاف أي حساب يثبت تلاعبه\n\nنجمع بياناتك الأساسية (معرّف تيليجرام) لحفظ تقدمك فقط، ولا نشاركها مع أي طرف ثالث.`;
+  const defaultWelcome = `مرحباً بك في SouqratesX ⛏️\n\nاستخرج النقاط، طوّر منجمك، وحوّل جهدك إلى مكافآت حقيقية.`;
+
   res.json(
     GetPublicConfigResponse.parse({
+      botMessages: {
+        termsText: asString(settings.appTermsText) || defaultTerms,
+        welcomeText: asString(settings.appWelcomeText) || defaultWelcome,
+      },
       adsgram: {
         enabled: Boolean(asString(settings.adsgramBlockId)),
         blockId: asString(settings.adsgramBlockId) || null,

@@ -253,6 +253,11 @@ export type PublicConfigOfferwallsItem = {
   enabled: boolean;
 };
 
+export type PublicConfigBotMessages = {
+  termsText: string;
+  welcomeText: string;
+};
+
 export type PublicConfigExoclick = {
   enabled: boolean;
   /** @nullable */
@@ -269,6 +274,7 @@ export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
   offerwalls: PublicConfigOfferwallsItem[];
+  botMessages: PublicConfigBotMessages;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }
