@@ -702,24 +702,6 @@ export const TasksTab = () => {
             {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
           </button>
         </div>
-        {config?.adsgram.bannerBlockId && (
-          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
-            <div className="flex-1 pr-4">
-              <h3 className="font-semibold text-white text-sm mb-1">Watch a bot ad</h3>
-              <p className="text-xs font-medium text-primary">
-                +{config.adsgram.rewardPoints.toLocaleString()} pts per ad
-              </p>
-            </div>
-            <button
-              data-testid="button-watch-banner-ad"
-              onClick={handleWatchBannerAd}
-              disabled={!config?.adsgram.enabled || bannerAdLoading}
-              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
-            >
-              {bannerAdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
-            </button>
-          </div>
-        )}
         {config?.monetag.enabled && (
           <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
             <div className="flex-1 pr-4">
@@ -790,7 +772,7 @@ export const TasksTab = () => {
 
       {/* Offerwalls / Surveys */}
       {(() => {
-        const activeOffers = (config?.offerwalls ?? []).filter((offer) => offer.enabled);
+        const activeOffers = (config?.offerwalls ?? []).filter((offer) => offer.enabled && offer.id !== 'adgem');
         if (activeOffers.length === 0) return null;
         return (
           <section>
