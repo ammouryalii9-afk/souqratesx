@@ -87,7 +87,11 @@ function toUserSummary(user: typeof vaultUsersTable.$inferSelect) {
 }
 
 function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
+  const st = (typeof user.state === "object" && user.state !== null && !Array.isArray(user.state))
+    ? (user.state as Record<string, unknown>)
+    : {};
   return {
+    internalId: user.id,
     telegramId: user.telegramId,
     username: user.username,
     firstName: user.firstName,
@@ -101,8 +105,15 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     referrerId: user.referrerId,
     referralCount: user.referralCount,
     referralEarnings: user.referralEarnings,
+    adsWatchedToday: user.adsWatchedToday,
     notes: user.notes,
     state: user.state,
+    // Extracted game-state fields for convenient display
+    currentPoints: typeof st.tempMiningPoints === "number" ? st.tempMiningPoints : 0,
+    miningLevel: typeof st.miningLevel === "number" ? st.miningLevel : 1,
+    energy: typeof st.energy === "number" ? st.energy : 0,
+    maxEnergy: typeof st.maxEnergy === "number" ? st.maxEnergy : 1000,
+    profitPerHour: typeof st.profitPerHour === "number" ? st.profitPerHour : 0,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
@@ -361,6 +372,44 @@ router.get("/admin/audit-log", async (req, res): Promise<void> => {
       })),
     ),
   );
+});
+
+// ─── User Deep Stats ──────────────────────────────────────────────────────────
+
+router.get("/admin/users/:telegramId/stats", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const telegramId = req.params.telegramId;
+
+  const [rewardRows, providerLogRows] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        provider_key,
+        count(*)::int           AS total_rewards,
+        coalesce(sum(amount),0)::bigint AS total_points
+      FROM reward_transactions
+      WHERE telegram_id = ${telegramId}
+        AND status = 'credited'
+      GROUP BY provider_key
+      ORDER BY total_points DESC
+    `),
+    db.execute(sql`
+      SELECT
+        count(*)::int           AS total_events,
+        count(*) FILTER (WHERE NOT success)::int AS error_count
+      FROM provider_logs
+      WHERE telegram_id = ${telegramId}
+    `),
+  ]);
+
+  res.json({
+    rewardsByProvider: rewardRows.rows,
+    totalEvents: (providerLogRows.rows[0] as { total_events: number } | undefined)?.total_events ?? 0,
+    errorCount: (providerLogRows.rows[0] as { error_count: number } | undefined)?.error_count ?? 0,
+  });
 });
 
 router.get("/admin/users/:telegramId/activity", async (req, res): Promise<void> => {

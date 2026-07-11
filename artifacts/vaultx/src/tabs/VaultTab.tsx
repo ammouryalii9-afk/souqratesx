@@ -10,7 +10,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useVault, getLeague, SKINS } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault } from 'lucide-react';
+import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
@@ -28,12 +28,22 @@ let floatId = 0;
 
 export const VaultTab = () => {
   const { 
+    userId,
     totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, claimEarnings, tapMine,
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
     rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
     lifetimePoints, profitPerHour, equippedSkinId
   } = useVault();
+
+  const [idCopied, setIdCopied] = useState(false);
+  function copyUserId() {
+    void navigator.clipboard.writeText(userId).then(() => {
+      setIdCopied(true);
+      haptic('light');
+      setTimeout(() => setIdCopied(false), 1500);
+    });
+  }
   const { toast } = useToast();
   const skin = equippedSkinId !== null ? SKINS[equippedSkinId] : undefined;
 
@@ -265,10 +275,22 @@ export const VaultTab = () => {
 
       {/* Info Row */}
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold px-3 py-1 rounded-full border border-white/10 shadow-sm" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
             <span className="mr-1.5">{league.icon}</span> {league.name} Miner
           </span>
+          {/* Copyable User ID badge */}
+          <button
+            onClick={copyUserId}
+            className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-full px-3 py-1 transition-all"
+            title="Copy your User ID"
+          >
+            <span className="text-[10px] text-muted-foreground">ID</span>
+            <span className="text-[11px] font-bold text-white font-mono">{userId}</span>
+            {idCopied
+              ? <Check className="w-3 h-3 text-primary shrink-0" />
+              : <Copy className="w-3 h-3 text-muted-foreground shrink-0" />}
+          </button>
         </div>
         <div className="flex justify-between items-center text-xs font-bold bg-card/50 backdrop-blur-xl border border-white/5 rounded-xl px-4 py-3 shadow-inner">
           <span className="text-primary flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> +{profitPerHour.toLocaleString()} /hr</span>

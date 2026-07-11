@@ -58,10 +58,24 @@ export type AdminUserSummary = {
 };
 
 export type AdminUserDetail = AdminUserSummary & {
+  internalId: number;
   premiumExpiresAt: string | null;
+  adsWatchedToday: number;
   notes: string | null;
   state: Record<string, unknown>;
+  // extracted game-state fields
+  currentPoints: number;
+  miningLevel: number;
+  energy: number;
+  maxEnergy: number;
+  profitPerHour: number;
   updatedAt: string;
+};
+
+export type UserDeepStats = {
+  rewardsByProvider: { provider_key: string; total_rewards: number; total_points: number }[];
+  totalEvents: number;
+  errorCount: number;
 };
 
 export type AdminUserPatch = Partial<{
@@ -249,6 +263,7 @@ export const adminApi = {
       method: "POST",
     }),
   userActivity: (telegramId: string) => adminFetch<UserActivityEntry[]>(`/admin/users/${telegramId}/activity`),
+  userStats: (telegramId: string) => adminFetch<UserDeepStats>(`/admin/users/${telegramId}/stats`),
   broadcasts: () => adminFetch<BroadcastJob[]>("/admin/broadcast"),
   createBroadcast: (message: string, audience: string) =>
     adminFetch<BroadcastJob>("/admin/broadcast", { method: "POST", body: JSON.stringify({ message, audience }) }),
