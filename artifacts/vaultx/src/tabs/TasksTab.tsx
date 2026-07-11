@@ -133,7 +133,6 @@ export const TasksTab = () => {
     try {
       await showAdsgramRewardedAd(config.adsgram.blockId);
       const result = await claimAdsgramReward();
-      setTempMiningPoints(prev => prev + result.creditedPoints);
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
@@ -149,7 +148,6 @@ export const TasksTab = () => {
     try {
       await showAdsgramRewardedAd(config.adsgram.bannerBlockId);
       const result = await claimAdsgramReward();
-      setTempMiningPoints(prev => prev + result.creditedPoints);
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
@@ -165,7 +163,6 @@ export const TasksTab = () => {
     try {
       await showMonetagRewardedAd(config.monetag.zoneId);
       const result = await claimMonetagReward();
-      setTempMiningPoints(prev => prev + result.creditedPoints);
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {

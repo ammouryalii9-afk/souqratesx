@@ -10,24 +10,28 @@ function todayStr(): string {
 }
 
 async function bumpStats(providerKey: string, patch: { totalRequests?: number; totalRewards?: number; dailyRevenueCents?: number }) {
-  const date = todayStr();
-  await db
-    .insert(providerStatisticsTable)
-    .values({
-      providerKey,
-      date,
-      totalRequests: patch.totalRequests ?? 0,
-      totalRewards: patch.totalRewards ?? 0,
-      dailyRevenueCents: patch.dailyRevenueCents ?? 0,
-    })
-    .onConflictDoUpdate({
-      target: [providerStatisticsTable.providerKey, providerStatisticsTable.date],
-      set: {
-        totalRequests: sql`${providerStatisticsTable.totalRequests} + ${patch.totalRequests ?? 0}`,
-        totalRewards: sql`${providerStatisticsTable.totalRewards} + ${patch.totalRewards ?? 0}`,
-        dailyRevenueCents: sql`${providerStatisticsTable.dailyRevenueCents} + ${patch.dailyRevenueCents ?? 0}`,
-      },
-    });
+  try {
+    const date = todayStr();
+    await db
+      .insert(providerStatisticsTable)
+      .values({
+        providerKey,
+        date,
+        totalRequests: patch.totalRequests ?? 0,
+        totalRewards: patch.totalRewards ?? 0,
+        dailyRevenueCents: patch.dailyRevenueCents ?? 0,
+      })
+      .onConflictDoUpdate({
+        target: [providerStatisticsTable.providerKey, providerStatisticsTable.date],
+        set: {
+          totalRequests: sql`${providerStatisticsTable.totalRequests} + ${patch.totalRequests ?? 0}`,
+          totalRewards: sql`${providerStatisticsTable.totalRewards} + ${patch.totalRewards ?? 0}`,
+          dailyRevenueCents: sql`${providerStatisticsTable.dailyRevenueCents} + ${patch.dailyRevenueCents ?? 0}`,
+        },
+      });
+  } catch (err) {
+    logger.warn({ err, providerKey }, "bumpStats failed (non-critical)");
+  }
 }
 
 /**
@@ -42,74 +46,124 @@ export async function processReward(
 ): Promise<RewardResult> {
   const start = Date.now();
 
-  const verification = await provider.verifyReward(input);
+  // ── 1. Verify the reward claim ─────────────────────────────────────────────
+  let verification: Awaited<ReturnType<EarnProvider["verifyReward"]>>;
+  try {
+    verification = await provider.verifyReward(input);
+  } catch (err) {
+    logger.error({ err, provider: provider.key }, "verifyReward threw");
+    return { ok: false, creditedPoints: 0, lifetimePoints: 0, reason: "Provider verification error" };
+  }
+
   await bumpStats(provider.key, { totalRequests: 1 });
 
   if (!verification.verified) {
-    await db.insert(providerLogsTable).values({
-      providerKey: provider.key,
-      event: "verify",
-      telegramId: input.telegramId,
-      success: false,
-      latencyMs: Date.now() - start,
-      message: verification.reason ?? "Verification failed",
-      payload: input.raw,
-    });
+    try {
+      await db.insert(providerLogsTable).values({
+        providerKey: provider.key,
+        event: "verify",
+        telegramId: input.telegramId,
+        success: false,
+        latencyMs: Date.now() - start,
+        message: verification.reason ?? "Verification failed",
+        payload: input.raw,
+      });
+    } catch (err) {
+      logger.warn({ err }, "providerLog insert failed (non-critical)");
+    }
     return { ok: false, creditedPoints: 0, lifetimePoints: 0, reason: verification.reason ?? "Verification failed" };
   }
 
-  // Idempotency: (providerKey, txId) can only be claimed once.
-  const [claimed] = await db
-    .insert(rewardTransactionsTable)
-    .values({
-      providerKey: provider.key,
-      telegramId: input.telegramId,
-      txId: verification.txId,
-      amount: verification.amount,
-      status: "credited",
-    })
-    .onConflictDoNothing()
-    .returning();
+  // ── 2. Idempotency: (providerKey, txId) can only be claimed once ───────────
+  let claimed: typeof rewardTransactionsTable.$inferSelect | undefined;
+  try {
+    const [row] = await db
+      .insert(rewardTransactionsTable)
+      .values({
+        providerKey: provider.key,
+        telegramId: input.telegramId,
+        txId: verification.txId,
+        amount: verification.amount,
+        status: "credited",
+      })
+      .onConflictDoNothing()
+      .returning();
+    claimed = row;
+  } catch (err) {
+    logger.error({ err, provider: provider.key, txId: verification.txId }, "reward_transactions insert failed");
+    return { ok: false, creditedPoints: 0, lifetimePoints: 0, reason: "Internal error recording transaction" };
+  }
 
   if (!claimed) {
     logger.info({ provider: provider.key, txId: verification.txId }, "Skipped duplicate reward claim");
     return { ok: true, creditedPoints: 0, lifetimePoints: 0 };
   }
 
-  const result = await provider.rewardUser(input.telegramId, verification.amount, verification.txId);
+  // ── 3. Credit the user ─────────────────────────────────────────────────────
+  let result: RewardResult;
+  try {
+    result = await provider.rewardUser(input.telegramId, verification.amount, verification.txId);
+  } catch (err) {
+    logger.error({ err, provider: provider.key, telegramId: input.telegramId }, "rewardUser threw");
+    try {
+      await db
+        .update(rewardTransactionsTable)
+        .set({ status: "failed" })
+        .where(and(eq(rewardTransactionsTable.providerKey, provider.key), eq(rewardTransactionsTable.txId, verification.txId)));
+    } catch { /* best-effort */ }
+    return { ok: false, creditedPoints: 0, lifetimePoints: 0, reason: "Error crediting user" };
+  }
 
   if (!result.ok) {
-    await db
-      .update(rewardTransactionsTable)
-      .set({ status: "failed" })
-      .where(and(eq(rewardTransactionsTable.providerKey, provider.key), eq(rewardTransactionsTable.txId, verification.txId)));
+    try {
+      await db
+        .update(rewardTransactionsTable)
+        .set({ status: "failed" })
+        .where(and(eq(rewardTransactionsTable.providerKey, provider.key), eq(rewardTransactionsTable.txId, verification.txId)));
+      await db.insert(providerLogsTable).values({
+        providerKey: provider.key,
+        event: "reward",
+        telegramId: input.telegramId,
+        success: false,
+        latencyMs: Date.now() - start,
+        message: result.reason ?? "Reward crediting failed",
+        payload: input.raw,
+      });
+    } catch (err) {
+      logger.warn({ err }, "providerLog/txn update failed (non-critical)");
+    }
+    return result;
+  }
 
+  // ── 4. Fire-and-forget logging + referral bonus (non-critical) ────────────
+  try {
     await db.insert(providerLogsTable).values({
       providerKey: provider.key,
       event: "reward",
       telegramId: input.telegramId,
-      success: false,
+      success: true,
       latencyMs: Date.now() - start,
-      message: result.reason ?? "Reward crediting failed",
-      payload: input.raw,
+      payload: { creditedPoints: result.creditedPoints },
     });
-    return result;
+  } catch (err) {
+    logger.warn({ err }, "providerLog insert failed (non-critical)");
   }
 
-  await db.insert(providerLogsTable).values({
-    providerKey: provider.key,
-    event: "reward",
-    telegramId: input.telegramId,
-    success: true,
-    latencyMs: Date.now() - start,
-    payload: { creditedPoints: result.creditedPoints },
-  });
-
   await bumpStats(provider.key, { totalRewards: 1, dailyRevenueCents: result.creditedPoints });
-  await logUserActivity(input.telegramId, `${provider.key}_reward`, { creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints });
-  await awardReferralBonus(input.telegramId, result.creditedPoints, provider.type === "rewarded_ad" ? "adsgram" : "offerwall", {
-    provider: provider.key,
-  });
+
+  try {
+    await logUserActivity(input.telegramId, `${provider.key}_reward`, { creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints });
+  } catch (err) {
+    logger.warn({ err }, "logUserActivity failed (non-critical)");
+  }
+
+  try {
+    await awardReferralBonus(input.telegramId, result.creditedPoints, provider.type === "rewarded_ad" ? "adsgram" : "offerwall", {
+      provider: provider.key,
+    });
+  } catch (err) {
+    logger.warn({ err }, "awardReferralBonus failed (non-critical)");
+  }
 
   return result;
 }
