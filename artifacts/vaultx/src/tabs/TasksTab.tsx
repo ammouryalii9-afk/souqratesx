@@ -846,56 +846,92 @@ export const TasksTab = () => {
       {/* Telegram Stars Store */}
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <Star className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-bold text-white">Store (Telegram Stars)</h2>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
+            background: 'linear-gradient(145deg, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.06) 100%)',
+            border: '1px solid rgba(52,211,153,0.2)',
+            boxShadow: '0 0 16px rgba(52,211,153,0.15)',
+          }}>
+            <Star className="w-4 h-4 text-primary" style={{ filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.6))' }} />
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-bold text-white leading-none">Store</h2>
+            <span className="text-[10px] text-primary/60 font-semibold uppercase tracking-wider mt-0.5">Telegram Stars</span>
+          </div>
         </div>
-        <div className="space-y-3">
-          {!config?.stars.enabled ? (
-            <div className="bg-card border border-white/5 rounded-xl p-4 text-center text-xs text-muted-foreground">Not activated yet</div>
-          ) : starProducts.length === 0 ? (
-            <div className="bg-card border border-white/5 rounded-xl p-4 text-center text-xs text-muted-foreground">No items available right now</div>
-          ) : (
-            starProducts.map((product) => {
+        {!config?.stars.enabled ? (
+          <div className="rounded-2xl p-5 text-center text-xs text-muted-foreground" style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}>Not activated yet</div>
+        ) : starProducts.length === 0 ? (
+          <div className="rounded-2xl p-5 text-center text-xs text-muted-foreground" style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}>No items available right now</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {starProducts.map((product) => {
               const Icon = product.effectType === 'premium_days' ? Crown : product.effectType === 'turbo_boost' ? Flame : product.effectType === 'energy_refill' ? Zap : product.effectType === 'permanent_multiplier' ? Sparkles : product.effectType === 'badge' ? Award : product.effectType === 'skin' ? Palette : Gem;
               const isPremium = product.effectType === 'premium_days';
               return (
                 <div
                   key={product.id}
-                  className={
-                    isPremium
-                      ? 'bg-card border border-primary/30 rounded-xl p-4 flex items-center justify-between bg-gradient-to-r from-primary/10 to-transparent'
-                      : 'bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between'
-                  }
+                  className="rounded-2xl p-4 flex flex-col items-center text-center relative overflow-hidden"
+                  style={isPremium ? {
+                    background: 'linear-gradient(160deg, rgba(52,211,153,0.12) 0%, rgba(52,211,153,0.03) 100%)',
+                    border: '1px solid rgba(52,211,153,0.25)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.25)',
+                  } : {
+                    background: 'linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.2)',
+                  }}
                 >
-                  <div className="flex items-center gap-3 flex-1 pr-4">
+                  {isPremium && (
+                    <span className="absolute top-2 right-2 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md" style={{
+                      background: 'rgba(52,211,153,0.15)', color: 'hsl(152,76%,55%)', border: '1px solid rgba(52,211,153,0.25)',
+                    }}>VIP</span>
+                  )}
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 relative" style={{
+                    background: 'radial-gradient(circle at 35% 25%, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.04) 100%)',
+                    border: '1px solid rgba(52,211,153,0.15)',
+                    boxShadow: '0 0 16px rgba(52,211,153,0.1)',
+                  }}>
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                      <img src={product.imageUrl} alt={product.title} className="w-9 h-9 rounded-xl object-cover" />
                     ) : (
-                      <Icon className="w-5 h-5 text-primary flex-shrink-0" />
+                      <Icon className="w-6 h-6 text-primary" style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.5))' }} />
                     )}
-                    <div>
-                      <h3 className="font-semibold text-white text-sm">{product.title}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {product.priceStars.toLocaleString()} ⭐{product.description ? ` · ${product.description}` : ''}
-                      </p>
-                    </div>
+                  </div>
+                  <h3 className="font-bold text-white text-sm leading-tight mb-1 line-clamp-1">{product.title}</h3>
+                  {product.description && (
+                    <p className="text-[10px] text-muted-foreground leading-tight mb-2 line-clamp-2 min-h-[24px]">{product.description}</p>
+                  )}
+                  <div className="flex items-center gap-1 mb-3 mt-auto">
+                    <span className="text-sm font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
+                    <span className="text-sm">⭐</span>
                   </div>
                   <button
                     onClick={() => handleBuyWithStars(product.id)}
                     disabled={purchasingProduct === product.id}
-                    className={
-                      isPremium
-                        ? 'min-w-[80px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors'
-                        : 'min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 transition-colors'
-                    }
+                    className="w-full h-9 text-xs font-bold rounded-xl flex items-center justify-center transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={isPremium ? {
+                      background: 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,42%) 100%)',
+                      color: 'hsl(224,71%,4%)',
+                      boxShadow: '0 0 16px rgba(52,211,153,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
+                    } : {
+                      background: 'rgba(52,211,153,0.1)',
+                      color: 'hsl(152,76%,55%)',
+                      border: '1px solid rgba(52,211,153,0.2)',
+                    }}
                   >
                     {purchasingProduct === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : isPremium ? 'Subscribe' : 'Buy'}
                   </button>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </section>
 
       {/* Sponsored Tasks */}
