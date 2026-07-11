@@ -1,2 +1,3 @@
 - [Drizzle CASE param types](drizzle-case-param-types.md) — params wrapped in a SQL CASE bind as text; cast `::int` or you get "integer < text". Only reproduces via the real parameterized endpoint, not psql literals.
 - [Atomic reward credit paths](atomic-reward-credit-paths.md) — server point-credit paths must guard-in-WHERE + check rowCount (no read-then-write) AND bump state.weeklyPoints via creditedStateSql(), or races double-credit / weekly board undercounts.
+- [Vault state-sync authority](vault-state-sync-authority.md) — one-time-reward flags in the state JSONB (e.g. hasClaimedWelcome) must be MONOTONIC (sticky-true) in PUT /vault/me merge, not in PROTECTED_STATE_KEYS, or clients re-claim.

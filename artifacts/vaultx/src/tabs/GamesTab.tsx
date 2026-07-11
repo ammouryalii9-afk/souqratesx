@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
+import { SkinsShop } from '../components/SkinsShop';
 
 type GameState = 'idle' | 'playing' | 'gameover';
 type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
@@ -177,6 +178,10 @@ export const GamesTab = () => {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="px-4 mt-6">
+        <SkinsShop />
       </div>
     </div>
   );

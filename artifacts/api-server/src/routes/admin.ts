@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
-import { and, count, desc, eq, ilike, or, sql, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, sql, gte, lte, inArray } from "drizzle-orm";
 import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable, partnerTasksTable, partnerTaskCompletionsTable } from "@workspace/db";
 import {
   AdminLoginBody,
@@ -275,6 +275,34 @@ router.delete("/admin/users/:telegramId", async (req, res): Promise<void> => {
   await logAdminAction("delete_user", req.params.telegramId);
 
   res.json(DeleteAdminUserResponse.parse({ authenticated: true }));
+});
+
+router.post("/admin/users/bulk-ban", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const body = req.body as { telegramIds?: unknown; ban?: unknown };
+  const ids = Array.isArray(body.telegramIds)
+    ? body.telegramIds.map(String).filter((s) => s.length > 0).slice(0, 500)
+    : [];
+  const ban = body.ban !== false; // default true
+
+  if (ids.length === 0) {
+    res.status(400).json({ error: "No telegramIds provided" });
+    return;
+  }
+
+  const updated = await db
+    .update(vaultUsersTable)
+    .set({ isBanned: ban })
+    .where(inArray(vaultUsersTable.telegramId, ids))
+    .returning({ telegramId: vaultUsersTable.telegramId });
+
+  await logAdminAction(ban ? "bulk_ban" : "bulk_unban", "multiple", { count: updated.length, telegramIds: ids });
+
+  res.json({ ok: true, affected: updated.length, ban });
 });
 
 router.get("/admin/settings", async (req, res): Promise<void> => {

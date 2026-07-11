@@ -48,6 +48,8 @@ export function AdminAntiCheat() {
 
   useEffect(() => { load(); }, []);
 
+  const [bulkBanning, setBulkBanning] = useState(false);
+
   const handleBan = async (telegramId: string) => {
     if (!confirm(`حظر المستخدم ${telegramId}؟`)) return;
     setBanning(telegramId);
@@ -56,6 +58,20 @@ export function AdminAntiCheat() {
       load();
     } catch { /* ignore */ } finally {
       setBanning(null);
+    }
+  };
+
+  const handleBulkBan = async () => {
+    if (!data) return;
+    const ids = data.suspicious.filter((u) => !u.is_banned).map((u) => u.telegram_id);
+    if (ids.length === 0) return;
+    if (!confirm(`حظر ${ids.length} مستخدم مشبوه دفعة واحدة؟`)) return;
+    setBulkBanning(true);
+    try {
+      await adminApi.post("/admin/users/bulk-ban", { telegramIds: ids, ban: true });
+      load();
+    } catch { /* ignore */ } finally {
+      setBulkBanning(false);
     }
   };
 
@@ -82,7 +98,17 @@ export function AdminAntiCheat() {
         <div className="px-4 py-3 border-b border-red-500/10 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-red-400" />
           <span className="text-sm font-bold text-white">مشبوهون — تجاوزوا الحد في 24 ساعة</span>
-          {data && <span className="ml-auto text-xs font-bold text-red-400">{data.suspicious.length}</span>}
+          {data && data.suspicious.some((u) => !u.is_banned) && (
+            <button
+              onClick={handleBulkBan}
+              disabled={bulkBanning}
+              className="ml-auto px-2.5 py-1 rounded-lg text-[10px] font-bold text-red-400 border border-red-500/40 bg-red-500/15 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+              data-testid="button-bulk-ban"
+            >
+              {bulkBanning ? "..." : "حظر الكل"}
+            </button>
+          )}
+          {data && !data.suspicious.some((u) => !u.is_banned) && <span className="ml-auto text-xs font-bold text-red-400">{data.suspicious.length}</span>}
         </div>
         <div className="px-4">
           {!data ? (

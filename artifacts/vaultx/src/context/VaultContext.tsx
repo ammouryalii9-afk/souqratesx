@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { initTelegramWebApp, getTelegramInitData } from '../lib/telegram';
+import { initTelegramWebApp, getTelegramInitData, haptic } from '../lib/telegram';
 
 export type PassiveCard = {
   id: string;
@@ -38,6 +38,7 @@ type SyncedState = {
   equippedSkinId?: number | null;
   selectedExchange?: string | null;
   claimedAchievements?: string[];
+  hasClaimedWelcome?: boolean;
 };
 
 export const BADGES: Record<number, { label: string; color: string }> = {
@@ -46,11 +47,11 @@ export const BADGES: Record<number, { label: string; color: string }> = {
   3: { label: 'Legend', color: '#ff4d4d' },
 };
 
-export const SKINS: Record<number, { name: string; accent: string; glow: string }> = {
-  1: { name: 'Classic', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)' },
-  2: { name: 'Neon Blue', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)' },
-  3: { name: 'Emerald', accent: '#34d399', glow: 'rgba(52,211,153,0.35)' },
-  4: { name: 'Royal Purple', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
+export const SKINS: Record<number, { name: string; accent: string; glow: string; price: number }> = {
+  1: { name: 'Classic', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)', price: 0 },
+  2: { name: 'Neon Blue', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)', price: 50000 },
+  3: { name: 'Emerald', accent: '#34d399', glow: 'rgba(52,211,153,0.35)', price: 150000 },
+  4: { name: 'Royal Purple', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)', price: 500000 },
 };
 
 type VaultContextType = {
@@ -83,9 +84,12 @@ type VaultContextType = {
   equippedSkinId: number | null;
   selectedExchange: string | null;
   claimedAchievements: string[];
+  hasClaimedWelcome: boolean;
+  claimWelcomeReward: () => void;
   isPremium: boolean;
   equipBadge: (badgeId: number | null) => void;
   equipSkin: (skinId: number | null) => void;
+  buySkin: (skinId: number) => boolean;
   setSelectedExchange: (id: string | null) => void;
   addClaimedAchievement: (id: string) => void;
 
@@ -186,6 +190,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [claimedAchievements, setClaimedAchievements] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('claimedAchievements') || '[]'); } catch { return []; }
   });
+  const [hasClaimedWelcome, setHasClaimedWelcome] = useState<boolean>(() => localStorage.getItem('hasClaimedWelcome') === 'true');
   const [isPremium, setIsPremium] = useState(false);
 
   const hasHydratedFromServer = useRef(false);
@@ -250,6 +255,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setEquippedSkinId(typeof state.equippedSkinId === 'number' ? state.equippedSkinId : null);
         if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
         if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
+        setHasClaimedWelcome(!!state.hasClaimedWelcome);
         setIsPremium(!!data.user.isPremium);
       })
       .catch((err) => {
@@ -294,7 +300,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('equippedSkinId', equippedSkinId === null ? '' : equippedSkinId.toString());
     localStorage.setItem('selectedExchange', selectedExchange ?? '');
     localStorage.setItem('claimedAchievements', JSON.stringify(claimedAchievements));
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements]);
+    localStorage.setItem('hasClaimedWelcome', hasClaimedWelcome ? 'true' : 'false');
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -323,6 +330,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         equippedSkinId,
         selectedExchange,
         claimedAchievements,
+        hasClaimedWelcome,
       };
       apiFetch('/vault/me', {
         method: 'PUT',
@@ -332,7 +340,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements]);
+  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -417,6 +425,21 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const equipSkin = (skinId: number | null) => {
     if (skinId !== null && !ownedSkinIds.includes(skinId)) return;
     setEquippedSkinId(skinId);
+  };
+
+  const buySkin = (skinId: number): boolean => {
+    if (isHydrationPending()) return false;
+    const skin = SKINS[skinId];
+    if (!skin) return false;
+    if (ownedSkinIds.includes(skinId)) {
+      setEquippedSkinId(skinId);
+      return true;
+    }
+    if (tempMiningPoints < skin.price) return false;
+    setTempMiningPoints(prev => prev - skin.price);
+    setOwnedSkinIds(prev => (prev.includes(skinId) ? prev : [...prev, skinId]));
+    setEquippedSkinId(skinId);
+    return true;
   };
 
   const claimEarnings = () => {
@@ -530,6 +553,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTempMiningPoints(p => p + n);
   };
 
+  const WELCOME_REWARD = 5000;
+  const claimWelcomeReward = () => {
+    if (isHydrationPending() || hasClaimedWelcome) return;
+    setHasClaimedWelcome(true);
+    setLifetimePoints(p => p + WELCOME_REWARD);
+    setTempMiningPoints(p => p + WELCOME_REWARD);
+    haptic('success');
+  };
+
   // Pulls the latest server state and overwrites local values. Used after a
   // Telegram Stars purchase (e.g. energy refill, boost) is applied server-side
   // by the webhook, so the effect shows up immediately instead of getting
@@ -570,6 +602,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTurboExpiresAt(activeTurboFromServer ? turboExpiresAtFromServer : 0);
       if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
       if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
+      setHasClaimedWelcome(!!state.hasClaimedWelcome);
       setIsPremium(!!data.user.isPremium);
     } catch (err) {
       console.error('Failed to refresh state from server', err);
@@ -609,9 +642,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         equippedSkinId,
         selectedExchange,
         claimedAchievements,
+        hasClaimedWelcome,
+        claimWelcomeReward,
         isPremium,
         equipBadge,
         equipSkin,
+        buySkin,
         setSelectedExchange,
         addClaimedAchievement: (id: string) => setClaimedAchievements((prev) => prev.includes(id) ? prev : [...prev, id]),
         setTotalBalanceUSD,

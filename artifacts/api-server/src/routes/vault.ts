@@ -136,6 +136,14 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     else delete mergedState[k];
   }
 
+  // One-time welcome reward flag is monotonic: once true on the server it can
+  // never be flipped back to false by a stale/tampered client, but the first
+  // legitimate claim (false -> true) is still accepted. Prevents re-claiming
+  // the welcome bonus across devices/sessions.
+  if (existingState["hasClaimedWelcome"] === true) {
+    mergedState["hasClaimedWelcome"] = true;
+  }
+
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
   const wk = weekKey();
   const prevWeekly = existingState["weekKey"] === wk ? num(existingState["weeklyPoints"]) : 0;
