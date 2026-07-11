@@ -1,5 +1,64 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "te6vP1OpWAChD-Bon6qlq"
+uri = "file://artifacts/vaultx/src/assets/vault-chest.png"
+type = "image"
+title = "vault chest"
+
+[[generated]]
+id = "n-zakVcEl-f3_s9K4HlO2"
+uri = "file://artifacts/vaultx/src/assets/game-speed-tap.png"
+type = "image"
+title = "speed tap icon"
+
+[[generated]]
+id = "OpQ7OOYpXYAHKLCMCwVOr"
+uri = "file://artifacts/vaultx/src/assets/game-memory-match.png"
+type = "image"
+title = "memory match icon"
+
+[[generated]]
+id = "egtzTRt02xGZUvpcagMXv"
+uri = "file://artifacts/vaultx/src/assets/game-lucky-wheel.png"
+type = "image"
+title = "lucky wheel icon"
+
+[[generated]]
+id = "Q985ALAtUnPDGDHj3U1HD"
+uri = "file://artifacts/vaultx/src/assets/game-mining-rig.png"
+type = "image"
+title = "mining rig icon"
+
+[[generated]]
+id = "NTIO8q2OfYmM11AlV_TPo"
+uri = "file://artifacts/vaultx/src/assets/game-solar-farm.png"
+type = "image"
+title = "solar farm icon"
+
+[[generated]]
+id = "M_-BugGLiAM-yCzh3kRBo"
+uri = "file://artifacts/vaultx/src/assets/game-wind-turbine.png"
+type = "image"
+title = "wind turbine icon"
+
+[[generated]]
+id = "e6uwk8Ct93txSMnYhQVVH"
+uri = "file://artifacts/vaultx/src/assets/game-data-center.png"
+type = "image"
+title = "data center icon"
+
+[[generated]]
+id = "SB_-aGLha1dUXI9U8640b"
+uri = "file://artifacts/vaultx/src/assets/game-quantum-chip.png"
+type = "image"
+title = "quantum chip icon"
+
+[[generated]]
+id = "GsZjqWNmrkO9yhL0FLg5I"
+uri = "file://artifacts/vaultx/src/assets/game-black-hole.png"
+type = "image"
+title = "black hole icon"
 
 [[outputs]]
 id = "U5usUwC8l_agnUGAlhf2d"

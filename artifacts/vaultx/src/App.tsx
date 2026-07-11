@@ -8,7 +8,7 @@ import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
-import { Hexagon } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 import { getPublicConfig } from "./lib/gameApi";
 
 function Header() {
@@ -17,37 +17,31 @@ function Header() {
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shadow-[0_0_20px_rgba(52,211,153,0.3)] border border-primary/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/20 animate-pulse mix-blend-overlay"></div>
-          <Hexagon className="w-5 h-5 text-primary-foreground fill-current" />
+    <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
+      <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+        <Menu className="w-6 h-6 text-white" />
+      </button>
+      
+      <div className="flex flex-col items-center justify-center relative">
+        <div className="flex items-center gap-0.5 text-2xl tracking-tighter leading-none italic drop-shadow-[0_0_15px_rgba(245,197,24,0.3)]">
+          <span className="font-black" style={{ color: "var(--glow-green)", textShadow: "0 0 10px var(--glow-green)" }}>S</span>
+          <span className="font-black text-primary" style={{ textShadow: "0 0 10px var(--primary)" }}>X</span>
         </div>
-        <div className="flex flex-col">
-          <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
-          <div className="flex gap-1 mt-1">
+        <div className="flex gap-1 mt-1">
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
+            {league.name}
+          </span>
+          {badge && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
-              {league.name}
+              {badge.label}
             </span>
-            {badge && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
-                {badge.label}
-              </span>
-            )}
-          </div>
+          )}
         </div>
       </div>
-      <div className="bg-card px-4 py-2 rounded-2xl border border-white/10 shadow-inner flex flex-col items-end justify-center relative overflow-hidden group">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Balance</span>
-          <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${totalBalanceUSD.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-1 mt-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-          <span className="text-[11px] text-primary font-bold tabular-nums tracking-wide">+{profitPerHour}/hr</span>
-        </div>
-      </div>
+      
+      <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+        <Settings className="w-6 h-6 text-white" />
+      </button>
     </header>
   );
 }
