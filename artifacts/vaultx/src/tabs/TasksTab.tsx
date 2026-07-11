@@ -291,7 +291,11 @@ export const TasksTab = () => {
   const spinWheelGradient = SPIN_SEGMENTS.map((s, i) => {
     const start = (i * 360) / SPIN_SEGMENTS.length;
     const end = ((i + 1) * 360) / SPIN_SEGMENTS.length;
-    const color = s === 10000 ? '#f5c518' : i % 2 === 0 ? '#1f1f1f' : '#2a2a2a';
+    const color = s === 10000
+      ? 'hsl(152, 76%, 45%)'
+      : i % 2 === 0
+        ? 'hsl(224, 45%, 11%)'
+        : 'hsl(224, 40%, 8%)';
     return `${color} ${start}deg ${end}deg`;
   }).join(', ');
   
@@ -519,42 +523,107 @@ export const TasksTab = () => {
           <Disc3 className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold text-white">Daily Spin</h2>
         </div>
-        <div className="bg-card border border-white/5 rounded-xl p-6 flex flex-col items-center overflow-hidden">
-          <div className="relative w-48 h-48 mb-6">
-            {/* Wheel */}
-            <div 
-              className="w-full h-full rounded-full border-4 border-white/10 shadow-2xl transition-transform ease-[cubic-bezier(0.1,0.7,0.1,1)]"
-              style={{
-                background: `conic-gradient(${spinWheelGradient})`,
-                transform: `rotate(${spinRotation}deg)`,
-                transitionDuration: isSpinning ? '3s' : '0s'
-              }}
-            >
-              {SPIN_SEGMENTS.map((reward, i) => {
-                const rotation = (i * 360) / SPIN_SEGMENTS.length + (180 / SPIN_SEGMENTS.length);
-                return (
-                  <div 
-                    key={i}
-                    className="absolute w-full h-full flex justify-center items-start pt-2 font-bold text-xs"
-                    style={{ transform: `rotate(${rotation}deg)` }}
-                  >
-                    <span className={`origin-bottom ${reward === 10000 ? 'text-black' : 'text-white/80'}`}>
-                      {reward >= 1000 ? `${reward/1000}k` : reward}
-                    </span>
-                  </div>
-                );
-              })}
+        <div className="rounded-[28px] p-6 flex flex-col items-center overflow-hidden relative" style={{
+          background: 'linear-gradient(135deg, rgba(52,211,153,0.06) 0%, rgba(52,211,153,0.02) 60%, transparent 100%)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          border: '1px solid rgba(52,211,153,0.1)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 32px 64px rgba(0,0,0,0.4)',
+        }}>
+          <div className="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-[60px] -mr-10 -mt-10 pointer-events-none" />
+
+          <div className="relative w-52 h-52 mb-7">
+            {/* Ambient glow behind wheel */}
+            <div className="absolute inset-0 rounded-full" style={{
+              background: 'radial-gradient(circle, rgba(52,211,153,0.18) 0%, transparent 70%)',
+              filter: 'blur(14px)',
+              animation: isSpinning ? 'vaultPulse 1.5s ease-in-out infinite' : 'none',
+            }} />
+
+            {/* Outer bezel ring */}
+            <div className="absolute inset-0 rounded-full" style={{
+              background: 'conic-gradient(from 0deg, rgba(52,211,153,0.4), rgba(52,211,153,0.05), rgba(52,211,153,0.4), rgba(52,211,153,0.05), rgba(52,211,153,0.4))',
+              padding: '3px',
+              boxShadow: '0 0 30px rgba(52,211,153,0.15), inset 0 0 20px rgba(0,0,0,0.5)',
+            }}>
+              {/* Wheel */}
+              <div
+                className="w-full h-full rounded-full transition-transform ease-[cubic-bezier(0.1,0.7,0.1,1)] relative"
+                style={{
+                  background: `conic-gradient(${spinWheelGradient})`,
+                  transform: `rotate(${spinRotation}deg)`,
+                  transitionDuration: isSpinning ? '3s' : '0s',
+                  boxShadow: 'inset 0 0 24px rgba(0,0,0,0.6)',
+                }}
+              >
+                {/* Segment divider lines */}
+                {SPIN_SEGMENTS.map((_, i) => {
+                  const angle = (i * 360) / SPIN_SEGMENTS.length;
+                  return (
+                    <div
+                      key={`line-${i}`}
+                      className="absolute top-1/2 left-1/2 origin-left"
+                      style={{
+                        width: '50%',
+                        height: '1px',
+                        background: 'rgba(52,211,153,0.12)',
+                        transform: `rotate(${angle}deg)`,
+                      }}
+                    />
+                  );
+                })}
+                {SPIN_SEGMENTS.map((reward, i) => {
+                  const rotation = (i * 360) / SPIN_SEGMENTS.length + (180 / SPIN_SEGMENTS.length);
+                  const isJackpot = reward === 10000;
+                  return (
+                    <div
+                      key={i}
+                      className="absolute w-full h-full flex justify-center items-start pt-3 font-black text-xs"
+                      style={{ transform: `rotate(${rotation}deg)` }}
+                    >
+                      <span
+                        className={`origin-bottom tabular-nums ${isJackpot ? 'text-white' : 'text-primary/80'}`}
+                        style={isJackpot ? { textShadow: '0 0 8px rgba(255,255,255,0.6)' } : undefined}
+                      >
+                        {reward >= 1000 ? `${reward / 1000}k` : reward}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            {/* Center Pin / Pointer */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-4 h-6 bg-primary" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-black rounded-full border-2 border-white/20"></div>
+
+            {/* Pointer (top) */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-5 h-7 z-20" style={{
+              background: 'linear-gradient(180deg, hsl(152,76%,60%) 0%, hsl(152,76%,40%) 100%)',
+              clipPath: 'polygon(50% 100%, 0 0, 100% 0)',
+              filter: 'drop-shadow(0 2px 6px rgba(52,211,153,0.6))',
+            }} />
+
+            {/* Center hub */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center z-10" style={{
+              background: 'radial-gradient(circle at 35% 25%, rgba(52,211,153,0.25) 0%, hsl(224,50%,8%) 70%)',
+              border: '1px solid rgba(52,211,153,0.25)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 0 20px rgba(52,211,153,0.25), 0 4px 12px rgba(0,0,0,0.5)',
+            }}>
+              <Disc3 className={`w-6 h-6 text-primary ${isSpinning ? 'animate-spin' : ''}`} style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.6))' }} />
+            </div>
           </div>
-          
-          <button 
+
+          <button
             data-testid="button-spin-wheel"
             onClick={handleSpin}
             disabled={spinHasSpun || isSpinning}
-            className="w-full bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            className="w-full font-bold py-3.5 rounded-2xl transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden"
+            style={spinHasSpun || isSpinning ? {
+              background: 'rgba(255,255,255,0.05)',
+              color: 'rgba(255,255,255,0.5)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            } : {
+              background: 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,42%) 100%)',
+              color: 'hsl(224,71%,4%)',
+              boxShadow: '0 0 24px rgba(52,211,153,0.35), inset 0 1px 0 rgba(255,255,255,0.25)',
+            }}
           >
             {isSpinning ? 'Spinning...' : spinHasSpun ? 'Come back tomorrow' : 'Spin Wheel'}
           </button>
