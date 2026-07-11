@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import { getSessionTelegramId } from "../lib/session";
+import { creditedStateSql } from "../lib/weeklyCredit";
 
 const router: IRouter = Router();
 
@@ -29,8 +30,8 @@ function checkCondition(id: string, user: UserRow, state: Record<string, unknown
   const pts = user.lifetimePoints;
   switch (id) {
     case "first_tap":       return pts > 0;
-    case "rookie":          return pts >= 10000;
-    case "silver":          return pts >= 10000;
+    case "rookie":          return pts >= 5000;
+    case "silver":          return pts >= 25000;
     case "gold":            return pts >= 100000;
     case "millionaire":     return pts >= 1000000;
     case "billionaire":     return pts >= 1000000000;
@@ -87,19 +88,25 @@ router.post("/achievements/claim", async (req, res): Promise<void> => {
     return;
   }
 
-  const newClaimed = [...claimed, achievementId];
-  const newState = { ...state, claimedAchievements: newClaimed };
-
-  const [updated] = await db
+  const idJson = JSON.stringify([achievementId]);
+  // Atomic guard: append the id and credit only if it isn't already present. The second
+  // concurrent writer re-evaluates the WHERE against the committed row and updates 0 rows.
+  const appended = sql`COALESCE(${vaultUsersTable.state}->'claimedAchievements', '[]'::jsonb) || ${idJson}::jsonb`;
+  const updated = await db
     .update(vaultUsersTable)
     .set({
       lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${reward}`,
-      state: newState,
+      state: creditedStateSql(reward, { claimedAchievements: appended }),
     })
-    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .where(and(
+      eq(vaultUsersTable.telegramId, telegramId),
+      sql`NOT (COALESCE(${vaultUsersTable.state}->'claimedAchievements', '[]'::jsonb) @> ${idJson}::jsonb)`,
+    ))
     .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
 
-  res.json({ ok: true, reward, lifetimePoints: updated?.lifetimePoints ?? 0 });
+  if (updated.length === 0) { res.status(409).json({ error: "Already claimed" }); return; }
+
+  res.json({ ok: true, reward, lifetimePoints: updated[0]!.lifetimePoints });
 });
 
 export default router;

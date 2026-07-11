@@ -3,7 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { claimAchievement } from '../lib/achievementsApi';
 import { Lock } from 'lucide-react';
 
-type AchievementDef = {
+export type AchievementDef = {
   id: string;
   title: string;
   desc: string;
@@ -12,7 +12,7 @@ type AchievementDef = {
   check: (s: AchievState) => boolean;
 };
 
-type AchievState = {
+export type AchievState = {
   lifetimePoints: number;
   miningLevel: number;
   profitPerHour: number;
@@ -24,7 +24,7 @@ type AchievState = {
   claimedAchievements: string[];
 };
 
-const ACHIEVEMENTS: AchievementDef[] = [
+export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'first_tap',
     title: 'First Tap',
@@ -36,18 +36,18 @@ const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'rookie',
     title: 'Rookie Miner',
-    desc: 'Earn 10,000 lifetime points',
+    desc: 'Earn 5,000 lifetime points',
     reward: 2000,
     icon: '⛏️',
-    check: (s) => s.lifetimePoints >= 10000,
+    check: (s) => s.lifetimePoints >= 5000,
   },
   {
     id: 'silver',
     title: 'Silver League',
-    desc: 'Reach 10,000 points (Silver)',
+    desc: 'Reach 25,000 points (Silver)',
     reward: 5000,
     icon: '🥈',
-    check: (s) => s.lifetimePoints >= 10000,
+    check: (s) => s.lifetimePoints >= 25000,
   },
   {
     id: 'gold',

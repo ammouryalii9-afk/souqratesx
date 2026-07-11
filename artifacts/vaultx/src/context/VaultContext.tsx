@@ -107,6 +107,7 @@ type VaultContextType = {
   claimFarming: () => void;
   buyPassiveCard: (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => void;
   addLifetimePoints: (n: number) => void;
+  addBonusPoints: (n: number) => void;
   refreshFromServer: () => Promise<void>;
 };
 
@@ -520,6 +521,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTempMiningPoints(p => p + n);
   };
 
+  // Client-side bonus points (e.g. tap combo). Added to both the spendable
+  // balance and lifetime total; the server's maxPointsPerHourCap clamps abuse
+  // on the next debounced sync, same as normal tap-mining.
+  const addBonusPoints = (n: number) => {
+    if (isHydrationPending() || n <= 0) return;
+    setLifetimePoints(p => p + n);
+    setTempMiningPoints(p => p + n);
+  };
+
   // Pulls the latest server state and overwrites local values. Used after a
   // Telegram Stars purchase (e.g. energy refill, boost) is applied server-side
   // by the webhook, so the effect shows up immediately instead of getting
@@ -620,6 +630,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         claimFarming,
         buyPassiveCard,
         addLifetimePoints,
+        addBonusPoints,
         refreshFromServer,
       }}
     >

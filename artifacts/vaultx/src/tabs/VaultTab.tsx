@@ -6,8 +6,9 @@
 // [Telegram Stars & Fragment API] — in-app purchases for premium upgrades
 // [Sentry.io SDK] — error tracking and performance monitoring
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useVault, getLeague, SKINS } from '../context/VaultContext';
+import { getEngageStatus, type EngageStatus } from '../lib/engageApi';
 import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +36,7 @@ export const VaultTab = () => {
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
     rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
-    lifetimePoints, profitPerHour, equippedSkinId
+    lifetimePoints, profitPerHour, equippedSkinId, addBonusPoints
   } = useVault();
 
   const [idCopied, setIdCopied] = useState(false);
@@ -55,6 +56,12 @@ export const VaultTab = () => {
   const [floatingPoints, setFloatingPoints] = useState<FloatingPoint[]>([]);
   const [isTapping, setIsTapping] = useState(false);
 
+  const [event, setEvent] = useState<EngageStatus['event'] | null>(null);
+  const comboRef = useRef({ count: 0, last: 0 });
+  const comboResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [comboMult, setComboMult] = useState(1);
+  const [comboCount, setComboCount] = useState(0);
+
   const [adEnergyProgress, setAdEnergyProgress] = useState(() => Number(localStorage.getItem('adEnergyProgress')) || 0);
   const [adTurboProgress, setAdTurboProgress] = useState(() => Number(localStorage.getItem('adTurboProgress')) || 0);
   const [energyAdLoading, setEnergyAdLoading] = useState(false);
@@ -69,6 +76,7 @@ export const VaultTab = () => {
 
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
+    getEngageStatus().then(s => setEvent(s.event)).catch(() => setEvent(null));
   }, []);
 
   useEffect(() => {
@@ -182,15 +190,42 @@ export const VaultTab = () => {
     const earned = tapMine();
     if (earned > 0) haptic('light');
 
+    const now = Date.now();
+    const c = comboRef.current;
+    if (now - c.last < 600) c.count += 1; else c.count = 1;
+    c.last = now;
+
+    let cm = 1;
+    if (c.count >= 30) cm = 3;
+    else if (c.count >= 15) cm = 2;
+    else if (c.count >= 5) cm = 1.5;
+
+    const evMult = event?.active ? event.multiplier : 1;
+    const totalMult = cm * evMult;
+    if (earned > 0 && totalMult > 1) {
+      const bonus = Math.round(earned * (totalMult - 1));
+      if (bonus > 0) addBonusPoints(bonus);
+    }
+    if (cm >= 1.5) haptic('medium');
+    setComboMult(cm);
+    setComboCount(c.count);
+    if (comboResetRef.current) clearTimeout(comboResetRef.current);
+    comboResetRef.current = setTimeout(() => {
+      comboRef.current.count = 0;
+      setComboMult(1);
+      setComboCount(0);
+    }, 700);
+
     setIsTapping(true);
     setTimeout(() => setIsTapping(false), 120);
 
+    const displayValue = earned > 0 ? Math.round(earned * totalMult) : earned;
     const id = floatId++;
-    setFloatingPoints(prev => [...prev, { id, x, y, value: earned }]);
+    setFloatingPoints(prev => [...prev, { id, x, y, value: displayValue }]);
     setTimeout(() => {
       setFloatingPoints(prev => prev.filter(p => p.id !== id));
     }, 900);
-  }, [energy, tapMine]);
+  }, [energy, tapMine, event, addBonusPoints]);
 
   const runFallbackProgress = () => {
     setClaimProgress(0);
@@ -301,6 +336,19 @@ export const VaultTab = () => {
 
       {/* ── TAP TO MINE CORE ── */}
       <div className="flex flex-col items-center justify-center py-6 relative select-none">
+        {comboMult > 1 && (
+          <div
+            className="mb-2 px-4 py-1.5 rounded-full flex items-center gap-2 animate-in zoom-in-90 duration-150"
+            style={{
+              background: 'linear-gradient(135deg, rgba(251,146,60,0.25), rgba(249,115,22,0.1))',
+              border: '1px solid rgba(251,146,60,0.4)',
+              boxShadow: '0 0 20px rgba(251,146,60,0.25)',
+            }}
+          >
+            <span className="text-sm font-black text-orange-300">🔥 x{comboMult}</span>
+            <span className="text-[10px] font-bold text-orange-200/80 uppercase tracking-wider">Combo {comboCount}</span>
+          </div>
+        )}
         <p className="text-xs text-primary/70 uppercase tracking-widest mb-6 font-semibold animate-pulse">
           {energy > 0 ? 'Tap the Vault to Mine' : 'No Energy — Recharging...'}
         </p>

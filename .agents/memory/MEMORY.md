@@ -1,1 +1,2 @@
 - [Drizzle CASE param types](drizzle-case-param-types.md) — params wrapped in a SQL CASE bind as text; cast `::int` or you get "integer < text". Only reproduces via the real parameterized endpoint, not psql literals.
+- [Atomic reward credit paths](atomic-reward-credit-paths.md) — server point-credit paths must guard-in-WHERE + check rowCount (no read-then-write) AND bump state.weeklyPoints via creditedStateSql(), or races double-credit / weekly board undercounts.

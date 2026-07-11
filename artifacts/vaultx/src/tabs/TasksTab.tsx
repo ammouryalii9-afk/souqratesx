@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { AchievementsSection } from '../components/AchievementsSection';
+import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { showMonetagRewardedAd } from '../lib/monetag';
 import { getTelegramWebApp } from '../lib/telegram';
-
-const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
-
 
 const COMBO_ICONS = [
   { id: 'cpu', icon: Cpu },
@@ -33,8 +31,6 @@ export const TasksTab = () => {
   const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
   const { toast } = useToast();
 
-  const [currentStreak, setCurrentStreak] = useState(() => Number(localStorage.getItem('currentStreak')) || 0);
-  const [lastLoginDate, setLastLoginDate] = useState(() => localStorage.getItem('lastLoginDate') || '');
   const [claimedTasks, setClaimedTasks] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('claimedTasks') || '[]'); } catch { return []; }
   });
@@ -311,10 +307,8 @@ export const TasksTab = () => {
   const [airdropTime, setAirdropTime] = useState({ d: 0, h: 0, m: 0, s: 0 });
 
   useEffect(() => {
-    localStorage.setItem('currentStreak', currentStreak.toString());
-    localStorage.setItem('lastLoginDate', lastLoginDate);
     localStorage.setItem('claimedTasks', JSON.stringify(claimedTasks));
-  }, [currentStreak, lastLoginDate, claimedTasks]);
+  }, [claimedTasks]);
 
   useEffect(() => {
     const target = new Date('2026-10-01T00:00:00Z').getTime();
@@ -330,30 +324,6 @@ export const TasksTab = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const canClaimDaily = lastLoginDate !== todayStr;
-
-  const handleClaimDaily = () => {
-    if (!canClaimDaily) return;
-    
-    let newStreak = currentStreak;
-    if (lastLoginDate) {
-      const lastDate = new Date(lastLoginDate);
-      const today = new Date(todayStr);
-      const diffTime = Math.abs(today.getTime() - lastDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays > 1) newStreak = 0;
-    }
-
-    const reward = DAILY_REWARDS[Math.min(newStreak, 6)];
-    setTempMiningPoints(prev => prev + reward);
-    addLifetimePoints(reward);
-    setCurrentStreak(Math.min(newStreak + 1, 7));
-    setLastLoginDate(todayStr);
-    
-    toast({ title: "Daily Claimed!", description: `+${reward.toLocaleString()} points added.` });
-  };
 
   const handlePartnerTaskAction = async (task: PartnerTask) => {
     const state = partnerTaskStates[task.id] || (task.completed ? 'done' : 'idle');
@@ -460,7 +430,9 @@ export const TasksTab = () => {
 
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
-      
+
+      <EngagementHub />
+
       {/* Daily Cipher */}
       <section>
         <div className="flex justify-between items-center mb-4">
@@ -702,58 +674,6 @@ export const TasksTab = () => {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Daily Streak */}
-      <section>
-        <h2 className="text-xl font-bold text-white mb-4">Daily Check-in</h2>
-        <div className="bg-card border border-white/5 rounded-xl p-4">
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            {DAILY_REWARDS.slice(0, 4).map((reward, i) => {
-              const dayNum = i + 1;
-              const isPast = dayNum <= currentStreak;
-              const isToday = dayNum === currentStreak + 1 && canClaimDaily;
-              
-              return (
-                <div key={dayNum} className={`flex flex-col items-center p-2 rounded-lg border ${isToday ? 'border-primary bg-primary/10' : isPast ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5 bg-white/5'} transition-colors`}>
-                  <span className="text-[10px] text-muted-foreground mb-1">Day {dayNum}</span>
-                  {isPast && !isToday ? (
-                    <Check className="w-5 h-5 text-emerald-500 my-1" />
-                  ) : (
-                    <span className={`text-xs font-bold ${isToday ? 'text-primary' : 'text-white'}`}>{reward > 1000 ? `${reward/1000}k` : reward}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {DAILY_REWARDS.slice(4, 7).map((reward, i) => {
-              const dayNum = i + 5;
-              const isPast = dayNum <= currentStreak;
-              const isToday = dayNum === currentStreak + 1 && canClaimDaily;
-              
-              return (
-                <div key={dayNum} className={`flex flex-col items-center p-2 rounded-lg border ${isToday ? 'border-primary bg-primary/10' : isPast ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-white/5 bg-white/5'}`}>
-                  <span className="text-[10px] text-muted-foreground mb-1">Day {dayNum}</span>
-                  {isPast && !isToday ? (
-                    <Check className="w-5 h-5 text-emerald-500 my-1" />
-                  ) : (
-                    <span className={`text-xs font-bold ${isToday ? 'text-primary' : 'text-white'}`}>{reward/1000}k</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          
-          <button
-            data-testid="button-claim-daily"
-            onClick={handleClaimDaily}
-            disabled={!canClaimDaily}
-            className="w-full mt-4 bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50 disabled:bg-white/10 disabled:text-white/50"
-          >
-            {canClaimDaily ? 'Claim Today\'s Reward' : 'Come back tomorrow'}
-          </button>
         </div>
       </section>
 

@@ -12,6 +12,7 @@ import partnerTasksRouter from "./partnerTasks";
 import achievementsRouter from "./achievements";
 import announcementsRouter from "./announcements";
 import withdrawRouter from "./withdraw";
+import engageRouter from "./engage";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(partnerTasksRouter);
 router.use(achievementsRouter);
 router.use(announcementsRouter);
 router.use(withdrawRouter);
+router.use(engageRouter);
 
 export default router;

@@ -4,6 +4,8 @@ import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
 import { AdBanner } from "./components/AdBanner";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
+import { EventBanner } from "./components/EventBanner";
+import { CelebrationOverlay } from "./components/CelebrationOverlay";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -82,7 +84,9 @@ function MainLayout() {
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
       <Header />
       <AnnouncementBanner isTelegramUser={isTelegramUser} />
-      
+      <EventBanner />
+      <CelebrationOverlay />
+
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0 transition-opacity duration-300">
           {activeTab === 'vault' && <VaultTab />}
