@@ -18,7 +18,7 @@ router.get("/store/products", async (req, res): Promise<void> => {
     .select()
     .from(starProductsTable)
     .where(eq(starProductsTable.isActive, true))
-    .orderBy(starProductsTable.priceStars);
+    .orderBy(starProductsTable.sortOrder, starProductsTable.priceStars);
 
   res.json(
     GetStoreProductsResponse.parse(
@@ -31,6 +31,8 @@ router.get("/store/products", async (req, res): Promise<void> => {
         effectType: row.effectType,
         effectValue: row.effectValue,
         isActive: row.isActive,
+        sortOrder: row.sortOrder,
+        benefitsBullets: row.benefitsBullets,
         createdAt: row.createdAt.toISOString(),
       })),
     ),

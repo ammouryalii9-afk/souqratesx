@@ -50,7 +50,7 @@ export function createMonetagProvider(): EarnProvider {
           or(isNull(vaultUsersTable.lastAdRewardAt), lt(vaultUsersTable.lastAdRewardAt, cooldownCutoff)),
           or(
             sql`${vaultUsersTable.adsWatchedDate} is distinct from ${today}`,
-            lt(vaultUsersTable.adsWatchedToday, config.dailyCap),
+            sql`${vaultUsersTable.adsWatchedToday} < case when ${vaultUsersTable.isPremium} and (${vaultUsersTable.premiumExpiresAt} is null or ${vaultUsersTable.premiumExpiresAt} > now()) then ${config.dailyCap * 2} else ${config.dailyCap} end`,
           ),
         ),
       )

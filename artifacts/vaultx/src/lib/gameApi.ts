@@ -60,6 +60,8 @@ export type StarProduct = {
   effectType: "points" | "energy_refill" | "turbo_boost" | "premium_days" | "permanent_multiplier" | "badge" | "skin";
   effectValue: number | null;
   isActive: boolean;
+  sortOrder: number;
+  benefitsBullets: string | null;
   createdAt: string;
 };
 

@@ -19,4 +19,7 @@ export interface UpdateStarProductBody {
   /** @nullable */
   effectValue?: number | null;
   isActive?: boolean;
+  sortOrder?: number;
+  /** @nullable */
+  benefitsBullets?: string | null;
 }

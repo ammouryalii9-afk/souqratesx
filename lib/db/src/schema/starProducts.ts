@@ -7,6 +7,10 @@ import { z } from "zod/v4";
  * determines what happens server-side (in the successful_payment webhook) when
  * a purchase completes; `effectValue` is a generic numeric parameter whose
  * meaning depends on `effectType` (see applyStarProductEffect in the API server).
+ *
+ * `sortOrder` controls display order in the store (lower = first).
+ * `benefitsBullets` is a newline-separated list of bullet points shown in the
+ * confirmation modal before the user confirms purchase.
  */
 export const starProductEffectTypes = [
   "points",
@@ -27,6 +31,8 @@ export const starProductsTable = pgTable("star_products", {
   effectType: text("effect_type", { enum: starProductEffectTypes }).notNull(),
   effectValue: integer("effect_value"),
   isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  benefitsBullets: text("benefits_bullets"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

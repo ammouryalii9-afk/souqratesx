@@ -18,4 +18,7 @@ export interface CreateStarProductBody {
   effectType: CreateStarProductBodyEffectType;
   /** @nullable */
   effectValue?: number | null;
+  sortOrder?: number;
+  /** @nullable */
+  benefitsBullets?: string | null;
 }

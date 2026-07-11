@@ -586,6 +586,8 @@ function toStarProduct(row: typeof starProductsTable.$inferSelect) {
     effectType: row.effectType,
     effectValue: row.effectValue,
     isActive: row.isActive,
+    sortOrder: row.sortOrder,
+    benefitsBullets: row.benefitsBullets,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -612,6 +614,7 @@ router.post("/admin/star-products", async (req, res): Promise<void> => {
     return;
   }
 
+  const body = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null };
   const [product] = await db
     .insert(starProductsTable)
     .values({
@@ -621,6 +624,8 @@ router.post("/admin/star-products", async (req, res): Promise<void> => {
       priceStars: parsed.data.priceStars,
       effectType: parsed.data.effectType,
       effectValue: parsed.data.effectValue ?? null,
+      sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : 0,
+      benefitsBullets: body.benefitsBullets ?? null,
     })
     .returning();
 
@@ -652,6 +657,7 @@ router.patch("/admin/star-products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const patchBody = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null };
   const patch: Partial<typeof starProductsTable.$inferInsert> = {};
   if (parsed.data.title !== undefined) patch.title = parsed.data.title;
   if (parsed.data.description !== undefined) patch.description = parsed.data.description;
@@ -660,6 +666,8 @@ router.patch("/admin/star-products/:id", async (req, res): Promise<void> => {
   if (parsed.data.effectType !== undefined) patch.effectType = parsed.data.effectType;
   if (parsed.data.effectValue !== undefined) patch.effectValue = parsed.data.effectValue;
   if (parsed.data.isActive !== undefined) patch.isActive = parsed.data.isActive;
+  if (patchBody.sortOrder !== undefined) patch.sortOrder = patchBody.sortOrder;
+  if (patchBody.benefitsBullets !== undefined) patch.benefitsBullets = patchBody.benefitsBullets;
 
   const [product] = await db.update(starProductsTable).set(patch).where(eq(starProductsTable.id, id)).returning();
   if (!product) {

@@ -451,6 +451,8 @@ export const GetAdminStarProductsResponseItem = zod.object({
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
+  "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 export const GetAdminStarProductsResponse = zod.array(GetAdminStarProductsResponseItem)
@@ -468,7 +470,9 @@ export const CreateAdminStarProductBody = zod.object({
   "imageUrl": zod.string().nullish(),
   "priceStars": zod.number().min(1),
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
-  "effectValue": zod.number().nullish()
+  "effectValue": zod.number().nullish(),
+  "sortOrder": zod.number().optional(),
+  "benefitsBullets": zod.string().nullish()
 })
 
 export const CreateAdminStarProductResponse = zod.object({
@@ -480,6 +484,8 @@ export const CreateAdminStarProductResponse = zod.object({
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
+  "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 
@@ -501,7 +507,9 @@ export const UpdateAdminStarProductBody = zod.object({
   "priceStars": zod.number().min(1).optional(),
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']).optional(),
   "effectValue": zod.number().nullish(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "sortOrder": zod.number().optional(),
+  "benefitsBullets": zod.string().nullish()
 })
 
 export const UpdateAdminStarProductResponse = zod.object({
@@ -513,6 +521,8 @@ export const UpdateAdminStarProductResponse = zod.object({
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
+  "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 
@@ -541,6 +551,8 @@ export const GetStoreProductsResponseItem = zod.object({
   "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
+  "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 export const GetStoreProductsResponse = zod.array(GetStoreProductsResponseItem)

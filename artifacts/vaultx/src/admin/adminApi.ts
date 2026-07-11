@@ -164,6 +164,8 @@ export type StarProduct = {
   effectType: StarProductEffectType;
   effectValue: number | null;
   isActive: boolean;
+  sortOrder: number;
+  benefitsBullets: string | null;
   createdAt: string;
 };
 
@@ -174,6 +176,8 @@ export type CreateStarProductInput = {
   priceStars: number;
   effectType: StarProductEffectType;
   effectValue?: number | null;
+  sortOrder?: number;
+  benefitsBullets?: string | null;
 };
 
 export type UpdateStarProductInput = Partial<{
@@ -184,6 +188,8 @@ export type UpdateStarProductInput = Partial<{
   effectType: StarProductEffectType;
   effectValue: number | null;
   isActive: boolean;
+  sortOrder: number;
+  benefitsBullets: string | null;
 }>;
 
 // ─── Analytics types ──────────────────────────────────────────────────────────

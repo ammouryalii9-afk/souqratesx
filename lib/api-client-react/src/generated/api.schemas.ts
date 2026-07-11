@@ -326,6 +326,13 @@ export interface StarProduct {
      */
   effectValue: number | null;
   isActive: boolean;
+  /** Display order — lower numbers appear first in the store. */
+  sortOrder: number;
+  /**
+     * Newline-separated list of benefit bullet points shown in the purchase confirmation modal.
+     * @nullable
+     */
+  benefitsBullets: string | null;
   createdAt: string;
 }
 
@@ -355,6 +362,9 @@ export interface CreateStarProductBody {
   effectType: CreateStarProductBodyEffectType;
   /** @nullable */
   effectValue?: number | null;
+  sortOrder?: number;
+  /** @nullable */
+  benefitsBullets?: string | null;
 }
 
 export type UpdateStarProductBodyEffectType = typeof UpdateStarProductBodyEffectType[keyof typeof UpdateStarProductBodyEffectType];
@@ -382,6 +392,9 @@ export interface UpdateStarProductBody {
   /** @nullable */
   effectValue?: number | null;
   isActive?: boolean;
+  sortOrder?: number;
+  /** @nullable */
+  benefitsBullets?: string | null;
 }
 
 /**

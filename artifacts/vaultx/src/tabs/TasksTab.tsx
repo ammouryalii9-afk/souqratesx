@@ -47,6 +47,7 @@ export const TasksTab = () => {
   const [monetagLoading, setMonetagLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
   const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
+  const [confirmProduct, setConfirmProduct] = useState<StarProduct | null>(null);
 
   const [sponsoredAds, setSponsoredAds] = useState<SponsoredAdTask[]>([]);
   const [claimingAdId, setClaimingAdId] = useState<number | null>(null);
@@ -180,19 +181,25 @@ export const TasksTab = () => {
     window.open(url, '_blank');
   };
 
-  const handleBuyWithStars = async (productId: number) => {
+  const handleBuyWithStars = (productId: number) => {
     if (purchasingProduct) return;
-    setPurchasingProduct(productId);
+    const product = starProducts.find(p => p.id === productId);
+    if (!product) return;
+    setConfirmProduct(product);
+  };
+
+  const handleConfirmPurchase = async () => {
+    if (!confirmProduct || purchasingProduct) return;
+    const product = confirmProduct;
+    setConfirmProduct(null);
+    setPurchasingProduct(product.id);
     try {
-      const { invoiceUrl } = await createStarsInvoice(productId);
+      const { invoiceUrl } = await createStarsInvoice(product.id);
       const webApp = getTelegramWebApp();
       if (webApp?.openInvoice) {
         webApp.openInvoice(invoiceUrl, (status) => {
           if (status === 'paid') {
             toast({ title: 'Purchase complete!', description: 'Thank you — your purchase was applied.' });
-            // The webhook applies the purchase server-side; give it a moment to
-            // land, then pull fresh state so the effect (energy/boost) shows up
-            // immediately instead of waiting for the next autosync.
             setTimeout(() => {
               refreshFromServer();
             }, 1500);
@@ -1033,6 +1040,81 @@ export const TasksTab = () => {
             })}
           </div>
         </section>
+      )}
+
+      {/* Stars Purchase Confirmation Modal */}
+      {confirmProduct && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center p-4 pb-6">
+          <div
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(180deg, hsl(224,71%,8%) 0%, hsl(224,71%,4%) 100%)',
+              border: '1px solid rgba(52,211,153,0.2)',
+              boxShadow: '0 -8px 40px rgba(52,211,153,0.08)',
+            }}
+          >
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-white/5">
+              <div className="flex items-center gap-3 mb-1">
+                {confirmProduct.imageUrl ? (
+                  <img src={confirmProduct.imageUrl} alt={confirmProduct.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                    <Star className="w-6 h-6 text-primary" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-white text-base leading-tight">{confirmProduct.title}</h3>
+                  {confirmProduct.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{confirmProduct.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 mt-3">
+                <span className="text-2xl font-black text-white tabular-nums">{confirmProduct.priceStars.toLocaleString()}</span>
+                <span className="text-xl">⭐</span>
+                <span className="text-sm text-muted-foreground ml-1">Telegram Stars</span>
+              </div>
+            </div>
+
+            {/* Benefits */}
+            {confirmProduct.benefitsBullets && (
+              <div className="px-6 py-4 border-b border-white/5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">What you get</p>
+                <ul className="flex flex-col gap-2">
+                  {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-white/90 leading-snug">
+                      <span className="text-primary flex-shrink-0 mt-px">•</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="px-6 py-4 flex flex-col gap-2">
+              <button
+                onClick={handleConfirmPurchase}
+                disabled={!!purchasingProduct}
+                className="w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,42%) 100%)',
+                  color: 'hsl(224,71%,4%)',
+                  boxShadow: '0 0 20px rgba(52,211,153,0.3)',
+                }}
+              >
+                {purchasingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Confirm &amp; Pay ⭐ {confirmProduct.priceStars.toLocaleString()}</>}
+              </button>
+              <button
+                onClick={() => setConfirmProduct(null)}
+                className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Survey Modal */}

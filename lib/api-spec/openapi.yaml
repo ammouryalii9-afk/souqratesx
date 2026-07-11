@@ -1493,6 +1493,12 @@ components:
           description: "Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill."
         isActive:
           type: boolean
+        sortOrder:
+          type: integer
+          description: "Display order — lower numbers appear first in the store."
+        benefitsBullets:
+          type: ["string", "null"]
+          description: "Newline-separated list of benefit bullet points shown in the purchase confirmation modal."
         createdAt:
           type: string
       required:
@@ -1504,6 +1510,8 @@ components:
         - effectType
         - effectValue
         - isActive
+        - sortOrder
+        - benefitsBullets
         - createdAt
     StarProductList:
       type: array
@@ -1526,6 +1534,10 @@ components:
           enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
         effectValue:
           type: ["integer", "null"]
+        sortOrder:
+          type: integer
+        benefitsBullets:
+          type: ["string", "null"]
       required:
         - title
         - priceStars
@@ -1549,6 +1561,10 @@ components:
           type: ["integer", "null"]
         isActive:
           type: boolean
+        sortOrder:
+          type: integer
+        benefitsBullets:
+          type: ["string", "null"]
     TelegramWebhookUpdate:
       type: object
       description: Raw Telegram Bot API Update object
