@@ -12,10 +12,11 @@ import { AdminAntiCheat } from "./AdminAntiCheat";
 import { AdminProviderReports } from "./AdminProviderReports";
 import { AdminPartnerTasks } from "./AdminPartnerTasks";
 import { AdminAnnouncements } from "./AdminAnnouncements";
+import { AdminWithdrawals } from "./AdminWithdrawals";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -36,6 +37,7 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "star-store",     label: "متجر النجوم",    icon: <Star className="w-4 h-4" /> },
       { id: "partner-tasks",   label: "مهام الشركاء",   icon: <ListTodo className="w-4 h-4" /> },
       { id: "announcements",   label: "الإشعارات",      icon: <Bell className="w-4 h-4" /> },
+      { id: "withdrawals",     label: "السحوبات",       icon: <ArrowDownToLine className="w-4 h-4" /> },
       { id: "settings",        label: "الإعدادات",      icon: <SettingsIcon className="w-4 h-4" /> },
       { id: "log",        label: "السجل",         icon: <ScrollText className="w-4 h-4" /> },
     ],
@@ -111,6 +113,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "star-store"    && <AdminStarStore />}
         {tab === "partner-tasks"  && <AdminPartnerTasks />}
         {tab === "announcements"  && <AdminAnnouncements />}
+        {tab === "withdrawals"    && <AdminWithdrawals />}
         {tab === "settings"       && <AdminSettings />}
         {tab === "log"        && <AdminAuditLog />}
       </main>

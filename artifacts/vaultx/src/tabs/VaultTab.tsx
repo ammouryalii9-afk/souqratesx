@@ -9,6 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useVault, getLeague, SKINS } from '../context/VaultContext';
 import { ExchangeSelector } from '../components/ExchangeSelector';
+import { WithdrawModal } from '../components/WithdrawModal';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check } from 'lucide-react';
@@ -162,12 +163,7 @@ export const VaultTab = () => {
   const isCapped = tempMiningPoints >= idleCap;
   const pointsPerTap = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
 
-  const handleWithdraw = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Withdrawal integration coming soon - Binance Pay gateway",
-    });
-  };
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   const handleTap = useCallback((e: React.MouseEvent<HTMLButtonElement> | React.TouchEvent<HTMLButtonElement>) => {
     if (energy <= 0) return;
@@ -264,7 +260,7 @@ export const VaultTab = () => {
         <div className="flex items-center gap-3 relative z-10 w-full">
           <button
             data-testid="button-withdraw"
-            onClick={handleWithdraw}
+            onClick={() => setShowWithdraw(true)}
             className="flex-1 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/40 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] shadow-inner"
           >
             Withdraw
@@ -564,6 +560,8 @@ export const VaultTab = () => {
           100% { opacity: 0; transform: translate(25px, 25px) scale(0); }
         }
       `}</style>
+
+      {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
     </div>
   );
 };
