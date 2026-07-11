@@ -5,8 +5,7 @@ import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
-import { showAdsgramRewardedAd } from '../lib/adsgram';
-import { showMonetagRewardedAd } from '../lib/monetag';
+import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp } from '../lib/telegram';
 
 const COMBO_ICONS = [
@@ -124,11 +123,13 @@ export const TasksTab = () => {
   };
 
   const handleWatchAd = async () => {
-    if (!config?.adsgram.enabled || !config.adsgram.blockId || adLoading) return;
+    const hasAny = (config?.adsgram.enabled && config.adsgram.blockId) ||
+                   (config?.monetag.enabled && config.monetag.zoneId);
+    if (!hasAny || adLoading) return;
     setAdLoading(true);
     try {
-      await showAdsgramRewardedAd(config.adsgram.blockId);
-      const result = await claimAdsgramReward();
+      const provider = await watchRewardedAdWithFallback(config);
+      const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimMonetagReward();
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
@@ -142,6 +143,7 @@ export const TasksTab = () => {
     if (!config?.adsgram.enabled || !config.adsgram.bannerBlockId || bannerAdLoading) return;
     setBannerAdLoading(true);
     try {
+      const { showAdsgramRewardedAd } = await import('../lib/adsgram');
       await showAdsgramRewardedAd(config.adsgram.bannerBlockId);
       const result = await claimAdsgramReward();
       addLifetimePoints(result.creditedPoints);
@@ -157,6 +159,7 @@ export const TasksTab = () => {
     if (!config?.monetag.enabled || !config.monetag.zoneId || monetagLoading) return;
     setMonetagLoading(true);
     try {
+      const { showMonetagRewardedAd } = await import('../lib/monetag');
       await showMonetagRewardedAd(config.monetag.zoneId);
       const result = await claimMonetagReward();
       addLifetimePoints(result.creditedPoints);

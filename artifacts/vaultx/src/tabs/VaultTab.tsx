@@ -17,8 +17,7 @@ import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout,
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
-import { showAdsgramRewardedAd } from '../lib/adsgram';
-import { showMonetagRewardedAd } from '../lib/monetag';
+import { watchRewardedAdWithFallback } from '../lib/adFallback';
 
 interface FloatingPoint {
   id: number;
@@ -88,13 +87,7 @@ export const VaultTab = () => {
   }, [adTurboProgress]);
 
   const watchRewardedAd = async () => {
-    if (config?.adsgram.enabled && config.adsgram.blockId) {
-      await showAdsgramRewardedAd(config.adsgram.blockId);
-    } else if (config?.monetag.enabled && config.monetag.zoneId) {
-      await showMonetagRewardedAd(config.monetag.zoneId);
-    } else {
-      throw new Error('No ad provider is available right now');
-    }
+    await watchRewardedAdWithFallback(config);
   };
 
   const handleWatchAdForEnergy = async () => {
@@ -251,20 +244,16 @@ export const VaultTab = () => {
     setIsClaiming(true);
     setClaimProgress(0);
 
-    const useAdsgram = config?.adsgram.enabled && config.adsgram.blockId;
-    const useMonetag = !useAdsgram && config?.monetag.enabled && config.monetag.zoneId;
+    const hasAnyAd = (config?.adsgram.enabled && config.adsgram.blockId) ||
+                     (config?.monetag.enabled && config.monetag.zoneId);
 
-    if (!useAdsgram && !useMonetag) {
+    if (!hasAnyAd) {
       runFallbackProgress();
       return;
     }
 
     try {
-      if (useAdsgram) {
-        await showAdsgramRewardedAd(config!.adsgram.blockId as string);
-      } else if (useMonetag) {
-        await showMonetagRewardedAd(config!.monetag.zoneId as string);
-      }
+      await watchRewardedAdWithFallback(config);
       setIsClaiming(false);
       claimEarnings();
       toast({ title: "Success!", description: "Earnings transferred to your Vault" });
