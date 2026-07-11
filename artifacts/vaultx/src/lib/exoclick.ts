@@ -27,23 +27,27 @@ function loadExoclickScript(): Promise<void> {
   return scriptPromise;
 }
 
-let insElement: HTMLElement | null = null;
+let initialized = false;
 
-function ensureInsElement(zoneId: string, insClass: string): void {
-  if (insElement) return;
+export async function initExoclick(zoneId: string, insClass: string): Promise<void> {
+  if (initialized) return;
+  initialized = true;
+
+  // 1. Queue the serve command BEFORE the script loads (mirrors ExoClick's recommended tag order)
+  window.AdProvider = window.AdProvider ?? [];
+  window.AdProvider.push({ serve: {} });
+
+  // 2. Insert the <ins> element (no display:none — ExoClick needs to find it)
   const el = document.createElement("ins");
   el.className = insClass;
   el.dataset.zoneid = zoneId;
-  el.style.display = "none";
   document.body.appendChild(el);
-  insElement = el;
-}
 
-export async function initExoclick(zoneId: string, insClass: string): Promise<void> {
-  ensureInsElement(zoneId, insClass);
+  // 3. Load the SDK — it picks up the queued serve command and the <ins> element
   await loadExoclickScript();
 }
 
+/** Call to trigger an additional interstitial (e.g. after a user action). */
 export function showExoclickInterstitial(): void {
   try {
     window.AdProvider = window.AdProvider ?? [];

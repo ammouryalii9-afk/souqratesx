@@ -80,9 +80,7 @@ function MainLayout() {
       .then((config) => {
         setBannerBlockId(config.adsgram.bannerBlockId);
         if (config.exoclick.enabled && config.exoclick.zoneId && config.exoclick.insClass) {
-          initExoclick(config.exoclick.zoneId, config.exoclick.insClass)
-            .then(() => showExoclickInterstitial())
-            .catch(() => {});
+          initExoclick(config.exoclick.zoneId, config.exoclick.insClass).catch(() => {});
         }
       })
       .catch(() => setBannerBlockId(null));
