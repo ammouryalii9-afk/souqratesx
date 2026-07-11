@@ -18,8 +18,9 @@ export const pool = new Pool({
   // Keep connections alive and reuse them — establishing a fresh TLS
   // connection to the remote pooler costs ~1s per query otherwise.
   keepAlive: true,
-  max: 10,
+  max: 25,
   idleTimeoutMillis: 5 * 60 * 1000,
+  connectionTimeoutMillis: 10_000,
 });
 
 // Warm up one connection at boot so the first user request doesn't pay the
