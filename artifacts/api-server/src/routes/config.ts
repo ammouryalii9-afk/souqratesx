@@ -24,8 +24,8 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const cpxresearchAppId = asString(settings.cpxresearchAppId);
   const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
 
-  const defaultTerms = `مرحباً بك في SouqratesX!\n\nبالضغط على "قبول" فإنك توافق على:\n• الاستخدام الشخصي فقط للتطبيق\n• عدم استخدام أي أدوات أو برامج تلاعب\n• أن النقاط المكتسبة قابلة للتحويل وفق الشروط المعلنة\n• حق المنصة في إيقاف أي حساب يثبت تلاعبه\n\nنجمع بياناتك الأساسية (معرّف تيليجرام) لحفظ تقدمك فقط، ولا نشاركها مع أي طرف ثالث.`;
-  const defaultWelcome = `مرحباً بك في SouqratesX ⛏️\n\nاستخرج النقاط، طوّر منجمك، وحوّل جهدك إلى مكافآت حقيقية.`;
+  const defaultTerms = `By tapping "Accept" you agree to:\n• Personal use of the app only\n• No bots, scripts, or cheat tools\n• The platform may suspend accounts found cheating\n• Earned points are redeemable per the published withdrawal terms\n\nWe collect only your Telegram ID to save your progress. We never share it with third parties.`;
+  const defaultWelcome = `Welcome to SouqratesX ⛏️\n\nTap to mine, upgrade your miner, and turn your effort into real rewards.`;
 
   res.json(
     GetPublicConfigResponse.parse({

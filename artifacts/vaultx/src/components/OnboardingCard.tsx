@@ -23,8 +23,8 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
       .finally(() => setLoaded(true));
   }, []);
 
-  const defaultWelcome = "مرحباً بك في SouqratesX ⛏️\n\nاستخرج النقاط، طوّر منجمك، وحوّل جهدك إلى مكافآت حقيقية.";
-  const defaultTerms = `بالضغط على "قبول" فإنك توافق على:\n• الاستخدام الشخصي فقط للتطبيق\n• عدم استخدام أي أدوات أو برامج تلاعب\n• حق المنصة في إيقاف أي حساب يثبت تلاعبه\n• لا نشارك بياناتك مع أطراف ثالثة`;
+  const defaultWelcome = "Welcome to SouqratesX ⛏️\n\nTap to mine, upgrade your miner, and turn your effort into real rewards.";
+  const defaultTerms = `By tapping "Accept" you agree to:\n• Personal use of the app only\n• No bots, scripts, or cheat tools\n• The platform may suspend accounts found cheating\n• We never share your data with third parties`;
 
   const displayWelcome = welcomeText || defaultWelcome;
   const displayTerms = termsText || defaultTerms;
@@ -54,8 +54,8 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
         </div>
 
         <div className="w-full rounded-xl border border-white/10 bg-white/5 p-4 max-h-52 overflow-y-auto">
-          <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">الشروط والأحكام</p>
-          <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed dir-auto">{loaded ? displayTerms : "جارٍ التحميل..."}</p>
+          <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">Terms & Conditions</p>
+          <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed">{loaded ? displayTerms : "Loading..."}</p>
         </div>
 
         <button
@@ -66,11 +66,11 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
             boxShadow: "0 0 24px rgba(52,211,153,0.35), 0 0 48px rgba(212,175,55,0.15)",
           }}
         >
-          ✅ قبول والمتابعة
+          ✅ Accept & Continue
         </button>
 
         <p className="text-[10px] text-muted-foreground/50 text-center">
-          بالضغط على قبول، تؤكد موافقتك على الشروط أعلاه
+          By tapping Accept you confirm your agreement to the terms above
         </p>
       </div>
     </div>
