@@ -98,10 +98,10 @@ export async function sendStartMessage(
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🚀 فتح التطبيق", web_app: { url: webAppUrl } }],
+        [{ text: "🚀 Play Now", web_app: { url: webAppUrl } }],
         [
-          { text: "ℹ️ المساعدة", callback_data: `help:${chatId}` },
-          { text: "📜 سياسة الاستخدام", callback_data: `policy:${chatId}` },
+          { text: "ℹ️ Help", callback_data: `help:${chatId}` },
+          { text: "📜 Terms of Use", callback_data: `policy:${chatId}` },
         ],
       ],
     },

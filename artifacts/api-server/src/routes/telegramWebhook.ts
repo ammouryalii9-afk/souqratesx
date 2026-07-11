@@ -157,23 +157,23 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
       const appUrl = `${proto}://${host}/`;
       const settings = await getSettingsMap();
       const startText = asString(settings.botStartMessage) ||
-        `👋 <b>مرحباً بك في SouqratesX!</b>\n\nاستخرج النقاط، طوّر منجمك، واكسب مكافآت حقيقية.\nتقدمك يُحفظ تلقائياً على جميع أجهزتك.\n\n⚡ اضغط <b>فتح التطبيق</b> للبدء الآن!`;
+        `👋 <b>Welcome to SouqratesX!</b>\n\nTap, mine &amp; earn points — then cash out later.\nYour progress is saved permanently across all devices.\n\n⚡ Tap the button below to start mining now!`;
       const helpText = asString(settings.botHelpText) ||
-        `ℹ️ <b>المساعدة</b>\n\n• انقر على المنجم لكسب النقاط\n• طوّر المنجم لزيادة الإنتاج\n• أكمل المهام اليومية لمضاعفة أرباحك\n• ادعُ أصدقاءك للحصول على مكافآت إضافية\n\nللتواصل مع الدعم: @SouqratesSupport`;
+        `ℹ️ <b>Help</b>\n\n• Tap the miner to earn points\n• Upgrade your miner to boost production\n• Complete daily tasks to multiply your earnings\n• Invite friends to earn referral bonuses\n\nSupport: @SouqratesSupport`;
       const policyText = asString(settings.botPolicyText) ||
-        `📜 <b>سياسة الاستخدام</b>\n\n• الاستخدام الشخصي فقط\n• يُحظر استخدام برامج التلاعب أو الأتمتة\n• تحتفظ المنصة بحق إيقاف الحسابات المخالفة\n• لا نشارك بياناتك مع أطراف ثالثة\n• النقاط المكتسبة قابلة للسحب وفق الشروط المعلنة`;
+        `📜 <b>Terms of Use</b>\n\n• Personal use only\n• Bots, scripts, and automation are strictly prohibited\n• We reserve the right to suspend accounts that violate the rules\n• Your data is never shared with third parties\n• Points are redeemable according to the announced withdrawal terms`;
       await sendStartMessage(update.message.from.id, startText, appUrl, helpText, policyText);
     } else if (update.callback_query?.id && update.callback_query.from?.id) {
       const cq = update.callback_query;
       const settings = await getSettingsMap();
       if (cq.data?.startsWith("help:")) {
         const helpText = asString(settings.botHelpText) ||
-          `ℹ️ <b>المساعدة</b>\n\n• انقر على المنجم لكسب النقاط\n• طوّر المنجم لزيادة الإنتاج\n• أكمل المهام اليومية لمضاعفة أرباحك\n• ادعُ أصدقاءك للحصول على مكافآت إضافية\n\nللتواصل مع الدعم: @SouqratesSupport`;
+          `ℹ️ <b>Help</b>\n\n• Tap the miner to earn points\n• Upgrade your miner to boost production\n• Complete daily tasks to multiply your earnings\n• Invite friends to earn referral bonuses\n\nSupport: @SouqratesSupport`;
         await answerCallbackQuery(cq.id);
         await sendCallbackReply(cq.from.id, helpText);
       } else if (cq.data?.startsWith("policy:")) {
         const policyText = asString(settings.botPolicyText) ||
-          `📜 <b>سياسة الاستخدام</b>\n\n• الاستخدام الشخصي فقط\n• يُحظر استخدام برامج التلاعب أو الأتمتة\n• تحتفظ المنصة بحق إيقاف الحسابات المخالفة\n• لا نشارك بياناتك مع أطراف ثالثة\n• النقاط المكتسبة قابلة للسحب وفق الشروط المعلنة`;
+          `📜 <b>Terms of Use</b>\n\n• Personal use only\n• Bots, scripts, and automation are strictly prohibited\n• We reserve the right to suspend accounts that violate the rules\n• Your data is never shared with third parties\n• Points are redeemable according to the announced withdrawal terms`;
         await answerCallbackQuery(cq.id);
         await sendCallbackReply(cq.from.id, policyText);
       } else {
