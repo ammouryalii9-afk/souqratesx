@@ -868,7 +868,7 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
     // D1 retention: users who came back the day after signup
     db.execute(sql`
       SELECT
-        count(*)::int FILTER (WHERE u.updated_at >= u.created_at + interval '1 day') AS returned,
+        (count(*) FILTER (WHERE u.updated_at >= u.created_at + interval '1 day'))::int AS returned,
         count(*)::int AS total
       FROM vault_users u
       WHERE u.created_at >= now() - interval '30 days'
@@ -877,7 +877,7 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
     // D7 retention
     db.execute(sql`
       SELECT
-        count(*)::int FILTER (WHERE u.updated_at >= u.created_at + interval '7 days') AS returned,
+        (count(*) FILTER (WHERE u.updated_at >= u.created_at + interval '7 days'))::int AS returned,
         count(*)::int AS total
       FROM vault_users u
       WHERE u.created_at >= now() - interval '37 days'
