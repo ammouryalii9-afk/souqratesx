@@ -25,8 +25,8 @@ function Header() {
           border: '1px solid rgba(52,211,153,0.2)',
         }}>
           <div className="absolute inset-0 bg-primary/20 animate-pulse mix-blend-overlay"></div>
-          <Hexagon className="absolute w-4 h-4 text-primary opacity-30 fill-current" />
-          <Hexagon className="w-5 h-5 text-primary-foreground fill-current relative z-10" />
+          <Hexagon className="absolute w-8 h-8 text-primary/20" />
+          <Hexagon className="w-5 h-5 text-primary relative z-10" style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.6))' }} />
         </div>
         <div className="flex flex-col">
           <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
