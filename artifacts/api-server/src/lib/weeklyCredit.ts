@@ -32,6 +32,10 @@ export function creditedStateSql(reward: number, patches: Record<string, string 
   // fed to to_jsonb (or compared/added) MUST carry an explicit cast.
   expr = sql`jsonb_set(${expr}, '{weeklyPoints}', to_jsonb((CASE WHEN ${S}->>'weekKey' = ${wk}::text THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0) ELSE 0 END) + ${reward}::numeric))`;
   expr = sql`jsonb_set(${expr}, '{weekKey}', to_jsonb(${wk}::text))`;
+  // Reward points must also land in the spendable "Mined" balance (state.tempMiningPoints),
+  // not just lifetimePoints/Total — otherwise refreshFromServer() shows the reward only in the
+  // Total counter and the player can't spend it on upgrades.
+  expr = sql`jsonb_set(${expr}, '{tempMiningPoints}', to_jsonb(COALESCE((${S}->>'tempMiningPoints')::numeric, 0) + ${reward}::numeric))`;
   for (const [key, value] of Object.entries(patches)) {
     const arg: SQL =
       typeof value === "string" ? sql`${value}::text`
