@@ -29,3 +29,4 @@ export * from "./providers";
 export * from "./partnerTasks";
 export * from "./announcements";
 export * from "./withdrawalRequests";
+export * from "./squads";

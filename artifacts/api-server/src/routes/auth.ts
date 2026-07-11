@@ -6,6 +6,7 @@ import { AuthTelegramBody, AuthTelegramResponse } from "@workspace/api-zod";
 import { verifyTelegramInitData } from "../lib/telegramAuth";
 import { setSessionCookie } from "../lib/session";
 import { linkReferrer } from "../lib/referral";
+import { joinSquadOnSignup } from "../lib/squadSignup";
 
 const router: IRouter = Router();
 
@@ -61,7 +62,11 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
       .returning();
 
     if (user) {
-      await linkReferrer(telegramId, startParam);
+      if (startParam?.startsWith("squad_")) {
+        await joinSquadOnSignup(telegramId, startParam);
+      } else {
+        await linkReferrer(telegramId, startParam);
+      }
     }
   }
 

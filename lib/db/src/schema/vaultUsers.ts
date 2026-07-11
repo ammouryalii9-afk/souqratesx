@@ -22,6 +22,8 @@ export const vaultUsersTable = pgTable("vault_users", {
   referrerId: text("referrer_id"),
   referralCount: integer("referral_count").notNull().default(0),
   referralEarnings: integer("referral_earnings").notNull().default(0),
+  squadId: integer("squad_id"),
+  hasClaimedSquadBonus: boolean("has_claimed_squad_bonus").notNull().default(false),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

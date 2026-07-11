@@ -11,6 +11,7 @@ import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
+import { SquadTab } from "./tabs/SquadTab";
 import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
@@ -97,6 +98,7 @@ function MainLayout() {
           {activeTab === 'vault' && <VaultTab />}
           {activeTab === 'games' && <GamesTab />}
           {activeTab === 'tasks' && <TasksTab />}
+          {activeTab === 'squad' && <SquadTab />}
           {activeTab === 'friends' && <FriendsTab />}
         </div>
       </main>

@@ -13,6 +13,7 @@ import achievementsRouter from "./achievements";
 import announcementsRouter from "./announcements";
 import withdrawRouter from "./withdraw";
 import engageRouter from "./engage";
+import squadsRouter from "./squads";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(achievementsRouter);
 router.use(announcementsRouter);
 router.use(withdrawRouter);
 router.use(engageRouter);
+router.use(squadsRouter);
 
 export default router;

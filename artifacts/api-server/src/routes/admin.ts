@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or, sql, gte, lte, inArray } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable, partnerTasksTable, partnerTaskCompletionsTable } from "@workspace/db";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable, partnerTasksTable, partnerTaskCompletionsTable, squadsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -1198,6 +1198,36 @@ router.delete("/admin/partner-tasks/:id", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   await db.delete(partnerTaskCompletionsTable).where(eq(partnerTaskCompletionsTable.taskId, id));
   await db.delete(partnerTasksTable).where(eq(partnerTasksTable.id, id));
+  res.status(204).send();
+});
+
+router.get("/admin/squads", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const rows = await db
+    .select({
+      id: squadsTable.id,
+      name: squadsTable.name,
+      emoji: squadsTable.emoji,
+      ownerId: squadsTable.ownerId,
+      createdAt: squadsTable.createdAt,
+      memberCount: sql<number>`count(${vaultUsersTable.id})::int`,
+      totalPoints: sql<number>`coalesce(sum(${vaultUsersTable.lifetimePoints}), 0)::int`,
+    })
+    .from(squadsTable)
+    .leftJoin(vaultUsersTable, eq(vaultUsersTable.squadId, squadsTable.id))
+    .groupBy(squadsTable.id)
+    .orderBy(desc(sql`coalesce(sum(${vaultUsersTable.lifetimePoints}), 0)`))
+    .limit(500);
+  res.json(rows);
+});
+
+router.delete("/admin/squads/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid squad id" }); return; }
+  await db.update(vaultUsersTable).set({ squadId: null }).where(eq(vaultUsersTable.squadId, id));
+  await db.delete(squadsTable).where(eq(squadsTable.id, id));
+  await logAdminAction("delete_squad", null, { squadId: id });
   res.status(204).send();
 });
 
