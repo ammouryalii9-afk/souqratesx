@@ -29,10 +29,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
               onClick={() => setActiveTab(tab.id)}
               className="flex flex-col items-center justify-center w-full h-full space-y-1.5 relative group"
             >
-              <div className={cn(
-                "relative p-2 rounded-xl transition-all duration-300",
-                isActive ? "bg-primary/10 text-primary scale-110" : "text-muted-foreground group-hover:text-white group-hover:bg-white/5"
-              )}>
+              <div 
+                className={cn(
+                  "relative p-2 rounded-xl transition-all duration-300",
+                  isActive ? "text-primary scale-110" : "text-muted-foreground group-hover:text-white group-hover:bg-white/5"
+                )}
+                style={isActive ? {
+                  background: 'linear-gradient(135deg, rgba(52,211,153,0.15) 0%, rgba(52,211,153,0.05) 100%)',
+                  boxShadow: '0 0 16px rgba(52,211,153,0.15)',
+                } : undefined}
+              >
                 <Icon 
                   className={cn(
                     "w-5 h-5 transition-all duration-300", 
@@ -40,6 +46,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
                   )} 
                 />
               </div>
+              {isActive && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary"
+                  style={{ boxShadow: '0 0 8px rgba(52,211,153,0.8), 0 0 16px rgba(52,211,153,0.4)' }} />
+              )}
               <span className={cn(
                 "text-[10px] font-bold uppercase tracking-wider transition-colors duration-300",
                 isActive ? "text-primary" : "text-muted-foreground group-hover:text-white"

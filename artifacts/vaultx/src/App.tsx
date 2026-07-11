@@ -19,9 +19,14 @@ function Header() {
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-700 flex items-center justify-center shadow-[0_0_20px_rgba(52,211,153,0.3)] border border-primary/20 relative overflow-hidden">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center relative overflow-hidden" style={{
+          background: 'linear-gradient(145deg, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.06) 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 0 24px rgba(52,211,153,0.2), 0 4px 12px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(52,211,153,0.2)',
+        }}>
           <div className="absolute inset-0 bg-primary/20 animate-pulse mix-blend-overlay"></div>
-          <Hexagon className="w-5 h-5 text-primary-foreground fill-current" />
+          <Hexagon className="absolute w-4 h-4 text-primary opacity-30 fill-current" />
+          <Hexagon className="w-5 h-5 text-primary-foreground fill-current relative z-10" />
         </div>
         <div className="flex flex-col">
           <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
@@ -37,7 +42,12 @@ function Header() {
           </div>
         </div>
       </div>
-      <div className="bg-card px-4 py-2 rounded-2xl border border-white/10 shadow-inner flex flex-col items-end justify-center relative overflow-hidden group">
+      <div className="px-4 py-2 rounded-2xl flex flex-col items-end justify-center relative overflow-hidden group" style={{
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.3)',
+      }}>
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Balance</span>

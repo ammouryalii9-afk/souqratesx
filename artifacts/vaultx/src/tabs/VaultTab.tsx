@@ -235,12 +235,18 @@ export const VaultTab = () => {
     <div className="flex flex-col space-y-5 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Balance Card */}
-      <div className="rounded-[24px] bg-card/60 backdrop-blur-2xl border border-white/10 p-6 flex flex-col items-center relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+      <div className="rounded-[28px] p-6 flex flex-col items-center relative overflow-hidden" style={{
+        background: 'linear-gradient(135deg, rgba(52,211,153,0.07) 0%, rgba(52,211,153,0.02) 60%, transparent 100%)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+        border: '1px solid rgba(52,211,153,0.1)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 32px 64px rgba(0,0,0,0.4)',
+      }}>
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">Total Vault Balance</h2>
-        <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm">
+        <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
           ${totalBalanceUSD.toFixed(2)}
         </div>
         <div className="flex items-center gap-3 relative z-10 w-full">
@@ -281,41 +287,51 @@ export const VaultTab = () => {
           onClick={handleTap}
           onTouchStart={handleTap}
           disabled={energy <= 0}
-          className="relative w-56 h-56 rounded-full focus:outline-none disabled:cursor-not-allowed group"
+          className="relative w-64 h-64 rounded-full focus:outline-none disabled:cursor-not-allowed group"
           style={{ transform: isTapping ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
-          <div
-            className={`absolute inset-0 rounded-full border border-primary/20 transition-all duration-300 group-hover:border-primary/40`}
-            style={!activeTurbo && skin && energy > 0 ? { borderColor: `${skin.accent}40` } : undefined}
-          />
-          <div
-            className={`absolute inset-3 rounded-full border border-primary/10 ${energy > 0 ? 'animate-[spin_10s_linear_infinite]' : ''}`}
-            style={!activeTurbo && skin ? { borderColor: `${skin.accent}20` } : undefined}
-          />
+          {/* Layer 1: Outer glow */}
+          <div className="absolute inset-0 rounded-full" style={{ 
+            background: 'radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 65%)',
+            animation: energy > 0 ? 'vaultPulse 3s ease-in-out infinite' : 'none'
+          }} />
 
-          {energy > 0 && !isCapped && !activeTurbo && (
-            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(52,211,153,0.15)] animate-pulse" style={skin ? { boxShadow: `0 0 80px ${skin.glow}` } : undefined} />
-          )}
-          {activeTurbo && (
-            <div className="absolute inset-0 rounded-full shadow-[0_0_80px_rgba(34,211,238,0.3)] animate-pulse" />
-          )}
+          {/* Layer 2: Rotating ring */}
+          <div className="absolute inset-0 rounded-full border border-primary/10" style={{ animation: energy > 0 ? 'spin 14s linear infinite' : 'none' }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
+            <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
+            <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
+          </div>
 
-          <div
-            className={`absolute inset-5 rounded-full bg-gradient-to-b ${activeTurbo ? 'from-cyan-950 to-background border-cyan-400/50' : !skin ? 'from-primary/10 to-background border-primary/30' : 'from-[#1a1a1a] to-[#0A0900]'} flex flex-col items-center justify-center border shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden`}
-            style={!activeTurbo && skin ? { borderColor: `${skin.accent}50` } : undefined}
-          >
+          {/* Layer 3: Inner reverse ring */}
+          <div className="absolute inset-4 rounded-full border border-primary/5" style={{ animation: energy > 0 ? 'spin 8s linear infinite reverse' : 'none' }} />
+
+          {/* Layer 4: Main body */}
+          <div className="absolute inset-7 rounded-full flex flex-col items-center justify-center overflow-hidden" style={{
+            background: 'radial-gradient(circle at 35% 25%, rgba(52,211,153,0.12) 0%, rgba(52,211,153,0.03) 40%, transparent 70%), linear-gradient(160deg, hsl(224,50%,9%) 0%, hsl(224,71%,4%) 100%)',
+            boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.06), inset 0 -3px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)',
+            border: '1px solid rgba(52,211,153,0.08)',
+          }}>
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
+            
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/10 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
-            <span className="text-[10px] text-primary/70 font-bold uppercase tracking-widest mb-1 relative z-10">Mined</span>
-            <span className="text-4xl font-black text-white tabular-nums leading-none tracking-tight relative z-10 drop-shadow-sm">
+            
+            <span className="text-[9px] text-primary/50 font-bold uppercase tracking-[0.3em] mb-1 relative z-10">Mined</span>
+            
+            <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: '0 0 30px rgba(52,211,153,0.25)' }}>
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
-            <span className="text-[11px] text-muted-foreground mt-1 relative z-10 font-medium">pts</span>
-            <div className={`mt-3 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md relative z-10 flex items-center gap-1`}>
+            
+            <span className="text-[11px] text-primary/70 font-semibold mt-1 relative z-10">pts</span>
+            
+            <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.12)' }}>
               <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
               <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
                 +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
               </span>
             </div>
+            
             {activeTurbo && (
               <span className="absolute bottom-6 text-[10px] font-bold text-cyan-400 animate-pulse bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-400/30">TURBO ({turboRemaining}s)</span>
             )}

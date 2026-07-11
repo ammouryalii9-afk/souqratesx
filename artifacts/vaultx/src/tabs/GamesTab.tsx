@@ -73,10 +73,22 @@ export const GamesTab = () => {
               key={g.id}
               data-testid={`open-game-${g.id}`}
               onClick={() => { haptic('select'); setActiveGame(g.id); }}
-              className="bg-card border border-white/5 rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform"
+              className="rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                backdropFilter: 'blur(12px)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+              }}
             >
-              <div className="p-2.5 rounded-lg" style={{ background: `${g.color}1A` }}>
-                <Icon className="w-6 h-6" style={{ color: g.color }} />
+              <div style={{
+                background: `radial-gradient(circle at 30% 25%, ${g.color}22 0%, ${g.color}08 100%)`,
+                border: `1px solid ${g.color}20`,
+                boxShadow: `0 0 16px ${g.color}12, inset 0 1px 0 rgba(255,255,255,0.05)`,
+                width: '48px', height: '48px', borderRadius: '14px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon className="w-6 h-6" style={{ color: g.color, filter: `drop-shadow(0 0 6px ${g.color}50)` }} />
               </div>
               <h3 className="font-semibold text-white text-sm">{g.name}</h3>
               <p className="text-xs text-muted-foreground leading-snug">{g.desc}</p>

@@ -99,4 +99,15 @@
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
   }
+
+  @keyframes vaultPulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(52,211,153,0.15), 0 0 80px rgba(52,211,153,0.05); }
+    50% { box-shadow: 0 0 60px rgba(52,211,153,0.25), 0 0 120px rgba(52,211,153,0.1); }
+  }
+  @keyframes floatUp {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    50%  { opacity: 1; transform: translate(-50%, calc(-50% - 35px)) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 65px)) scale(0.8); }
+  }
+  .vault-pulse { animation: vaultPulse 3s ease-in-out infinite; }
 }
