@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft } from 'lucide-react';
+import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
+import { KnifeHitGame } from '../games/KnifeHitGame';
+import { StackTowerGame } from '../games/StackTowerGame';
 
 type GameState = 'idle' | 'playing' | 'gameover';
-type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel';
+type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
 
 const PASSIVE_CARDS = [
   { id: 'mining-rig', name: 'Mining Rig', base: 50, levelCost: (lvl: number) => lvl * 2000, icon: Pickaxe },
@@ -22,6 +24,8 @@ const GAME_LIST: { id: GameId; name: string; desc: string; icon: typeof Gamepad2
   { id: 'speed-tap', name: 'Speed Tap', desc: '10 seconds, tap as fast as you can', icon: Timer, color: '#60A5FA' },
   { id: 'memory-match', name: 'Memory Match', desc: 'Match all pairs before time runs out', icon: Brain, color: '#34D399' },
   { id: 'lucky-wheel', name: 'Lucky Wheel', desc: '3 free spins a day, pure luck', icon: Sparkles, color: '#F472B6' },
+  { id: 'knife-hit', name: 'Knife Hit', desc: 'Throw knives at a spinning log', icon: Sword, color: '#FB923C' },
+  { id: 'stack-tower', name: 'Stack Tower', desc: 'Stack blocks as high as you can', icon: Layers, color: '#A78BFA' },
 ];
 
 export const GamesTab = () => {
@@ -53,6 +57,8 @@ export const GamesTab = () => {
   if (activeGame === 'speed-tap') return <SpeedTapGame onBack={() => setActiveGame(null)} />;
   if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} />;
   if (activeGame === 'lucky-wheel') return <LuckyWheelGame onBack={() => setActiveGame(null)} />;
+  if (activeGame === 'knife-hit') return <KnifeHitGame onBack={() => setActiveGame(null)} />;
+  if (activeGame === 'stack-tower') return <StackTowerGame onBack={() => setActiveGame(null)} />;
 
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-500">
