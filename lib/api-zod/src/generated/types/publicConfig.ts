@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PublicConfigAdsgram } from './publicConfigAdsgram';
+import type { PublicConfigExoclick } from './publicConfigExoclick';
 import type { PublicConfigMonetag } from './publicConfigMonetag';
 import type { PublicConfigOfferwallsItem } from './publicConfigOfferwallsItem';
 import type { PublicConfigStars } from './publicConfigStars';
@@ -14,5 +15,6 @@ export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
   offerwalls: PublicConfigOfferwallsItem[];
+  exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }

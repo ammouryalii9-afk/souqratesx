@@ -133,6 +133,11 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           enabled: Boolean(cpxresearchAppId && asString(settings.cpxresearchSecureHash)),
         },
       ],
+      exoclick: {
+        enabled: Boolean(asString(settings.exoclickZoneId) && asString(settings.exoclickInsClass)),
+        zoneId: asString(settings.exoclickZoneId) || null,
+        insClass: asString(settings.exoclickInsClass) || null,
+      },
       stars: {
         enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
       },

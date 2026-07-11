@@ -253,6 +253,14 @@ export type PublicConfigOfferwallsItem = {
   enabled: boolean;
 };
 
+export type PublicConfigExoclick = {
+  enabled: boolean;
+  /** @nullable */
+  zoneId: string | null;
+  /** @nullable */
+  insClass: string | null;
+};
+
 export type PublicConfigStars = {
   enabled: boolean;
 };
@@ -261,6 +269,7 @@ export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
   offerwalls: PublicConfigOfferwallsItem[];
+  exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }
 

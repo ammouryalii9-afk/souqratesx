@@ -134,6 +134,13 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "ExoClick (إعلان بيني - Mobile Fullpage Interstitial)",
+    fields: [
+      { key: "exoclickZoneId", label: "ExoClick Zone ID", type: "text", defaultValue: "" },
+      { key: "exoclickInsClass", label: "ExoClick INS Class (مثال: eas6a97888e33)", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "Adscend Media (Offerwall)",
     fields: [
       { key: "adscendmediaApiKey", label: "Adscend Media API Key", type: "text", defaultValue: "" },

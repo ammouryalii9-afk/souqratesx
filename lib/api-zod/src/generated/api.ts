@@ -583,6 +583,11 @@ export const GetPublicConfigResponse = zod.object({
   "url": zod.string().nullable(),
   "enabled": zod.boolean()
 })),
+  "exoclick": zod.object({
+  "enabled": zod.boolean(),
+  "zoneId": zod.string().nullable(),
+  "insClass": zod.string().nullable()
+}),
   "stars": zod.object({
   "enabled": zod.boolean()
 })

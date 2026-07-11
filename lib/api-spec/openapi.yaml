@@ -1406,6 +1406,16 @@ components:
               enabled:
                 type: boolean
             required: [id, name, url, enabled]
+        exoclick:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            zoneId:
+              type: ["string", "null"]
+            insClass:
+              type: ["string", "null"]
+          required: [enabled, zoneId, insClass]
         stars:
           type: object
           properties:
@@ -1415,6 +1425,7 @@ components:
       required:
         - adsgram
         - monetag
+        - exoclick
         - offerwalls
         - stars
     EarnRewardResult:

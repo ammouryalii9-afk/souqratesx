@@ -16,6 +16,11 @@ export type PublicConfig = {
     cooldownSeconds: number;
     dailyCap: number;
   };
+  exoclick: {
+    enabled: boolean;
+    zoneId: string | null;
+    insClass: string | null;
+  };
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
   stars: { enabled: boolean };
 };

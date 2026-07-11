@@ -13,6 +13,7 @@ import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
+import { initExoclick } from "./lib/exoclick";
 
 function Header() {
   const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
@@ -75,7 +76,12 @@ function MainLayout() {
 
   useEffect(() => {
     getPublicConfig()
-      .then((config) => setBannerBlockId(config.adsgram.bannerBlockId))
+      .then((config) => {
+        setBannerBlockId(config.adsgram.bannerBlockId);
+        if (config.exoclick.enabled && config.exoclick.zoneId && config.exoclick.insClass) {
+          initExoclick(config.exoclick.zoneId, config.exoclick.insClass).catch(() => {});
+        }
+      })
       .catch(() => setBannerBlockId(null));
   }, []);
 
