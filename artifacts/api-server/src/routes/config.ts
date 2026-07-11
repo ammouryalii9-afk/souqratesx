@@ -124,7 +124,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           id: "adgem",
           name: "AdGem",
           url: adgemUrl || null,
-          enabled: Boolean(adgemUrl && asString(settings.adgemApiKey)),
+          enabled: Boolean(adgemUrl && asString(settings.adgemPostbackSecret)),
         },
         {
           id: "cpxresearch",
