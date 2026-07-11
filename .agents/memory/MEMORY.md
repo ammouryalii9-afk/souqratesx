@@ -1,17 +1,1 @@
-- [VaultX Telegram auth & sync](vaultx-telegram-sync.md) — session cookie auth + JSONB state blob pattern for Telegram Mini Apps with server-side persistence.
-- [Admin panel as client route](admin-panel-client-route.md) — build in-app admin panels as a pathname-gated route inside the existing artifact, not a new artifact.
-- [Ready-to-activate monetization pattern](ready-to-activate-monetization.md) — expose only a filtered "enabled" config derived from admin settings; features flip on automatically once keys are pasted, no redeploy.
-- [Telegram Bot API webhook + Orval naming](telegram-webhook-orval-naming.md) — webhook setup needs HTTPS (fails on localhost, expected); Orval schema export names follow operationId, not your intuitive guess.
-- [Points anti-cheat delta cap](points-anticheat-delta-cap.md) — close a client-authoritative P2E exploit by clamping sync deltas server-side, not full rewrite; revisit at real cash-withdrawal time.
-- [Supabase connection gotchas](supabase-connection.md) — direct db.*.supabase.co host is IPv6-only/unreachable; always use the pooler URL with ssl rejectUnauthorized:false.
-- [Client-authoritative sync vs server-applied effects](client-sync-vs-server-effects.md) — when a server-side event (e.g. IAP webhook) grants an effect into client-owned state, client must refetch or the next autosync silently overwrites it.
-- [Main agent git restrictions](main-agent-git.md) — `git commit`/destructive git ops are blocked in main agent; platform auto-commits at end of turn, then push to external remotes (e.g. GitHub) in a later turn.
-- [Sponsored ads feature](sponsored-ads.md) — admin-created ads reuse the existing broadcast-job pipeline for Telegram notify, and surface as claimable tasks with a claim-idempotency table.
-- [Generic paid-feature store pattern](star-store-pattern.md) — admin-configurable purchasable effects (Stars store) keyed by effectType+effectValue, not hardcoded product enums.
-- [Reward-claim watch-time gate](reward-claim-verification-gate.md) — enforce "must satisfy condition before crediting points" globally (one admin setting + start/claim split), not per-reward-type, so it covers future reward types automatically.
-- [VaultX spendable vs lifetime points](vaultx-spendable-vs-lifetime-points.md) — `state.tempMiningPoints` is the usable/spendable balance; `lifetimePoints` is a read-only leaderboard counter. Any server-side credit must bump both or the credit is invisible in-game.
-- [Earning provider engine](earning-provider-engine.md) — SouqratesX's Adsgram/CPA/Monlix/Bitlabs rewards run through a generic provider interface + reward engine, not per-route logic.
-- [Admin settings numeric text fields](admin-settings-numeric-values.md) — a "text"-type settings field value can still arrive as a JSON number; string-coercion helpers reading `admin_settings` must accept numbers too.
-- [Placeholder ad simulations](placeholder-ad-simulations.md) — some earlier game-loop flows fake a rewarded-ad wait with a client-side timer instead of calling a real ad SDK; audit for these when wiring real ad providers.
-- [Ad-gated boosts (non-point rewards)](ad-gated-boosts.md) — "watch N ads for energy/turbo" is a local progress-counter gate on client-authoritative state, not a reward-engine/points credit.
-- [CPX Research postback hash formula](cpx-research-postback-hash.md) — signature is md5(trans_id + "-" + secure_hash); the hyphen separator isn't documented in CPX's dashboard UI text.
+- [Drizzle CASE param types](drizzle-case-param-types.md) — params wrapped in a SQL CASE bind as text; cast `::int` or you get "integer < text". Only reproduces via the real parameterized endpoint, not psql literals.
