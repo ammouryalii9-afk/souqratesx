@@ -172,12 +172,62 @@ export type UpdateStarProductInput = Partial<{
   isActive: boolean;
 }>;
 
+// ─── Analytics types ──────────────────────────────────────────────────────────
+
+export type AnalyticsData = {
+  newUsersByDay: { date: string; count: number }[];
+  rewardsByDay: { date: string; total_points: number; tx_count: number }[];
+  leagueDistribution: { league: string; count: number }[];
+  retention: { d1Rate: number | null; d7Rate: number | null; d1Total: number; d7Total: number };
+};
+
+// ─── Anti-Cheat types ─────────────────────────────────────────────────────────
+
+export type SuspiciousUser = {
+  telegram_id: string; username: string | null; first_name: string | null;
+  is_banned: boolean; lifetime_points: number; earned_24h: number; tx_count: number;
+};
+
+export type MultiAccountCandidate = {
+  referrer_id: string; referrer_username: string | null; referrer_first_name: string | null;
+  referral_count: number; referral_earnings: number; lifetime_points: number; is_banned: boolean;
+};
+
+export type TopEarner = {
+  telegram_id: string; username: string | null; first_name: string | null;
+  lifetime_points: number; is_banned: boolean; created_at: string;
+};
+
+export type AntiCheatData = {
+  suspicious: SuspiciousUser[];
+  multiAccountCandidates: MultiAccountCandidate[];
+  topEarners: TopEarner[];
+  capPerHour: number;
+};
+
+// ─── Provider Report types ────────────────────────────────────────────────────
+
+export type ProviderSummary = { key: string; name: string; type: string; enabled: boolean; priority: number };
+
+export type ProviderTxRow = { provider_key: string; total_rewards: number; total_points: number; avg_reward: number; date: string };
+
+export type ProviderErrorRow = { provider_key: string; total_events: number; error_count: number; avg_latency_ms: number | null };
+
+export type ProviderReportData = {
+  providers: ProviderSummary[];
+  recentTx: ProviderTxRow[];
+  errorRate: ProviderErrorRow[];
+};
+
 export const adminApi = {
   login: (password: string) =>
     adminFetch<AdminSessionStatus>("/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => adminFetch<AdminSessionStatus>("/admin/logout", { method: "POST" }),
   me: () => adminFetch<AdminSessionStatus>("/admin/me"),
   stats: () => adminFetch<AdminStats>("/admin/stats"),
+  analytics: (days?: number) => adminFetch<AnalyticsData>(`/admin/analytics${days ? `?days=${days}` : ""}`),
+  antiCheat: () => adminFetch<AntiCheatData>("/admin/anticheat"),
+  providerReport: (days?: number) => adminFetch<ProviderReportData>(`/admin/providers/report${days ? `?days=${days}` : ""}`),
   users: (params: { search?: string; limit?: number; offset?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.set("search", params.search);

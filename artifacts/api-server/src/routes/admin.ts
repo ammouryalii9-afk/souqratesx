@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
-import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable } from "@workspace/db";
+import { and, count, desc, eq, ilike, or, sql, gte, lte } from "drizzle-orm";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -778,6 +778,215 @@ router.get("/admin/broadcast/:id", async (req, res): Promise<void> => {
   }
 
   res.json(GetAdminBroadcastResponse.parse(toBroadcastJob(job)));
+});
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+router.get("/admin/analytics", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const days = Math.min(Number(req.query.days) || 14, 90);
+
+  const [
+    newUsersByDay,
+    retentionD1,
+    retentionD7,
+    topLeague,
+    rewardsByDay,
+  ] = await Promise.all([
+    // New users per day (last N days)
+    db.execute(sql`
+      SELECT
+        date_trunc('day', created_at AT TIME ZONE 'UTC')::date::text AS date,
+        count(*)::int AS count
+      FROM vault_users
+      WHERE created_at >= now() - (${days} || ' days')::interval
+      GROUP BY 1
+      ORDER BY 1
+    `),
+    // D1 retention: users who came back the day after signup
+    db.execute(sql`
+      SELECT
+        count(*)::int FILTER (WHERE u.updated_at >= u.created_at + interval '1 day') AS returned,
+        count(*)::int AS total
+      FROM vault_users u
+      WHERE u.created_at >= now() - interval '30 days'
+        AND u.created_at < now() - interval '1 day'
+    `),
+    // D7 retention
+    db.execute(sql`
+      SELECT
+        count(*)::int FILTER (WHERE u.updated_at >= u.created_at + interval '7 days') AS returned,
+        count(*)::int AS total
+      FROM vault_users u
+      WHERE u.created_at >= now() - interval '37 days'
+        AND u.created_at < now() - interval '7 days'
+    `),
+    // Users per league bucket
+    db.execute(sql`
+      SELECT
+        CASE
+          WHEN lifetime_points >= 1000000 THEN 'Diamond'
+          WHEN lifetime_points >= 500000  THEN 'Gold'
+          WHEN lifetime_points >= 100000  THEN 'Silver'
+          ELSE 'Bronze'
+        END AS league,
+        count(*)::int AS count
+      FROM vault_users
+      GROUP BY 1
+      ORDER BY count DESC
+    `),
+    // Total rewards credited per day (from reward_transactions)
+    db.execute(sql`
+      SELECT
+        date_trunc('day', created_at AT TIME ZONE 'UTC')::date::text AS date,
+        coalesce(sum(amount), 0)::int AS total_points,
+        count(*)::int AS tx_count
+      FROM reward_transactions
+      WHERE created_at >= now() - (${days} || ' days')::interval
+        AND status = 'credited'
+      GROUP BY 1
+      ORDER BY 1
+    `),
+  ]);
+
+  const d1Row = retentionD1.rows[0] as { returned: number; total: number } | undefined;
+  const d7Row = retentionD7.rows[0] as { returned: number; total: number } | undefined;
+
+  res.json({
+    newUsersByDay: newUsersByDay.rows,
+    rewardsByDay: rewardsByDay.rows,
+    leagueDistribution: topLeague.rows,
+    retention: {
+      d1Rate: d1Row && d1Row.total > 0 ? Math.round((d1Row.returned / d1Row.total) * 100) : null,
+      d7Rate: d7Row && d7Row.total > 0 ? Math.round((d7Row.returned / d7Row.total) * 100) : null,
+      d1Total: d1Row?.total ?? 0,
+      d7Total: d7Row?.total ?? 0,
+    },
+  });
+});
+
+// ─── Anti-Cheat ───────────────────────────────────────────────────────────────
+
+router.get("/admin/anticheat", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const settings = await db.select().from(adminSettingsTable);
+  const capSetting = settings.find((s) => s.key === "maxPointsPerHourCap");
+  const capPerHour = Number(capSetting?.value ?? 3_000_000);
+
+  // Users who gained more than cap in the last 24h (via lifetime_points delta approximation)
+  // We use reward_transactions sum as a proxy for verified earned points
+  const [suspicious, multiAccountCandidates, topEarners] = await Promise.all([
+    // High earners via provider rewards in last 24h
+    db.execute(sql`
+      SELECT
+        rt.telegram_id,
+        u.username,
+        u.first_name,
+        u.is_banned,
+        u.lifetime_points,
+        coalesce(sum(rt.amount), 0)::int AS earned_24h,
+        count(*)::int AS tx_count
+      FROM reward_transactions rt
+      LEFT JOIN vault_users u ON u.telegram_id = rt.telegram_id
+      WHERE rt.created_at >= now() - interval '24 hours'
+        AND rt.status = 'credited'
+      GROUP BY rt.telegram_id, u.username, u.first_name, u.is_banned, u.lifetime_points
+      HAVING coalesce(sum(rt.amount), 0) > ${capPerHour}
+      ORDER BY earned_24h DESC
+      LIMIT 20
+    `),
+    // Users sharing the same referrer with high counts — possible multi-account ring
+    db.execute(sql`
+      SELECT
+        referrer.telegram_id AS referrer_id,
+        referrer.username AS referrer_username,
+        referrer.first_name AS referrer_first_name,
+        referrer.referral_count,
+        referrer.referral_earnings,
+        referrer.lifetime_points,
+        referrer.is_banned
+      FROM vault_users referrer
+      WHERE referrer.referral_count >= 20
+      ORDER BY referrer.referral_count DESC
+      LIMIT 15
+    `),
+    // Top 10 all-time by lifetime points (quick sanity check)
+    db.execute(sql`
+      SELECT telegram_id, username, first_name, lifetime_points, is_banned, created_at
+      FROM vault_users
+      ORDER BY lifetime_points DESC
+      LIMIT 10
+    `),
+  ]);
+
+  res.json({
+    suspicious: suspicious.rows,
+    multiAccountCandidates: multiAccountCandidates.rows,
+    topEarners: topEarners.rows,
+    capPerHour,
+  });
+});
+
+// ─── Provider Reports ─────────────────────────────────────────────────────────
+
+router.get("/admin/providers/report", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const days = Math.min(Number(req.query.days) || 7, 30);
+
+  const [providers, recentTx, errorRate] = await Promise.all([
+    // All providers with their config
+    db.select().from(providersTable).orderBy(desc(providersTable.priority)),
+    // Reward transactions grouped by provider for last N days
+    db.execute(sql`
+      SELECT
+        provider_key,
+        count(*)::int AS total_rewards,
+        coalesce(sum(amount), 0)::int AS total_points,
+        round(avg(amount))::int AS avg_reward,
+        date_trunc('day', created_at AT TIME ZONE 'UTC')::date::text AS date
+      FROM reward_transactions
+      WHERE created_at >= now() - (${days} || ' days')::interval
+        AND status = 'credited'
+      GROUP BY provider_key, date
+      ORDER BY date, provider_key
+    `),
+    // Error rate per provider last 7 days
+    db.execute(sql`
+      SELECT
+        provider_key,
+        count(*)::int AS total_events,
+        count(*) FILTER (WHERE NOT success)::int AS error_count,
+        round(avg(latency_ms))::int AS avg_latency_ms
+      FROM provider_logs
+      WHERE created_at >= now() - (${days} || ' days')::interval
+      GROUP BY provider_key
+      ORDER BY error_count DESC
+    `),
+  ]);
+
+  res.json({
+    providers: providers.map((p) => ({
+      key: p.key,
+      name: p.name,
+      type: p.type,
+      enabled: p.enabled,
+      priority: p.priority,
+    })),
+    recentTx: recentTx.rows,
+    errorRate: errorRate.rows,
+  });
 });
 
 export default router;
