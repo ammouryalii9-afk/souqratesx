@@ -62,6 +62,12 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ExoClick site verification
+app.get("/38b1ce301488e8a32ff18c10eb48a369.html", (_req, res) => {
+  res.setHeader("Content-Type", "text/html");
+  res.send("38b1ce301488e8a32ff18c10eb48a369");
+});
+
 app.use("/api", router);
 
 // Global error handler — logs the actual error so we can see 500 causes in logs
