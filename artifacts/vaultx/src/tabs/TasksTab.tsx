@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
+import { AchievementsSection } from '../components/AchievementsSection';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
@@ -29,7 +30,7 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
 
 export const TasksTab = () => {
-  const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer } = useVault();
+  const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
   const { toast } = useToast();
 
   const [currentStreak, setCurrentStreak] = useState(() => Number(localStorage.getItem('currentStreak')) || 0);
@@ -1146,6 +1147,25 @@ export const TasksTab = () => {
           </div>
         </div>
       )}
+
+      {/* ── Achievements ── */}
+      <div className="px-4 pb-32">
+        <AchievementsSection
+          state={{
+            lifetimePoints,
+            miningLevel,
+            profitPerHour,
+            referralCount: totalReferrals,
+            isPremium,
+            selectedExchange,
+            farmStartTime,
+            farmState,
+            claimedAchievements,
+          }}
+          addLifetimePoints={addLifetimePoints}
+          onClaimed={addClaimedAchievement}
+        />
+      </div>
 
     </div>
   );

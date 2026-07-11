@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useVault, getLeague, SKINS } from '../context/VaultContext';
+import { ExchangeSelector } from '../components/ExchangeSelector';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check } from 'lucide-react';
@@ -63,6 +64,7 @@ export const VaultTab = () => {
   const [farmYield, setFarmYield] = useState(0);
 
   const league = getLeague(lifetimePoints);
+  const { selectedExchange, setSelectedExchange } = useVault();
 
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
@@ -276,9 +278,12 @@ export const VaultTab = () => {
       {/* Info Row */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold px-3 py-1 rounded-full border border-white/10 shadow-sm" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
-            <span className="mr-1.5">{league.icon}</span> {league.name} Miner
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full border border-white/10 shadow-sm" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
+              <span className="mr-1.5">{league.icon}</span> {league.name} Miner
+            </span>
+            <ExchangeSelector selected={selectedExchange} onSelect={setSelectedExchange} />
+          </div>
           {/* Copyable User ID badge */}
           <button
             onClick={copyUserId}

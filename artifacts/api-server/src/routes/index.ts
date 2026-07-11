@@ -9,6 +9,8 @@ import starsRouter from "./stars";
 import telegramWebhookRouter from "./telegramWebhook";
 import adsRouter from "./ads";
 import partnerTasksRouter from "./partnerTasks";
+import achievementsRouter from "./achievements";
+import announcementsRouter from "./announcements";
 
 const router: IRouter = Router();
 
@@ -22,5 +24,7 @@ router.use(starsRouter);
 router.use(telegramWebhookRouter);
 router.use(adsRouter);
 router.use(partnerTasksRouter);
+router.use(achievementsRouter);
+router.use(announcementsRouter);
 
 export default router;

@@ -3,6 +3,7 @@ import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultConte
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
 import { AdBanner } from "./components/AdBanner";
+import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -68,6 +69,7 @@ function Header() {
 function MainLayout() {
   const [activeTab, setActiveTab] = useState('vault');
   const [bannerBlockId, setBannerBlockId] = useState<string | null>(null);
+  const { isTelegramUser } = useVault();
 
   useEffect(() => {
     getPublicConfig()
@@ -79,6 +81,7 @@ function MainLayout() {
     <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
       <Header />
+      <AnnouncementBanner isTelegramUser={isTelegramUser} />
       
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0 transition-opacity duration-300">

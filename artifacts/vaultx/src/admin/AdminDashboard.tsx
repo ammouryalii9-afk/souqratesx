@@ -11,10 +11,11 @@ import { AdminAnalytics } from "./AdminAnalytics";
 import { AdminAntiCheat } from "./AdminAntiCheat";
 import { AdminProviderReports } from "./AdminProviderReports";
 import { AdminPartnerTasks } from "./AdminPartnerTasks";
+import { AdminAnnouncements } from "./AdminAnnouncements";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -33,8 +34,9 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "broadcast",  label: "رسائل جماعية", icon: <Send className="w-4 h-4" /> },
       { id: "ads",        label: "الإعلانات",    icon: <Megaphone className="w-4 h-4" /> },
       { id: "star-store",     label: "متجر النجوم",    icon: <Star className="w-4 h-4" /> },
-      { id: "partner-tasks",  label: "مهام الشركاء",   icon: <ListTodo className="w-4 h-4" /> },
-      { id: "settings",       label: "الإعدادات",      icon: <SettingsIcon className="w-4 h-4" /> },
+      { id: "partner-tasks",   label: "مهام الشركاء",   icon: <ListTodo className="w-4 h-4" /> },
+      { id: "announcements",   label: "الإشعارات",      icon: <Bell className="w-4 h-4" /> },
+      { id: "settings",        label: "الإعدادات",      icon: <SettingsIcon className="w-4 h-4" /> },
       { id: "log",        label: "السجل",         icon: <ScrollText className="w-4 h-4" /> },
     ],
   },
@@ -107,8 +109,9 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "broadcast"  && <AdminBroadcast />}
         {tab === "ads"        && <AdminAds />}
         {tab === "star-store"    && <AdminStarStore />}
-        {tab === "partner-tasks" && <AdminPartnerTasks />}
-        {tab === "settings"      && <AdminSettings />}
+        {tab === "partner-tasks"  && <AdminPartnerTasks />}
+        {tab === "announcements"  && <AdminAnnouncements />}
+        {tab === "settings"       && <AdminSettings />}
         {tab === "log"        && <AdminAuditLog />}
       </main>
     </div>

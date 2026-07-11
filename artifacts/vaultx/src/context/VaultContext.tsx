@@ -36,6 +36,8 @@ type SyncedState = {
   equippedBadgeId?: number | null;
   ownedSkinIds?: number[];
   equippedSkinId?: number | null;
+  selectedExchange?: string | null;
+  claimedAchievements?: string[];
 };
 
 export const BADGES: Record<number, { label: string; color: string }> = {
@@ -79,8 +81,13 @@ type VaultContextType = {
   equippedBadgeId: number | null;
   ownedSkinIds: number[];
   equippedSkinId: number | null;
+  selectedExchange: string | null;
+  claimedAchievements: string[];
+  isPremium: boolean;
   equipBadge: (badgeId: number | null) => void;
   equipSkin: (skinId: number | null) => void;
+  setSelectedExchange: (id: string | null) => void;
+  addClaimedAchievement: (id: string) => void;
 
   setTotalBalanceUSD: (val: number | ((prev: number) => number)) => void;
   setTempMiningPoints: (val: number | ((prev: number) => number)) => void;
@@ -174,6 +181,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem('equippedSkinId');
     return saved ? Number(saved) : null;
   });
+  const [selectedExchange, setSelectedExchange] = useState<string | null>(() => localStorage.getItem('selectedExchange') || null);
+  const [claimedAchievements, setClaimedAchievements] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('claimedAchievements') || '[]'); } catch { return []; }
+  });
+  const [isPremium, setIsPremium] = useState(false);
 
   const hasHydratedFromServer = useRef(false);
   const isHydrating = useRef(false);
@@ -235,6 +247,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setEquippedBadgeId(typeof state.equippedBadgeId === 'number' ? state.equippedBadgeId : null);
         setOwnedSkinIds(Array.isArray(state.ownedSkinIds) ? state.ownedSkinIds : []);
         setEquippedSkinId(typeof state.equippedSkinId === 'number' ? state.equippedSkinId : null);
+        if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
+        if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
+        setIsPremium(!!data.user.isPremium);
       })
       .catch((err) => {
         console.error('Telegram auth failed, falling back to local progress', err);
@@ -276,7 +291,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('equippedBadgeId', equippedBadgeId === null ? '' : equippedBadgeId.toString());
     localStorage.setItem('ownedSkinIds', JSON.stringify(ownedSkinIds));
     localStorage.setItem('equippedSkinId', equippedSkinId === null ? '' : equippedSkinId.toString());
-  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId]);
+    localStorage.setItem('selectedExchange', selectedExchange ?? '');
+    localStorage.setItem('claimedAchievements', JSON.stringify(claimedAchievements));
+  }, [totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -303,6 +320,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         equippedBadgeId,
         ownedSkinIds,
         equippedSkinId,
+        selectedExchange,
+        claimedAchievements,
       };
       apiFetch('/vault/me', {
         method: 'PUT',
@@ -312,7 +331,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId]);
+  }, [isTelegramUser, totalBalanceUSD, tempMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements]);
 
   useEffect(() => {
     if (activeTurbo && turboExpiresAt > 0) {
@@ -538,6 +557,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : 0;
       setActiveTurbo(activeTurboFromServer && turboExpiresAtFromServer > Date.now());
       setTurboExpiresAt(activeTurboFromServer ? turboExpiresAtFromServer : 0);
+      if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
+      if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
+      setIsPremium(!!data.user.isPremium);
     } catch (err) {
       console.error('Failed to refresh state from server', err);
     } finally {
@@ -574,8 +596,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         equippedBadgeId,
         ownedSkinIds,
         equippedSkinId,
+        selectedExchange,
+        claimedAchievements,
+        isPremium,
         equipBadge,
         equipSkin,
+        setSelectedExchange,
+        addClaimedAchievement: (id: string) => setClaimedAchievements((prev) => prev.includes(id) ? prev : [...prev, id]),
         setTotalBalanceUSD,
         setTempMiningPoints,
         setMiningLevel,
