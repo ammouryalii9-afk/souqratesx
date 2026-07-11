@@ -27,10 +27,17 @@ export function creditedStateSql(reward: number, patches: Record<string, string 
   const S = vaultUsersTable.state;
   const wk = weekKey();
   let expr: SQL = sql`${S}`;
-  expr = sql`jsonb_set(${expr}, '{weeklyPoints}', to_jsonb((CASE WHEN ${S}->>'weekKey' = ${wk} THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0) ELSE 0 END) + ${reward}))`;
+  // NOTE: node-postgres sends bound params as untyped, so a bare `to_jsonb($n)` throws
+  // "could not determine polymorphic type because input has type unknown". Every param
+  // fed to to_jsonb (or compared/added) MUST carry an explicit cast.
+  expr = sql`jsonb_set(${expr}, '{weeklyPoints}', to_jsonb((CASE WHEN ${S}->>'weekKey' = ${wk}::text THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0) ELSE 0 END) + ${reward}::numeric))`;
   expr = sql`jsonb_set(${expr}, '{weekKey}', to_jsonb(${wk}::text))`;
   for (const [key, value] of Object.entries(patches)) {
-    expr = sql`jsonb_set(${expr}, ${`{${key}}`}::text[], to_jsonb(${value}))`;
+    const arg: SQL =
+      typeof value === "string" ? sql`${value}::text`
+      : typeof value === "number" ? sql`${value}::numeric`
+      : value; // already a typed SQL fragment
+    expr = sql`jsonb_set(${expr}, ${`{${key}}`}::text[], to_jsonb(${arg}))`;
   }
   return expr;
 }
