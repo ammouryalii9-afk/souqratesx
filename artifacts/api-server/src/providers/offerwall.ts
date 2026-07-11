@@ -44,7 +44,11 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
 
     async getOffers(ctx: ProviderContext): Promise<EarnOffer[]> {
       if (!enabled) return [];
-      const url = `${config.url}${config.url.includes("?") ? "&" : "?"}sub1=${encodeURIComponent(ctx.telegramId)}`;
+      // Support {telegramId} placeholder (e.g. AdGem uses playerid={telegramId})
+      // Fall back to appending sub1= for providers that don't use a placeholder
+      const url = config.url.includes("{telegramId}")
+        ? config.url.replace("{telegramId}", encodeURIComponent(ctx.telegramId))
+        : `${config.url}${config.url.includes("?") ? "&" : "?"}sub1=${encodeURIComponent(ctx.telegramId)}`;
       return [{ providerKey: key, type: "offerwall", title, rewardPoints: 0, url }];
     },
 
