@@ -94,3 +94,24 @@ export function startAd(id: number): Promise<{ startedAt: string; minWatchSecond
 export function claimAd(id: number): Promise<{ creditedPoints: number; lifetimePoints: number }> {
   return apiFetch(`/ads/${id}/claim`, { method: "POST" });
 }
+
+export type PartnerTask = {
+  id: number;
+  title: string;
+  description: string | null;
+  channelUsername: string;
+  channelUrl: string;
+  iconEmoji: string;
+  rewardPoints: number;
+  isActive: boolean;
+  sortOrder: number;
+  completed: boolean;
+};
+
+export function getPartnerTasks(): Promise<{ tasks: PartnerTask[] }> {
+  return apiFetch<{ tasks: PartnerTask[] }>("/partner-tasks");
+}
+
+export function verifyPartnerTask(id: number): Promise<{ ok: boolean; alreadyClaimed: boolean; creditedPoints: number; lifetimePoints: number }> {
+  return apiFetch(`/partner-tasks/${id}/verify`, { method: "POST" });
+}

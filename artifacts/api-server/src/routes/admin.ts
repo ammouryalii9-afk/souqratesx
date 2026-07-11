@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
 import { and, count, desc, eq, ilike, or, sql, gte, lte } from "drizzle-orm";
-import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable } from "@workspace/db";
+import { db, vaultUsersTable, adminSettingsTable, adminAuditLogTable, userActivityLogTable, broadcastJobsTable, sponsoredAdsTable, starProductsTable, providersTable, providerLogsTable, rewardTransactionsTable, partnerTasksTable, partnerTaskCompletionsTable } from "@workspace/db";
 import {
   AdminLoginBody,
   AdminLoginResponse,
@@ -1107,6 +1107,62 @@ router.get("/admin/providers/report", async (req, res): Promise<void> => {
     recentTx: recentTx.rows,
     errorRate: errorRate.rows,
   });
+});
+
+// ─── Partner Tasks CRUD ───────────────────────────────────────────────────────
+
+router.get("/admin/partner-tasks", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const tasks = await db.select().from(partnerTasksTable).orderBy(partnerTasksTable.sortOrder, partnerTasksTable.id);
+  const counts = await db.execute(sql`
+    SELECT task_id, count(*)::int AS completions
+    FROM partner_task_completions GROUP BY task_id
+  `);
+  const completionMap = Object.fromEntries((counts.rows as { task_id: number; completions: number }[]).map(r => [r.task_id, r.completions]));
+  res.json(tasks.map(t => ({ ...t, completions: completionMap[t.id] ?? 0 })));
+});
+
+router.post("/admin/partner-tasks", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const { title, description, channelUsername, channelUrl, iconEmoji, rewardPoints, isActive, sortOrder } = req.body as Record<string, unknown>;
+  if (!title || !channelUsername || !channelUrl) { res.status(400).json({ error: "title, channelUsername and channelUrl are required" }); return; }
+  const [task] = await db.insert(partnerTasksTable).values({
+    title: String(title),
+    description: description ? String(description) : null,
+    channelUsername: String(channelUsername).replace(/^@/, ""),
+    channelUrl: String(channelUrl),
+    iconEmoji: iconEmoji ? String(iconEmoji) : "📢",
+    rewardPoints: typeof rewardPoints === "number" ? rewardPoints : 5000,
+    isActive: typeof isActive === "boolean" ? isActive : true,
+    sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+  }).returning();
+  res.status(201).json(task);
+});
+
+router.put("/admin/partner-tasks/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const id = Number(req.params.id);
+  const { title, description, channelUsername, channelUrl, iconEmoji, rewardPoints, isActive, sortOrder } = req.body as Record<string, unknown>;
+  const patch: Partial<typeof partnerTasksTable.$inferInsert> = {};
+  if (title !== undefined) patch.title = String(title);
+  if (description !== undefined) patch.description = description ? String(description) : null;
+  if (channelUsername !== undefined) patch.channelUsername = String(channelUsername).replace(/^@/, "");
+  if (channelUrl !== undefined) patch.channelUrl = String(channelUrl);
+  if (iconEmoji !== undefined) patch.iconEmoji = String(iconEmoji);
+  if (rewardPoints !== undefined) patch.rewardPoints = Number(rewardPoints);
+  if (isActive !== undefined) patch.isActive = Boolean(isActive);
+  if (sortOrder !== undefined) patch.sortOrder = Number(sortOrder);
+  const [task] = await db.update(partnerTasksTable).set(patch).where(eq(partnerTasksTable.id, id)).returning();
+  if (!task) { res.status(404).json({ error: "Task not found" }); return; }
+  res.json(task);
+});
+
+router.delete("/admin/partner-tasks/:id", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+  const id = Number(req.params.id);
+  await db.delete(partnerTaskCompletionsTable).where(eq(partnerTaskCompletionsTable.taskId, id));
+  await db.delete(partnerTasksTable).where(eq(partnerTasksTable.id, id));
+  res.status(204).send();
 });
 
 export default router;

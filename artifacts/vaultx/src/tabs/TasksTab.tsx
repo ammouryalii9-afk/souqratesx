@@ -2,18 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, type PublicConfig, type SponsoredAdTask, type StarProduct } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
 import { showAdsgramRewardedAd } from '../lib/adsgram';
 import { showMonetagRewardedAd } from '../lib/monetag';
 import { getTelegramWebApp } from '../lib/telegram';
 
 const DAILY_REWARDS = [1000, 2500, 5000, 10000, 20000, 35000, 50000];
 
-const SPONSORED_TASKS = [
-  { id: 't1', title: 'Join SouqrateX Official Channel', reward: 5000, link: 'https://t.me/SouqrateXOfficial' },
-  { id: 't2', title: 'Launch Partner Currency Bot', reward: 15000, link: 'https://t.me/PartnerBot' },
-  { id: 't3', title: 'Complete Survey via Monlix', reward: 2000, isSurvey: true },
-];
 
 const COMBO_ICONS = [
   { id: 'cpu', icon: Cpu },
@@ -61,10 +56,18 @@ export const TasksTab = () => {
     getAds().then(setSponsoredAds).catch(() => setSponsoredAds([]));
   };
 
+  const [partnerTasks, setPartnerTasks] = useState<PartnerTask[]>([]);
+  const [partnerTaskStates, setPartnerTaskStates] = useState<Record<number, 'idle' | 'loading' | 'verify' | 'verifying' | 'done'>>({});
+
+  const loadPartnerTasks = () => {
+    getPartnerTasks().then(r => setPartnerTasks(r.tasks)).catch(() => setPartnerTasks([]));
+  };
+
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
     getStarProducts().then(setStarProducts).catch(() => setStarProducts([]));
     loadAds();
+    loadPartnerTasks();
   }, []);
 
   // Server is the source of truth for whether the watch condition is satisfied;
@@ -345,6 +348,48 @@ export const TasksTab = () => {
     setLastLoginDate(todayStr);
     
     toast({ title: "Daily Claimed!", description: `+${reward.toLocaleString()} points added.` });
+  };
+
+  const handlePartnerTaskAction = async (task: PartnerTask) => {
+    const state = partnerTaskStates[task.id] || (task.completed ? 'done' : 'idle');
+    if (state === 'done') return;
+
+    if (state === 'idle') {
+      window.open(task.channelUrl, '_blank');
+      setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'loading' }));
+      setTimeout(() => {
+        setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
+      }, 2000);
+      return;
+    }
+
+    if (state === 'verify') {
+      setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verifying' }));
+      try {
+        const result = await verifyPartnerTask(task.id);
+        if (result.ok) {
+          setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'done' }));
+          setPartnerTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: true } : t));
+          if (!result.alreadyClaimed && result.creditedPoints > 0) {
+            setTempMiningPoints(prev => prev + result.creditedPoints);
+            addLifetimePoints(result.creditedPoints);
+            toast({ title: "Task Complete! ✅", description: `+${result.creditedPoints.toLocaleString()} points added.` });
+          } else {
+            toast({ title: "Already Claimed", description: "You already completed this task." });
+          }
+          refreshFromServer();
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Verification failed";
+        if (msg.includes("not_joined")) {
+          toast({ title: "Not Joined Yet", description: "Please join the channel first, then tap Verify.", variant: "destructive" });
+          setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
+        } else {
+          toast({ title: "Error", description: msg, variant: "destructive" });
+          setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
+        }
+      }
+    }
   };
 
   const handleTaskAction = (taskId: string, link?: string, reward?: number, isSurvey?: boolean) => {
@@ -934,42 +979,61 @@ export const TasksTab = () => {
         )}
       </section>
 
-      {/* Sponsored Tasks */}
-      <section>
-        <h2 className="text-xl font-bold text-white mb-4">Partner Tasks</h2>
-        <div className="space-y-3">
-          {SPONSORED_TASKS.map(task => {
-            const isClaimed = claimedTasks.includes(task.id);
-            const state = taskStates[task.id] || 'idle';
+      {/* Partner Tasks */}
+      {partnerTasks.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold text-white mb-4">Partner Tasks</h2>
+          <div className="space-y-3">
+            {partnerTasks.map(task => {
+              const localState = partnerTaskStates[task.id];
+              const isDone = localState === 'done' || (localState === undefined && task.completed);
+              const isLoading = localState === 'loading';
+              const isVerify = localState === 'verify';
+              const isVerifying = localState === 'verifying';
 
-            return (
-              <div key={task.id} className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between">
-                <div className="flex-1 pr-4">
-                  <h3 className="font-semibold text-white text-sm mb-1">{task.title}</h3>
-                  <p className="text-xs font-medium text-primary">+{task.reward.toLocaleString()} pts</p>
-                </div>
-                
-                {isClaimed ? (
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Check className="w-5 h-5 text-emerald-500" />
+              return (
+                <div key={task.id} className="bg-card border border-white/5 rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                    style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.15)' }}>
+                    {task.iconEmoji}
                   </div>
-                ) : (
-                  <button
-                    data-testid={`button-task-${task.id}`}
-                    onClick={() => handleTaskAction(task.id, task.link, task.reward, task.isSurvey)}
-                    disabled={state === 'loading'}
-                    className="min-w-[80px] h-9 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg flex items-center justify-center transition-colors"
-                  >
-                    {state === 'idle' && (task.isSurvey ? 'Start' : 'Start')}
-                    {state === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {state === 'verify' && 'Verify'}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white text-sm leading-snug">{task.title}</h3>
+                    {task.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>}
+                    <p className="text-xs font-bold text-primary mt-0.5">+{task.rewardPoints.toLocaleString()} pts</p>
+                  </div>
+
+                  {isDone ? (
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                      <Check className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  ) : (
+                    <button
+                      data-testid={`button-partner-task-${task.id}`}
+                      onClick={() => handlePartnerTaskAction(task)}
+                      disabled={isLoading || isVerifying}
+                      className="min-w-[80px] h-9 text-xs font-bold rounded-lg flex items-center justify-center transition-all shrink-0"
+                      style={isVerify ? {
+                        background: 'hsl(152,76%,55%)',
+                        color: 'hsl(224,71%,4%)',
+                        boxShadow: '0 0 12px rgba(52,211,153,0.3)',
+                      } : {
+                        background: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                      }}
+                    >
+                      {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {isVerifying && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {!isLoading && !isVerifying && (isVerify ? 'Verify ✓' : 'Join')}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Survey Modal */}
       {showSurveyModal && (

@@ -285,4 +285,14 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ inactiveDays, ...(message ? { message } : {}) }),
     }),
+
+  // Generic helpers for admin endpoints without a typed wrapper
+  get: <T>(path: string) => adminFetch<T>(path),
+  post: <T>(path: string, body: unknown) =>
+    adminFetch<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown) =>
+    adminFetch<T>(path, { method: "PUT", body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown) =>
+    adminFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  del: (path: string) => adminFetch<void>(path, { method: "DELETE" }),
 };

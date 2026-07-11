@@ -129,6 +129,25 @@ export function logTelegramWebhookError(context: string, err: unknown): void {
  * Returns true on success, false if the user has blocked the bot or another
  * non-fatal error occurred (e.g. chat not found).
  */
+/**
+ * Check whether a Telegram user is a member/admin/creator of a channel or group.
+ * chatIdentifier: @username (with or without @) or numeric chat_id string.
+ * Returns "member" | "administrator" | "creator" | "restricted" | "left" | "kicked" | null (error).
+ * NOTE: the bot must be an admin of private channels/groups to use this.
+ */
+export async function getChatMemberStatus(chatIdentifier: string, telegramUserId: string): Promise<string | null> {
+  try {
+    const chat = chatIdentifier.startsWith("@") ? chatIdentifier : `@${chatIdentifier}`;
+    const result = await callBotApi<{ status: string }>("getChatMember", {
+      chat_id: isNaN(Number(chatIdentifier)) ? chat : Number(chatIdentifier),
+      user_id: Number(telegramUserId),
+    });
+    return result.status;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendReminderToUser(chatId: string, text: string, webAppUrl: string): Promise<boolean> {
   try {
     await callBotApi("sendMessage", {

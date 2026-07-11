@@ -26,3 +26,4 @@ export * from "./broadcastJobs";
 export * from "./sponsoredAds";
 export * from "./starProducts";
 export * from "./providers";
+export * from "./partnerTasks";
