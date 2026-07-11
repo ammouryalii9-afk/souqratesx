@@ -40,12 +40,6 @@ export function createAdsgramProvider(): EarnProvider {
       .update(vaultUsersTable)
       .set({
         lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-        // Also add to state.tempMiningPoints so rewards show up in spendable balance
-        state: sql`jsonb_set(
-          coalesce(${vaultUsersTable.state}, '{}'::jsonb),
-          '{tempMiningPoints}',
-          to_jsonb(coalesce((${vaultUsersTable.state}->>'tempMiningPoints')::numeric, 0) + ${amount})
-        )`,
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,
