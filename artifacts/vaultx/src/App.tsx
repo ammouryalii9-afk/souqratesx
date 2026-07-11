@@ -8,7 +8,7 @@ import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
-import { Hexagon } from "lucide-react";
+import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
 
 function Header() {
@@ -19,14 +19,17 @@ function Header() {
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center relative overflow-hidden" style={{
-          background: 'linear-gradient(145deg, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.06) 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 0 24px rgba(52,211,153,0.2), 0 4px 12px rgba(0,0,0,0.3)',
-          border: '1px solid rgba(52,211,153,0.2)',
-        }}>
-          <div className="absolute inset-0 bg-primary/20 animate-pulse mix-blend-overlay"></div>
-          <Hexagon className="absolute w-8 h-8 text-primary/20" />
-          <Hexagon className="w-5 h-5 text-primary relative z-10" style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.6))' }} />
+        <div className="w-10 h-10 flex items-center justify-center">
+          <img
+            src={logo}
+            alt="SouqrateX"
+            style={{
+              width: 40,
+              height: 40,
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.5)) drop-shadow(0 0 4px rgba(52,211,153,0.3))',
+            }}
+          />
         </div>
         <div className="flex flex-col">
           <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
