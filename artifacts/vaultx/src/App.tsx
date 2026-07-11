@@ -13,7 +13,6 @@ import { FriendsTab } from "./tabs/FriendsTab";
 import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
-import { initExoclick, showExoclickInterstitial } from "./lib/exoclick";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 
 function Header() {
@@ -79,9 +78,6 @@ function MainLayout() {
     getPublicConfig()
       .then((config) => {
         setBannerBlockId(config.adsgram.bannerBlockId);
-        if (config.exoclick.enabled && config.exoclick.zoneId && config.exoclick.insClass) {
-          initExoclick(config.exoclick.zoneId, config.exoclick.insClass).catch(() => {});
-        }
       })
       .catch(() => setBannerBlockId(null));
   }, []);
