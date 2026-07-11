@@ -38,17 +38,26 @@ export const StackTowerGame = ({ onBack }: { onBack: () => void }) => {
   const [score, setScore] = useState(0);
   const [lastPerfect, setLastPerfect] = useState(false);
 
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  };
+
   const drawBlock = (ctx: CanvasRenderingContext2D, b: Block, offsetY: number) => {
     const screenY = b.y + offsetY;
     if (screenY > CH + BLOCK_H || screenY + BLOCK_H < 0) return;
     ctx.fillStyle = b.color;
-    const r = 6;
-    ctx.beginPath();
-    ctx.roundRect(b.x, screenY, b.w, BLOCK_H, r);
+    roundRect(ctx, b.x, screenY, b.w, BLOCK_H, 6);
     ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.beginPath();
-    ctx.roundRect(b.x + 4, screenY + 3, b.w - 8, 5, 3);
+    roundRect(ctx, b.x + 4, screenY + 3, Math.max(b.w - 8, 1), 5, 3);
     ctx.fill();
   };
 
