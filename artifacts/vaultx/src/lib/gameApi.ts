@@ -27,7 +27,22 @@ export type PublicConfig = {
   };
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
   stars: { enabled: boolean };
+  botUsername: string | null;
 };
+
+const FALLBACK_BOT_USERNAME = "SouqratesX_bot";
+let cachedBotUsername: string | null = null;
+
+export async function getBotUsername(): Promise<string> {
+  if (cachedBotUsername) return cachedBotUsername;
+  try {
+    const cfg = await getPublicConfig();
+    if (cfg.botUsername) cachedBotUsername = cfg.botUsername;
+  } catch {
+    // fall through to fallback
+  }
+  return cachedBotUsername ?? FALLBACK_BOT_USERNAME;
+}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

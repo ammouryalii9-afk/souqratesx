@@ -22,3 +22,15 @@ never reaches `start_param`. Fixed to `?startapp=`.
 **How to apply:** whenever building a share/invite link whose payload is consumed by
 server-side `start_param` parsing, use `startapp=`. Reserve `start=` only for flows that are
 actually handled in the `/start` webhook handler.
+
+# Never hardcode the bot username in invite links
+
+A hardcoded, guessed bot username in `t.me/<bot>` links shows Telegram's
+"Sorry, this user doesn't seem to exist" alert to every recipient.
+
+**Why:** the referral + squad invite links shipped with a guessed username that didn't
+match the real bot, breaking all sharing until fixed.
+
+**How to apply:** the server exposes the real username (fetched once via Bot API `getMe`,
+cached, 3s timeout) as `botUsername` in `GET /config/public`; the frontend reads it via a
+cached `getBotUsername()` helper in `gameApi.ts`. Build all `t.me/` links from that value.

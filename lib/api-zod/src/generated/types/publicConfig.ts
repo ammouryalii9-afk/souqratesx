@@ -17,6 +17,8 @@ export interface PublicConfig {
   monetag: PublicConfigMonetag;
   offerwalls: PublicConfigOfferwallsItem[];
   botMessages: PublicConfigBotMessages;
+  /** @nullable */
+  botUsername: string | null;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }

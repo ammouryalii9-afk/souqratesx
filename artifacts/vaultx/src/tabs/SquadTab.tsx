@@ -13,8 +13,7 @@ import {
   type SquadBoardEntry,
   type MySquad,
 } from '../lib/squadsApi';
-
-const BOT_USERNAME = 'SouqrateXBot';
+import { getBotUsername } from '../lib/gameApi';
 const EMOJI_CHOICES = ['🛡️', '⚡', '🔥', '💎', '👑', '🚀', '🐉', '🦁', '🌊', '⭐', '💰', '🎯'];
 
 export const SquadTab = () => {
@@ -30,6 +29,11 @@ export const SquadTab = () => {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🛡️');
+  const [botUsername, setBotUsername] = useState('SouqratesX_bot');
+
+  useEffect(() => {
+    getBotUsername().then(setBotUsername).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,7 +55,7 @@ export const SquadTab = () => {
     load();
   }, [load]);
 
-  const inviteLink = mySquad ? `https://t.me/${BOT_USERNAME}?startapp=squad_${mySquad.id}` : '';
+  const inviteLink = mySquad ? `https://t.me/${botUsername}?startapp=squad_${mySquad.id}` : '';
 
   const share = () => {
     if (!inviteLink) return;

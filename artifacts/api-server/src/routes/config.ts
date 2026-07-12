@@ -4,6 +4,31 @@ import { getSettingsMap, asString, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
 
+let cachedBotUsername: string | null = null;
+let botUsernamePromise: Promise<string | null> | null = null;
+
+async function fetchBotUsername(): Promise<string | null> {
+  if (cachedBotUsername) return cachedBotUsername;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  if (!botUsernamePromise) {
+    botUsernamePromise = fetch(`https://api.telegram.org/bot${token}/getMe`, {
+      signal: AbortSignal.timeout(3000),
+    })
+      .then((r) => r.json() as Promise<{ ok?: boolean; result?: { username?: string } }>)
+      .then((data) => {
+        const username = data?.result?.username ?? null;
+        if (username) cachedBotUsername = username;
+        return username;
+      })
+      .catch(() => null)
+      .finally(() => {
+        botUsernamePromise = null;
+      });
+  }
+  return botUsernamePromise;
+}
+
 router.get("/config/public", async (_req, res): Promise<void> => {
   const settings = await getSettingsMap();
 
@@ -33,6 +58,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         termsText: asString(settings.appTermsText) || defaultTerms,
         welcomeText: asString(settings.appWelcomeText) || defaultWelcome,
       },
+      botUsername: await fetchBotUsername(),
       adsgram: {
         enabled: Boolean(asString(settings.adsgramBlockId)),
         blockId: asString(settings.adsgramBlockId) || null,

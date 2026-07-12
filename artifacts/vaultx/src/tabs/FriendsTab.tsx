@@ -9,6 +9,7 @@ import {
   type LeaderboardEntry,
   type WeeklyLeaderboardEntry,
 } from '../lib/engageApi';
+import { getBotUsername } from '../lib/gameApi';
 
 type WithdrawalRequest = {
   id: number;
@@ -37,8 +38,13 @@ export const FriendsTab = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<WithdrawalRequest[]>([]);
+  const [botUsername, setBotUsername] = useState('SouqratesX_bot');
 
-  const referralLink = `https://t.me/SouqrateXBot?start=ref_${userId}`;
+  useEffect(() => {
+    getBotUsername().then(setBotUsername).catch(() => {});
+  }, []);
+
+  const referralLink = `https://t.me/${botUsername}?startapp=ref_${userId}`;
 
   const buildRows = useCallback(
     (entries: { telegramId: string; username: string | null; firstName: string | null; pts: number }[]): Row[] =>

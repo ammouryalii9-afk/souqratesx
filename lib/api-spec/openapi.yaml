@@ -1414,6 +1414,8 @@ components:
             welcomeText:
               type: string
           required: [termsText, welcomeText]
+        botUsername:
+          type: ["string", "null"]
         exoclick:
           type: object
           properties:
@@ -1432,6 +1434,7 @@ components:
           required: [enabled]
       required:
         - botMessages
+        - botUsername
         - adsgram
         - monetag
         - exoclick
