@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, real, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, timestamp, pgEnum, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected"]);
 
@@ -18,6 +19,12 @@ export const withdrawalRequestsTable = pgTable("withdrawal_requests", {
   adminNote: text("admin_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
-});
+}, (table) => [
+  // DB-level "at most one pending request per user" — closes the race where two
+  // concurrent requests both pass the app-level pending check.
+  uniqueIndex("one_pending_withdrawal_per_user")
+    .on(table.telegramId)
+    .where(sql`${table.status} = 'pending'`),
+]);
 
 export type WithdrawalRequest = typeof withdrawalRequestsTable.$inferSelect;

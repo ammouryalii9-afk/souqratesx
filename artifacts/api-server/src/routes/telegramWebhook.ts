@@ -7,60 +7,51 @@ import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
 
-const DAY_MS = 1000 * 60 * 60 * 24;
-
-type VaultState = Record<string, unknown>;
-
-function isVaultState(value: unknown): value is VaultState {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
+// All effect writes below are ATOMIC single-statement SQL (jsonb_set / column
+// expressions). The previous read-modify-write pattern raced with the frequent
+// PUT /vault/me sync — a payment applying a stale state snapshot could silently
+// clobber concurrent game-state changes (and vice versa).
 async function applyStarProductEffect(
   telegramId: string,
   product: typeof starProductsTable.$inferSelect,
   amountStars: number,
 ): Promise<void> {
-  const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
-  if (!user) return;
-
-  const state = isVaultState(user.state) ? user.state : {};
+  const baseState = sql`coalesce(${vaultUsersTable.state}, '{}'::jsonb)`;
+  const creditStars = sql`${vaultUsersTable.starsBalance} + ${amountStars}::int`;
 
   switch (product.effectType) {
     case "premium_days": {
       const days = product.effectValue ?? 30;
-      const base = user.premiumExpiresAt && user.premiumExpiresAt.getTime() > Date.now() ? user.premiumExpiresAt.getTime() : Date.now();
       await db
         .update(vaultUsersTable)
         .set({
           isPremium: true,
-          premiumExpiresAt: new Date(base + days * DAY_MS),
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          // Extend from the CURRENT expiry if still in the future, else from now —
+          // computed inside the DB so concurrent purchases both extend correctly.
+          premiumExpiresAt: sql`GREATEST(coalesce(${vaultUsersTable.premiumExpiresAt}, now()), now()) + make_interval(days => ${days}::int)`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
     }
     case "energy_refill": {
-      const maxEnergy = typeof state.maxEnergy === "number" ? state.maxEnergy : 1000;
       await db
         .update(vaultUsersTable)
         .set({
-          state: { ...state, energy: maxEnergy },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          state: sql`jsonb_set(${baseState}, '{energy}', coalesce(${vaultUsersTable.state}->'maxEnergy', '1000'::jsonb))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
     }
     case "turbo_boost": {
       const seconds = product.effectValue ?? 20;
+      const expiresAtMs = Date.now() + seconds * 1000;
       await db
         .update(vaultUsersTable)
         .set({
-          state: {
-            ...state,
-            activeTurbo: true,
-            turboExpiresAt: Date.now() + seconds * 1000,
-          },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          state: sql`jsonb_set(jsonb_set(${baseState}, '{activeTurbo}', 'true'::jsonb), '{turboExpiresAt}', to_jsonb(${expiresAtMs}::bigint))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
@@ -69,12 +60,11 @@ async function applyStarProductEffect(
       // Percentage points added permanently to the player's mining/tap output.
       // Stacks additively across purchases (e.g. two +10% items = +20% total).
       const percent = product.effectValue ?? 0;
-      const currentPercent = typeof state.permanentMultiplierPercent === "number" ? state.permanentMultiplierPercent : 0;
       await db
         .update(vaultUsersTable)
         .set({
-          state: { ...state, permanentMultiplierPercent: currentPercent + percent },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          state: sql`jsonb_set(${baseState}, '{permanentMultiplierPercent}', to_jsonb(coalesce((${vaultUsersTable.state}->>'permanentMultiplierPercent')::numeric, 0) + ${percent}::numeric))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
@@ -85,13 +75,15 @@ async function applyStarProductEffect(
       // player switch their equipped badge later (equippedBadgeId defaults to
       // the most recently purchased one).
       const badgeId = product.effectValue ?? 0;
-      const ownedBadges = Array.isArray(state.ownedBadgeIds) ? (state.ownedBadgeIds as unknown[]) : [];
-      const nextOwnedBadges = ownedBadges.includes(badgeId) ? ownedBadges : [...ownedBadges, badgeId];
+      const owned = sql`coalesce(${vaultUsersTable.state}->'ownedBadgeIds', '[]'::jsonb)`;
       await db
         .update(vaultUsersTable)
         .set({
-          state: { ...state, ownedBadgeIds: nextOwnedBadges, equippedBadgeId: badgeId },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          state: sql`jsonb_set(
+            jsonb_set(${baseState}, '{ownedBadgeIds}',
+              CASE WHEN ${owned} @> to_jsonb(${badgeId}::int) THEN ${owned} ELSE ${owned} || to_jsonb(${badgeId}::int) END),
+            '{equippedBadgeId}', to_jsonb(${badgeId}::int))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
@@ -100,13 +92,15 @@ async function applyStarProductEffect(
       // effectValue is the skin's id; frontend maps it to a color theme for
       // the vault/tap button. Cosmetic only — no gameplay effect.
       const skinId = product.effectValue ?? 0;
-      const ownedSkins = Array.isArray(state.ownedSkinIds) ? (state.ownedSkinIds as unknown[]) : [];
-      const nextOwnedSkins = ownedSkins.includes(skinId) ? ownedSkins : [...ownedSkins, skinId];
+      const owned = sql`coalesce(${vaultUsersTable.state}->'ownedSkinIds', '[]'::jsonb)`;
       await db
         .update(vaultUsersTable)
         .set({
-          state: { ...state, ownedSkinIds: nextOwnedSkins, equippedSkinId: skinId },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          state: sql`jsonb_set(
+            jsonb_set(${baseState}, '{ownedSkinIds}',
+              CASE WHEN ${owned} @> to_jsonb(${skinId}::int) THEN ${owned} ELSE ${owned} || to_jsonb(${skinId}::int) END),
+            '{equippedSkinId}', to_jsonb(${skinId}::int))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
@@ -118,13 +112,12 @@ async function applyStarProductEffect(
       // counter, so it must also be bumped to keep it consistent, but crediting only
       // lifetimePoints (as before) left the purchase invisible/unusable in-game.
       const points = product.effectValue ?? 0;
-      const currentTempMiningPoints = typeof state.tempMiningPoints === "number" ? state.tempMiningPoints : 0;
       await db
         .update(vaultUsersTable)
         .set({
-          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${points}`,
-          state: { ...state, tempMiningPoints: currentTempMiningPoints + points },
-          starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}`,
+          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${points}::int`,
+          state: sql`jsonb_set(${baseState}, '{tempMiningPoints}', to_jsonb(coalesce((${vaultUsersTable.state}->>'tempMiningPoints')::bigint, 0) + ${points}::bigint))`,
+          starsBalance: creditStars,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
@@ -132,7 +125,7 @@ async function applyStarProductEffect(
     default: {
       await db
         .update(vaultUsersTable)
-        .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${amountStars}` })
+        .set({ starsBalance: creditStars })
         .where(eq(vaultUsersTable.telegramId, telegramId));
     }
   }

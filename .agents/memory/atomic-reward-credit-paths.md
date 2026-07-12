@@ -32,6 +32,20 @@ source of truth, imported by vault.ts too so the week boundary can't drift) and
 `creditedStateSql(reward, patches)` which builds the JSONB `state` update that credits
 weekly points and applies scalar/SQL patches. Pair it with a guard in the WHERE clause.
 
+**Additional rules from the 2026-07 full audit (money paths):**
+- **Two-statement money flows (deduct + insert, gate + refund) must be a DB transaction
+  or gate-first.** Withdrawal request = deduct + insert inside `db.transaction` backed by a
+  partial unique index (one pending per user) — never manual "refund on catch", because a
+  transient DB error would then mint points. Admin approve/reject = atomic
+  `UPDATE ... WHERE status='pending' RETURNING` gate FIRST, refund only after winning it.
+- **Verification failures must fail CLOSED.** Partner-task "benefit of doubt" on Telegram
+  API errors let everyone mass-claim during any bot/channel misconfig; return 503 instead.
+- **JSONB state effects from webhooks (Stars purchases) must be single-statement
+  `jsonb_set` SQL**, not read-modify-write — RMW races with the frequent `PUT /vault/me`
+  sync and silently clobbers state (remember `::int`/`::bigint` casts on bound params).
+- **In-memory rate limits run per cluster worker** — divide configured limits by worker
+  count (floor, min 1) or the effective limit is N× the intended one.
+
 **Known accepted limitation:** `POST /engage/mysterybox/open` with `source:"ad"` trusts the
 client that an ad was watched — it is only bounded by the 5/day cap. The frontend shows an
 ad via the Adsgram/Monetag SDK first, but that SDK call does NOT credit the server or

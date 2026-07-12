@@ -75,13 +75,27 @@ router.post("/partner-tasks/:id/verify", rateLimit("partner-verify", 10, 60_000)
     return;
   }
 
+  // Banned users cannot claim partner task rewards
+  const [me] = await db
+    .select({ isBanned: vaultUsersTable.isBanned })
+    .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.telegramId, telegramId));
+  if (!me || me.isBanned) {
+    res.status(403).json({ error: "User not found or banned" });
+    return;
+  }
+
   // Verify Telegram membership if bot is configured
   if (isTelegramBotConfigured()) {
     const { status, error } = await getChatMemberStatus(task.channelUsername, telegramId);
     if (status === null) {
-      // API error (bot not in channel, wrong username, etc.) — log but don't block the user
+      // API error (bot not in channel, wrong username, misconfigured task, etc.).
+      // Fail CLOSED — never credit unverified claims. Granting "benefit of doubt"
+      // here would let everyone mass-claim during any bot/channel misconfiguration.
       req.log.warn({ telegramId, taskId, channel: task.channelUsername, error },
-        "getChatMember API error — granting partner task benefit of doubt");
+        "getChatMember API error — rejecting partner task claim (fail-closed)");
+      res.status(503).json({ error: "verification_unavailable", message: "Verification is temporarily unavailable. Please try again in a moment." });
+      return;
     } else {
       const isJoined = status === "member" || status === "administrator" || status === "creator" || status === "restricted";
       if (!isJoined) {

@@ -100,40 +100,64 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const usdAmount = pointsAmount / POINTS_PER_USD;
   const tonAmount = usdAmount / tonPriceUsd;
 
-  // Atomically deduct points from the Total (lifetimePoints) only — the guard in the
-  // WHERE clause prevents overdraw under concurrent requests. Mined is not touched.
-  const [updated] = await db
-    .update(vaultUsersTable)
-    .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} - ${pointsAmount}`,
-    })
-    .where(
-      and(
-        eq(vaultUsersTable.telegramId, telegramId),
-        sql`${vaultUsersTable.lifetimePoints} >= ${pointsAmount}`,
-      ),
-    )
-    .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
+  // Deduct points + create the request in ONE transaction — either both happen
+  // or neither does. The guard-in-WHERE prevents overdraw under concurrency, and
+  // the partial unique index (one pending request per user) makes a concurrent
+  // duplicate request abort the whole transaction (deduction rolls back too —
+  // no manual refund needed, so a transient DB error can never mint points).
+  let result: { request: typeof withdrawalRequestsTable.$inferSelect; lifetimePoints: number };
+  try {
+    result = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(vaultUsersTable)
+        .set({
+          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} - ${pointsAmount}`,
+        })
+        .where(
+          and(
+            eq(vaultUsersTable.telegramId, telegramId),
+            sql`${vaultUsersTable.lifetimePoints} >= ${pointsAmount}`,
+          ),
+        )
+        .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
 
-  if (!updated) {
-    res.status(400).json({ error: "Insufficient points (balance changed). Please refresh and try again." });
+      if (!updated) {
+        throw Object.assign(new Error("insufficient_points"), { appCode: "insufficient_points" });
+      }
+
+      const [request] = await tx
+        .insert(withdrawalRequestsTable)
+        .values({
+          telegramId,
+          pointsAmount,
+          usdAmount,
+          tonAmount,
+          tonPriceUsd,
+          walletAddress: walletAddress.trim(),
+        })
+        .returning();
+
+      return { request, lifetimePoints: updated.lifetimePoints };
+    });
+  } catch (err) {
+    const e = err as { appCode?: string; code?: string; cause?: { code?: string } };
+    if (e.appCode === "insufficient_points") {
+      res.status(400).json({ error: "Insufficient points (balance changed). Please refresh and try again." });
+      return;
+    }
+    // Postgres unique_violation (23505) from the one-pending-per-user index.
+    const pgCode = e.code ?? e.cause?.code;
+    if (pgCode === "23505") {
+      req.log.warn({ telegramId }, "Concurrent pending withdrawal blocked by unique index — transaction rolled back");
+      res.status(409).json({ error: "You already have a pending withdrawal request. Wait for it to be processed." });
+      return;
+    }
+    req.log.error({ telegramId, err }, "Withdrawal request transaction failed");
+    res.status(500).json({ error: "Withdrawal request failed. Please try again." });
     return;
   }
 
-  // Create the request
-  const [request] = await db
-    .insert(withdrawalRequestsTable)
-    .values({
-      telegramId,
-      pointsAmount,
-      usdAmount,
-      tonAmount,
-      tonPriceUsd,
-      walletAddress: walletAddress.trim(),
-    })
-    .returning();
-
-  res.json({ ok: true, request, lifetimePoints: updated.lifetimePoints });
+  res.json({ ok: true, request: result.request, lifetimePoints: result.lifetimePoints });
 });
 
 /** GET /api/withdraw/my-requests — user's withdrawal history */
@@ -192,15 +216,19 @@ router.post("/admin/withdrawals/:id/approve", async (req, res): Promise<void> =>
   const id = Number(req.params.id);
   const { adminNote } = (req.body ?? {}) as { adminNote?: string };
 
-  const [request] = await db.select().from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id));
-  if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-  if (request.status !== "pending") { res.status(409).json({ error: "Request already processed" }); return; }
-
+  // Atomic gate: only a still-pending request can transition to approved.
+  // Two admins racing → exactly one wins; the loser gets 409.
   const [updated] = await db
     .update(withdrawalRequestsTable)
     .set({ status: "approved", adminNote: adminNote?.trim() ?? null, processedAt: new Date() })
-    .where(eq(withdrawalRequestsTable.id, id))
+    .where(and(eq(withdrawalRequestsTable.id, id), eq(withdrawalRequestsTable.status, "pending")))
     .returning();
+
+  if (!updated) {
+    const [exists] = await db.select({ id: withdrawalRequestsTable.id }).from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id));
+    res.status(exists ? 409 : 404).json({ error: exists ? "Request already processed" : "Request not found" });
+    return;
+  }
 
   res.json({ ok: true, request: updated });
 });
@@ -212,24 +240,29 @@ router.post("/admin/withdrawals/:id/reject", async (req, res): Promise<void> => 
   const id = Number(req.params.id);
   const { adminNote } = (req.body ?? {}) as { adminNote?: string };
 
-  const [request] = await db.select().from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id));
-  if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-  if (request.status !== "pending") { res.status(409).json({ error: "Request already processed" }); return; }
+  // Atomic gate FIRST: only a still-pending request can transition to rejected.
+  // The refund happens only after winning this gate — two racing rejects (or a
+  // reject racing an approve) can never double-refund or clobber an approval.
+  const [updated] = await db
+    .update(withdrawalRequestsTable)
+    .set({ status: "rejected", adminNote: adminNote?.trim() ?? null, processedAt: new Date() })
+    .where(and(eq(withdrawalRequestsTable.id, id), eq(withdrawalRequestsTable.status, "pending")))
+    .returning();
+
+  if (!updated) {
+    const [exists] = await db.select({ id: withdrawalRequestsTable.id }).from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id));
+    res.status(exists ? 409 : 404).json({ error: exists ? "Request already processed" : "Request not found" });
+    return;
+  }
 
   // Restore deducted points to the Total (lifetimePoints) — withdrawals only draw down
   // Total, so refunds only restore Total (Mined was never touched).
   await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${request.pointsAmount}`,
+      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${updated.pointsAmount}`,
     })
-    .where(eq(vaultUsersTable.telegramId, request.telegramId));
-
-  const [updated] = await db
-    .update(withdrawalRequestsTable)
-    .set({ status: "rejected", adminNote: adminNote?.trim() ?? null, processedAt: new Date() })
-    .where(eq(withdrawalRequestsTable.id, id))
-    .returning();
+    .where(eq(vaultUsersTable.telegramId, updated.telegramId));
 
   res.json({ ok: true, request: updated });
 });

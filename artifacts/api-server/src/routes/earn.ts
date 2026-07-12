@@ -30,6 +30,10 @@ router.post("/earn/adsgram/reward", rateLimit("adsgram", 30, 60_000), async (req
     res.status(500).json({ error: "Adsgram provider not registered" });
     return;
   }
+  if (!provider.isEnabled()) {
+    res.status(403).json({ error: "Adsgram is currently disabled" });
+    return;
+  }
 
   const result = await processReward(provider, { telegramId, raw: {} });
   if (!result.ok) {
@@ -50,6 +54,10 @@ router.post("/earn/monetag/reward", rateLimit("monetag", 30, 60_000), async (req
   const provider = getProvider("monetag");
   if (!provider) {
     res.status(500).json({ error: "Monetag provider not registered" });
+    return;
+  }
+  if (!provider.isEnabled()) {
+    res.status(403).json({ error: "Monetag is currently disabled" });
     return;
   }
 
