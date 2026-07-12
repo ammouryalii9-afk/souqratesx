@@ -92,19 +92,31 @@ export async function showRichAdsInterstitial(
   const ctrl = await loadSDK(pubId, appId);
 
   type TriggerFn = () => Promise<void>;
-  const methods: Array<keyof TelegramAdsControllerInstance> = [
+  const methods = [
     "triggerInterstitialVideo",
     "triggerInterstitialBanner",
     "triggerInterstitialMixed",
     "process",
-  ];
+  ] as const;
+
+  // RichAds trigger methods resolve immediately on no-fill (no ad available).
+  // A real ad takes at least a few seconds to display + close.
+  // If the method resolves in under MIN_AD_DURATION_MS, treat it as no-fill.
+  const MIN_AD_DURATION_MS = 2000;
 
   let lastErr: unknown;
   for (const method of methods) {
-    const fn = ctrl[method] as TriggerFn | undefined;
+    const fn = ctrl[method as keyof TelegramAdsControllerInstance] as TriggerFn | undefined;
     if (typeof fn !== "function") continue;
     try {
+      const start = Date.now();
       await fn.call(ctrl);
+      const elapsed = Date.now() - start;
+      if (elapsed < MIN_AD_DURATION_MS) {
+        // Resolved too fast — no ad was actually shown
+        lastErr = new Error("No ad available (no fill)");
+        continue;
+      }
       return;
     } catch (e) {
       lastErr = e;
