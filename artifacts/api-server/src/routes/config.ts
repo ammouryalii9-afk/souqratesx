@@ -153,7 +153,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           id: "cpalead",
           name: "CPALead",
           url: cpaleadUrl || null,
-          enabled: Boolean(cpaleadUrl && asString(settings.cpaleadApiKey)),
+          enabled: Boolean(cpaleadUrl && asString(settings.cpaleadPostbackSecret)),
         },
         {
           id: "adscendmedia",
