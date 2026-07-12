@@ -3,15 +3,80 @@ import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers } from 'lucide-react';
+import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers, PlayCircle, Tv } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
 import { SkinsShop } from '../components/SkinsShop';
+import { watchRewardedAdWithFallback } from '../lib/adFallback';
+import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
 
 type GameState = 'idle' | 'playing' | 'gameover';
 type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
+
+// ---- Daily plays system ----
+const FREE_PLAYS_PER_DAY = 3;
+const MAX_EXTRA_PLAYS_PER_DAY = 3;
+
+type DailyPlays = {
+  playsLeft: number;
+  extraPlaysLeft: number;
+  watchingAd: boolean;
+  usePlay: () => boolean;
+  watchAdForPlay: () => Promise<void>;
+};
+
+function useDailyGamePlays(gameId: string): DailyPlays {
+  const today = new Date().toISOString().split('T')[0];
+  const storageKey = `gameDaily_${gameId}`;
+
+  const readFresh = useCallback((): { playsUsed: number; extraPlays: number } => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return { playsUsed: 0, extraPlays: 0 };
+      const s = JSON.parse(raw) as { date: string; playsUsed: number; extraPlays: number };
+      if (s.date !== today) return { playsUsed: 0, extraPlays: 0 };
+      return { playsUsed: s.playsUsed, extraPlays: s.extraPlays };
+    } catch { return { playsUsed: 0, extraPlays: 0 }; }
+  }, [storageKey, today]);
+
+  const [stored, setStored] = useState(readFresh);
+  const [watchingAd, setWatchingAd] = useState(false);
+  const configRef = useRef<PublicConfig | null>(null);
+
+  const save = useCallback((next: { playsUsed: number; extraPlays: number }) => {
+    localStorage.setItem(storageKey, JSON.stringify({ date: today, ...next }));
+    setStored(next);
+  }, [storageKey, today]);
+
+  const playsLeft = Math.max(0, FREE_PLAYS_PER_DAY + stored.extraPlays - stored.playsUsed);
+  const extraPlaysLeft = MAX_EXTRA_PLAYS_PER_DAY - stored.extraPlays;
+
+  const usePlay = useCallback((): boolean => {
+    const fresh = readFresh();
+    const left = Math.max(0, FREE_PLAYS_PER_DAY + fresh.extraPlays - fresh.playsUsed);
+    if (left <= 0) return false;
+    save({ ...fresh, playsUsed: fresh.playsUsed + 1 });
+    return true;
+  }, [readFresh, save]);
+
+  const watchAdForPlay = useCallback(async (): Promise<void> => {
+    const fresh = readFresh();
+    if (MAX_EXTRA_PLAYS_PER_DAY - fresh.extraPlays <= 0 || watchingAd) return;
+    if (!configRef.current) configRef.current = await getPublicConfig();
+    setWatchingAd(true);
+    try {
+      await watchRewardedAdWithFallback(configRef.current);
+      const fresh2 = readFresh();
+      save({ ...fresh2, extraPlays: fresh2.extraPlays + 1 });
+    } catch { /* user dismissed or no ad fill */ } finally {
+      setWatchingAd(false);
+    }
+  }, [readFresh, save, watchingAd]);
+
+  return { playsLeft, extraPlaysLeft, watchingAd, usePlay, watchAdForPlay };
+}
 
 const PASSIVE_CARDS = [
   { id: 'mining-rig', name: 'Mining Rig', base: 50, levelCost: (lvl: number) => lvl * 2000, icon: Pickaxe },
@@ -35,6 +100,11 @@ export const GamesTab = () => {
   const { toast } = useToast();
   const { tr } = useLanguage();
 
+  // Daily play limits — must be called before any early returns (React rules)
+  const speedTapPlays = useDailyGamePlays('speed-tap');
+  const memoryMatchPlays = useDailyGamePlays('memory-match');
+  const luckyWheelPlays = useDailyGamePlays('lucky-wheel');
+
   const nextLevelCost = miningLevel === 1 ? 10000 : miningLevel === 2 ? 50000 : miningLevel === 3 ? 200000 : null;
   const batteryCost = 30000;
   const hasBatteryUpgrade = maxEnergy >= 200;
@@ -43,6 +113,12 @@ export const GamesTab = () => {
     'speed-tap': tr.games.speedTap,
     'memory-match': tr.games.memoryMatch,
     'lucky-wheel': tr.games.luckyWheel,
+  };
+
+  const playsMap: Record<string, DailyPlays> = {
+    'speed-tap': speedTapPlays,
+    'memory-match': memoryMatchPlays,
+    'lucky-wheel': luckyWheelPlays,
   };
 
   const handleBuyLevel = () => {
@@ -61,9 +137,9 @@ export const GamesTab = () => {
     }
   };
 
-  if (activeGame === 'speed-tap') return <SpeedTapGame onBack={() => setActiveGame(null)} />;
-  if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} />;
-  if (activeGame === 'lucky-wheel') return <LuckyWheelGame onBack={() => setActiveGame(null)} />;
+  if (activeGame === 'speed-tap') return <SpeedTapGame onBack={() => setActiveGame(null)} plays={speedTapPlays} />;
+  if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} plays={memoryMatchPlays} />;
+  if (activeGame === 'lucky-wheel') return <LuckyWheelGame onBack={() => setActiveGame(null)} plays={luckyWheelPlays} />;
   if (activeGame === 'knife-hit') return <KnifeHitGame onBack={() => setActiveGame(null)} />;
   if (activeGame === 'stack-tower') return <StackTowerGame onBack={() => setActiveGame(null)} />;
 
@@ -77,29 +153,42 @@ export const GamesTab = () => {
       <div className="px-4 mt-3 grid grid-cols-2 gap-3">
         {GAME_LIST.map((g) => {
           const Icon = g.icon;
+          const plays = playsMap[g.id];
+          const playsLeft = plays?.playsLeft ?? FREE_PLAYS_PER_DAY;
+          const totalPlays = FREE_PLAYS_PER_DAY + (plays ? (FREE_PLAYS_PER_DAY + MAX_EXTRA_PLAYS_PER_DAY - plays.extraPlaysLeft) - FREE_PLAYS_PER_DAY : 0);
+          const noPlays = playsLeft <= 0;
           return (
             <button
               key={g.id}
               data-testid={`open-game-${g.id}`}
               onClick={() => { haptic('select'); setActiveGame(g.id); }}
-              className="rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform"
+              className="rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform relative"
               style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+                background: noPlays
+                  ? 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%)'
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
                 border: '1px solid rgba(255,255,255,0.06)',
                 backdropFilter: 'blur(12px)',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
               }}
             >
+              {plays && (
+                <div className={`absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${noPlays ? 'bg-white/5 text-white/30' : 'bg-primary/15 text-primary'}`}>
+                  <PlayCircle className="w-2.5 h-2.5" />
+                  <span>{playsLeft}</span>
+                </div>
+              )}
               <div style={{
-                background: `radial-gradient(circle at 30% 25%, ${g.color}22 0%, ${g.color}08 100%)`,
+                background: `radial-gradient(circle at 30% 25%, ${g.color}${noPlays ? '10' : '22'} 0%, ${g.color}08 100%)`,
                 border: `1px solid ${g.color}20`,
                 boxShadow: `0 0 16px ${g.color}12, inset 0 1px 0 rgba(255,255,255,0.05)`,
                 width: '48px', height: '48px', borderRadius: '14px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: noPlays ? 0.4 : 1,
               }}>
                 <Icon className="w-6 h-6" style={{ color: g.color, filter: `drop-shadow(0 0 6px ${g.color}50)` }} />
               </div>
-              <h3 className="font-semibold text-white text-sm">{gameI18n[g.id]?.name ?? g.name}</h3>
+              <h3 className={`font-semibold text-sm ${noPlays ? 'text-white/40' : 'text-white'}`}>{gameI18n[g.id]?.name ?? g.name}</h3>
               <p className="text-xs text-muted-foreground leading-snug">{gameI18n[g.id]?.desc ?? g.desc}</p>
             </button>
           );
@@ -204,6 +293,42 @@ const GameHeader = ({ title, onBack }: { title: string; onBack: () => void }) =>
   </div>
 );
 
+// ---- Shared UI helpers for daily play limits ----
+
+const DailyPlaysBar = ({ plays }: { plays: DailyPlays }) => (
+  <div className="w-full flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5">
+    <div className="flex items-center gap-1.5">
+      <PlayCircle className="w-4 h-4 text-primary" />
+      <span className="text-sm font-bold text-white">
+        {plays.playsLeft} <span className="text-muted-foreground font-normal">/ {FREE_PLAYS_PER_DAY + (MAX_EXTRA_PLAYS_PER_DAY - plays.extraPlaysLeft)}</span>
+      </span>
+      <span className="text-xs text-muted-foreground">أدوار اليوم</span>
+    </div>
+    <div className="flex items-center gap-1">
+      <Tv className="w-3.5 h-3.5 text-muted-foreground" />
+      <span className="text-xs text-muted-foreground">{plays.extraPlaysLeft} إعلان متاح</span>
+    </div>
+  </div>
+);
+
+const WatchAdButton = ({ plays }: { plays: DailyPlays }) => (
+  <div className="w-full flex flex-col items-center gap-3 mt-1">
+    <p className="text-sm text-muted-foreground text-center">انتهت أدوارك اليوم</p>
+    {plays.extraPlaysLeft > 0 ? (
+      <button
+        onClick={plays.watchAdForPlay}
+        disabled={plays.watchingAd}
+        className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary px-6 py-3 rounded-xl font-bold active:scale-[0.98] transition-all w-full justify-center disabled:opacity-50"
+      >
+        <Tv className="w-4 h-4" />
+        {plays.watchingAd ? 'جاري التحميل...' : 'شاهد إعلاناً ← +1 دور'}
+      </button>
+    ) : (
+      <p className="text-xs text-muted-foreground text-center bg-white/5 rounded-xl px-4 py-3 w-full">لقد استخدمت كل الإعلانات اليوم — عُد غداً!</p>
+    )}
+  </div>
+);
+
 // ---------------- Speed Tap ----------------
 
 const SPEED_TAP_DURATION = 10;
@@ -211,7 +336,7 @@ const SPEED_TAP_PTS_PER_TAP = 15;
 const SPEED_TAP_MAX_TAPS = 200;
 const SPEED_TAP_MAX_PER_SECOND = 20;
 
-const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
+const SpeedTapGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
   const [phase, setPhase] = useState<'idle' | 'playing' | 'done'>('idle');
   const [taps, setTaps] = useState(0);
@@ -222,6 +347,7 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
   const tapTimestampsRef = useRef<number[]>([]);
 
   const start = () => {
+    if (!plays.usePlay()) return;
     tapCountRef.current = 0;
     tapTimestampsRef.current = [];
     setTaps(0);
@@ -281,7 +407,11 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
               <Timer className="w-8 h-8 text-cyan-400" />
             </div>
             <p className="text-sm text-muted-foreground text-center leading-relaxed">Tap the button as many times as you can in <span className="text-white font-bold">{SPEED_TAP_DURATION} seconds</span>.<br/>Each tap = <span className="text-primary font-bold">+{SPEED_TAP_PTS_PER_TAP} pts</span>.</p>
-            <button data-testid="button-start-speedtap" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
+            <DailyPlaysBar plays={plays} />
+            {plays.playsLeft > 0
+              ? <button data-testid="button-start-speedtap" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
+              : <WatchAdButton plays={plays} />
+            }
           </>
         )}
 
@@ -318,7 +448,10 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
               <TrendingUp className="w-5 h-5 text-primary shrink-0" />
               <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
             </div>
-            <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">Play Again</button>
+            {plays.playsLeft > 0
+              ? <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">العب مجدداً ({plays.playsLeft} متبقية)</button>
+              : <WatchAdButton plays={plays} />
+            }
           </>
         )}
       </div>
@@ -342,7 +475,7 @@ function buildMemoryDeck(): MemoryCard[] {
   return deck;
 }
 
-const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
+const MemoryMatchGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
   const [phase, setPhase] = useState<'idle' | 'playing' | 'done'>('idle');
   const [cards, setCards] = useState<MemoryCard[]>([]);
@@ -353,6 +486,7 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
   const lockRef = useRef(false);
 
   const start = () => {
+    if (!plays.usePlay()) return;
     setCards(buildMemoryDeck());
     setSelected([]);
     setMatchedPairs(0);
@@ -443,7 +577,11 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
               <Brain className="w-8 h-8 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground text-center leading-relaxed">Flip cards and match all <span className="text-white font-bold">{MEMORY_EMOJIS.length} pairs</span> within <span className="text-white font-bold">{MEMORY_TIME_LIMIT}s</span>.<br/>Each pair = <span className="text-primary font-bold">+{MEMORY_REWARD_PER_PAIR} pts</span>.</p>
-            <button data-testid="button-start-memory" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
+            <DailyPlaysBar plays={plays} />
+            {plays.playsLeft > 0
+              ? <button data-testid="button-start-memory" onClick={start} className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2">Start Game</button>
+              : <WatchAdButton plays={plays} />
+            }
           </>
         )}
 
@@ -494,7 +632,10 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
               <TrendingUp className="w-5 h-5 text-primary shrink-0" />
               <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
             </div>
-            <button data-testid="button-again-memory" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">Play Again</button>
+            {plays.playsLeft > 0
+              ? <button data-testid="button-again-memory" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">العب مجدداً ({plays.playsLeft} متبقية)</button>
+              : <WatchAdButton plays={plays} />
+            }
           </>
         )}
       </div>
@@ -505,28 +646,15 @@ const MemoryMatchGame = ({ onBack }: { onBack: () => void }) => {
 // ---------------- Lucky Wheel ----------------
 
 const WHEEL_SEGMENTS = [50, 100, 250, 500, 100, 1000, 50, 5000];
-const MAX_SPINS_PER_DAY = 3;
-
-const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
+const LuckyWheelGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
-  const [spinsUsedToday, setSpinsUsedToday] = useState(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const savedDate = localStorage.getItem('luckyWheelDate');
-    if (savedDate !== today) {
-      localStorage.setItem('luckyWheelDate', today);
-      localStorage.setItem('luckyWheelSpins', '0');
-      return 0;
-    }
-    return Number(localStorage.getItem('luckyWheelSpins')) || 0;
-  });
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [lastWin, setLastWin] = useState<number | null>(null);
 
-  const spinsLeft = MAX_SPINS_PER_DAY - spinsUsedToday;
-
   const spin = () => {
-    if (isSpinning || spinsLeft <= 0) return;
+    if (isSpinning || plays.playsLeft <= 0) return;
+    if (!plays.usePlay()) return;
     setIsSpinning(true);
     setLastWin(null);
     haptic('medium');
@@ -543,9 +671,6 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
       setLastWin(winAmount);
       setTempMiningPoints(prev => prev + winAmount);
       addLifetimePoints(winAmount);
-      const used = spinsUsedToday + 1;
-      setSpinsUsedToday(used);
-      localStorage.setItem('luckyWheelSpins', used.toString());
       haptic(winAmount >= 1000 ? 'success' : 'light');
     }, 3200);
   };
@@ -555,8 +680,8 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
       <GameHeader title="Lucky Wheel" onBack={onBack} />
       <div className="mx-4 rounded-[24px] bg-card/60 backdrop-blur-xl border border-white/10 p-8 flex flex-col items-center gap-6 shadow-sm overflow-hidden relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-[60px] pointer-events-none" />
-        
-        <p className="text-sm text-muted-foreground text-center relative z-10 leading-relaxed">Free spin, pure luck.<br/><span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md inline-block mt-1">{spinsLeft}</span> of {MAX_SPINS_PER_DAY} spins left today.</p>
+
+        <DailyPlaysBar plays={plays} />
 
         <div className="relative w-64 h-64 mt-2">
           <div className="absolute inset-0 rounded-full shadow-[0_0_50px_rgba(52,211,153,0.15)] animate-pulse" />
@@ -592,13 +717,13 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
               );
             })}
           </div>
-          
+
           {/* Wheel Pointer */}
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-8 drop-shadow-md z-20 flex flex-col items-center">
             <div className="w-4 h-4 bg-white rounded-full border-2 border-primary mb-[-8px] z-10" />
             <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[14px] border-l-transparent border-r-transparent border-t-white" />
           </div>
-          
+
           {/* Wheel Center */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-background rounded-full border-4 border-primary/30 shadow-inner z-10 flex items-center justify-center">
             <div className="w-4 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
@@ -612,14 +737,18 @@ const LuckyWheelGame = ({ onBack }: { onBack: () => void }) => {
           </div>
         )}
 
-        <button 
-          data-testid="button-spin-wheel-game" 
-          onClick={spin} 
-          disabled={spinsLeft <= 0 || isSpinning} 
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2 disabled:opacity-50 disabled:shadow-none disabled:bg-white/10 disabled:text-white/40"
-        >
-          {isSpinning ? 'Spinning...' : spinsLeft <= 0 ? 'Come back tomorrow' : 'Spin Wheel'}
-        </button>
+        {plays.playsLeft > 0 ? (
+          <button
+            data-testid="button-spin-wheel-game"
+            onClick={spin}
+            disabled={isSpinning}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-3.5 rounded-xl font-bold shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] transition-all w-full mt-2 disabled:opacity-50 disabled:shadow-none"
+          >
+            {isSpinning ? 'Spinning...' : 'Spin Wheel'}
+          </button>
+        ) : (
+          <WatchAdButton plays={plays} />
+        )}
       </div>
     </div>
   );
