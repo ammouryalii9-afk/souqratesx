@@ -96,11 +96,7 @@ function MainLayout() {
             initOnclickaInpage(config.onclicka.inpageId as string);
           });
         }
-        if (config.richads.pubId && config.richads.appId) {
-          import('./lib/richads').then(({ initRichAds }) => {
-            initRichAds(config.richads.pubId as string, config.richads.appId as string);
-          });
-        }
+
       })
       .catch(() => setBannerBlockId(null));
   }, []);

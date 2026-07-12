@@ -11,7 +11,6 @@ import type { PublicConfigExoclick } from './publicConfigExoclick';
 import type { PublicConfigMonetag } from './publicConfigMonetag';
 import type { PublicConfigOfferwallsItem } from './publicConfigOfferwallsItem';
 import type { PublicConfigOnclicka } from './publicConfigOnclicka';
-import type { PublicConfigRichads } from './publicConfigRichads';
 import type { PublicConfigStars } from './publicConfigStars';
 
 export interface PublicConfig {
@@ -22,7 +21,6 @@ export interface PublicConfig {
   botMessages: PublicConfigBotMessages;
   /** @nullable */
   botUsername: string | null;
-  richads: PublicConfigRichads;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }

@@ -96,31 +96,6 @@ router.post("/earn/onclicka/reward", rateLimit("onclicka", 30, 60_000), async (r
   res.json(ClaimAdsgramRewardResponse.parse({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints }));
 });
 
-router.post("/earn/richads/reward", rateLimit("richads", 30, 60_000), async (req, res): Promise<void> => {
-  const telegramId = getSessionTelegramId(req);
-  if (!telegramId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-
-  const provider = getProvider("richads");
-  if (!provider) {
-    res.status(500).json({ error: "RichAds provider not registered" });
-    return;
-  }
-  if (!provider.isEnabled()) {
-    res.status(403).json({ error: "RichAds is currently disabled" });
-    return;
-  }
-
-  const result = await processReward(provider, { telegramId, raw: {} });
-  if (!result.ok) {
-    res.status(429).json({ error: result.reason ?? "Ad reward not available yet (cooldown or daily limit)" });
-    return;
-  }
-
-  res.json(ClaimAdsgramRewardResponse.parse({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints }));
-});
 
 router.get("/earn/adsgram/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
   const telegramId = typeof req.query.userId === "string" ? req.query.userId : "";

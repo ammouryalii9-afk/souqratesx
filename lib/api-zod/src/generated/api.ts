@@ -610,14 +610,6 @@ export const GetPublicConfigResponse = zod.object({
   "welcomeText": zod.string()
 }),
   "botUsername": zod.string().nullable(),
-  "richads": zod.object({
-  "enabled": zod.boolean(),
-  "pubId": zod.string().nullable(),
-  "appId": zod.string().nullable(),
-  "rewardPoints": zod.number(),
-  "cooldownSeconds": zod.number(),
-  "dailyCap": zod.number()
-}),
   "exoclick": zod.object({
   "enabled": zod.boolean(),
   "zoneId": zod.string().nullable(),
@@ -690,15 +682,6 @@ export const GetEarnOffersResponse = zod.object({
  * @summary Credit points for a completed rewarded ad view (server-trusted cooldown + daily cap)
  */
 export const ClaimAdsgramRewardResponse = zod.object({
-  "creditedPoints": zod.number(),
-  "lifetimePoints": zod.number()
-})
-
-
-/**
- * @summary Credit points for a completed RichAds ad view (button-triggered, client-trusted cooldown + daily cap)
- */
-export const ClaimRichAdsRewardResponse = zod.object({
   "creditedPoints": zod.number(),
   "lifetimePoints": zod.number()
 })
