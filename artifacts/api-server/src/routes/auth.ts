@@ -60,19 +60,20 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         state: {},
       })
       .returning();
-
-    if (user) {
-      if (startParam?.startsWith("squad_")) {
-        await joinSquadOnSignup(telegramId, startParam);
-      } else {
-        await linkReferrer(telegramId, startParam);
-      }
-    }
   }
 
   if (!user) {
     res.status(500).json({ error: "Failed to create user" });
     return;
+  }
+
+  // Referral/squad attribution runs on EVERY login, not just signup —
+  // both paths are idempotent (guard-in-WHERE), so an existing account
+  // clicking an invite link gets attributed exactly once, ever.
+  if (startParam?.startsWith("squad_")) {
+    await joinSquadOnSignup(telegramId, startParam);
+  } else {
+    await linkReferrer(telegramId, startParam);
   }
 
   setSessionCookie(res, telegramId);

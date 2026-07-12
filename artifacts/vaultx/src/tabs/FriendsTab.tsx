@@ -44,7 +44,8 @@ export const FriendsTab = () => {
     getBotUsername().then(setBotUsername).catch(() => {});
   }, []);
 
-  const referralLink = `https://t.me/${botUsername}?startapp=ref_${userId}`;
+  const hasRealTelegramId = /^\d+$/.test(userId);
+  const referralLink = hasRealTelegramId ? `https://t.me/${botUsername}?startapp=ref_${userId}` : '';
 
   const buildRows = useCallback(
     (entries: { telegramId: string; username: string | null; firstName: string | null; pts: number }[]): Row[] =>
@@ -88,6 +89,7 @@ export const FriendsTab = () => {
   }, [isTelegramUser]);
 
   const copyLink = async () => {
+    if (!referralLink) return;
     try {
       await navigator.clipboard.writeText(referralLink);
       toast({ title: tr.friends.copiedTitle, description: tr.friends.linkCopiedDesc });

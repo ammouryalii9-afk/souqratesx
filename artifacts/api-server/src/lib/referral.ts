@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
@@ -7,10 +7,13 @@ import { logger } from "./logger";
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
 
 /**
- * Links a newly-created user to their referrer, parsed from the Telegram
- * `start_param` (format: `ref_<telegramId>`). No-ops on self-referral or an
- * unknown/banned referrer. Safe to call once, right after the referred
- * user's row is inserted.
+ * Links a user to their referrer, parsed from the Telegram `start_param`
+ * (format: `ref_<telegramId>`). Idempotent and abuse-safe: the referrer is
+ * set at most ONCE per account ever (guard-in-WHERE on `referrerId IS NULL`),
+ * so it is safe to call on EVERY login — an existing account clicking a
+ * referral link gets attributed on their next open, but an already-attributed
+ * account can never switch referrers or double-count. No-ops on
+ * self-referral or an unknown/banned referrer.
  */
 export async function linkReferrer(newTelegramId: string, startParam: string | null | undefined): Promise<void> {
   if (!startParam || !startParam.startsWith("ref_")) return;
@@ -21,7 +24,13 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
   const [referrer] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, referrerTelegramId));
   if (!referrer || referrer.isBanned) return;
 
-  await db.update(vaultUsersTable).set({ referrerId: referrerTelegramId }).where(eq(vaultUsersTable.telegramId, newTelegramId));
+  const linked = await db
+    .update(vaultUsersTable)
+    .set({ referrerId: referrerTelegramId })
+    .where(and(eq(vaultUsersTable.telegramId, newTelegramId), isNull(vaultUsersTable.referrerId)))
+    .returning({ telegramId: vaultUsersTable.telegramId });
+
+  if (linked.length === 0) return;
 
   await db
     .update(vaultUsersTable)

@@ -34,3 +34,17 @@ match the real bot, breaking all sharing until fixed.
 **How to apply:** the server exposes the real username (fetched once via Bot API `getMe`,
 cached, 3s timeout) as `botUsername` in `GET /config/public`; the frontend reads it via a
 cached `getBotUsername()` helper in `gameApi.ts`. Build all `t.me/` links from that value.
+
+# Referral attribution must run on every login, not only at signup
+
+Attribution that only fires on the new-user insert branch silently misses everyone who
+ever opened the app before clicking an invite link — which users perceive as "referrals
+randomly don't work".
+
+**Why:** the referral system "worked" in fresh-account tests but failed for real users
+with existing accounts; the fix was moving attribution out of the signup-only branch.
+
+**How to apply:** run start_param attribution on EVERY auth, and make it idempotent with
+guard-in-WHERE (`referrerId IS NULL`, `squadId IS NULL`) + `returning()` checks before any
+counter increment. Only credit a squad owner as referrer when the squad join actually
+happened (rowCount > 0), or clicking an unrelated squad link steals attribution.
