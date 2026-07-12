@@ -105,6 +105,7 @@ export interface AdminUserList {
 }
 
 export interface AdminUserDetail {
+  internalId: number;
   telegramId: string;
   /** @nullable */
   username: string | null;
@@ -124,9 +125,15 @@ export interface AdminUserDetail {
   referrerId: string | null;
   referralCount: number;
   referralEarnings: number;
+  adsWatchedToday: number;
   /** @nullable */
   notes: string | null;
   state: VaultStateData;
+  currentPoints: number;
+  miningLevel: number;
+  energy: number;
+  maxEnergy: number;
+  profitPerHour: number;
   createdAt: string;
   updatedAt: string;
 }

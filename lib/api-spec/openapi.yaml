@@ -1181,6 +1181,8 @@ components:
     AdminUserDetail:
       type: object
       properties:
+        internalId:
+          type: integer
         telegramId:
           type: string
         username:
@@ -1207,15 +1209,28 @@ components:
           type: integer
         referralEarnings:
           type: integer
+        adsWatchedToday:
+          type: integer
         notes:
           type: ["string", "null"]
         state:
           $ref: "#/components/schemas/VaultStateData"
+        currentPoints:
+          type: number
+        miningLevel:
+          type: integer
+        energy:
+          type: number
+        maxEnergy:
+          type: number
+        profitPerHour:
+          type: number
         createdAt:
           type: string
         updatedAt:
           type: string
       required:
+        - internalId
         - telegramId
         - username
         - firstName
@@ -1229,8 +1244,14 @@ components:
         - referrerId
         - referralCount
         - referralEarnings
+        - adsWatchedToday
         - notes
         - state
+        - currentPoints
+        - miningLevel
+        - energy
+        - maxEnergy
+        - profitPerHour
         - createdAt
         - updatedAt
     AdminUserPatch:

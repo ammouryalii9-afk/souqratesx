@@ -86,6 +86,18 @@ function toUserSummary(user: typeof vaultUsersTable.$inferSelect) {
   };
 }
 
+function computeProfitPerHour(st: Record<string, unknown>): number {
+  // Mirrors the frontend: sum of card ptsPerHour (already level-adjusted) × permanent multiplier
+  const base = Array.isArray(st.passiveCards)
+    ? (st.passiveCards as Array<Record<string, unknown>>).reduce(
+        (sum, c) => sum + (typeof c.ptsPerHour === "number" ? c.ptsPerHour : 0),
+        0,
+      )
+    : 0;
+  const multiplierPercent = typeof st.permanentMultiplierPercent === "number" ? st.permanentMultiplierPercent : 0;
+  return Math.round(base * (1 + multiplierPercent / 100));
+}
+
 function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
   const st = (typeof user.state === "object" && user.state !== null && !Array.isArray(user.state))
     ? (user.state as Record<string, unknown>)
@@ -113,7 +125,7 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     miningLevel: typeof st.miningLevel === "number" ? st.miningLevel : 1,
     energy: typeof st.energy === "number" ? st.energy : 0,
     maxEnergy: typeof st.maxEnergy === "number" ? st.maxEnergy : 1000,
-    profitPerHour: typeof st.profitPerHour === "number" ? st.profitPerHour : 0,
+    profitPerHour: computeProfitPerHour(st),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

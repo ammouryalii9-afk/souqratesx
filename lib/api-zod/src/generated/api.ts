@@ -172,6 +172,7 @@ export const GetAdminUserParams = zod.object({
 })
 
 export const GetAdminUserResponse = zod.object({
+  "internalId": zod.number(),
   "telegramId": zod.string(),
   "username": zod.string().nullable(),
   "firstName": zod.string().nullable(),
@@ -185,8 +186,14 @@ export const GetAdminUserResponse = zod.object({
   "referrerId": zod.string().nullable(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number(),
+  "adsWatchedToday": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "currentPoints": zod.number(),
+  "miningLevel": zod.number(),
+  "energy": zod.number(),
+  "maxEnergy": zod.number(),
+  "profitPerHour": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -210,6 +217,7 @@ export const UpdateAdminUserBody = zod.object({
 })
 
 export const UpdateAdminUserResponse = zod.object({
+  "internalId": zod.number(),
   "telegramId": zod.string(),
   "username": zod.string().nullable(),
   "firstName": zod.string().nullable(),
@@ -223,8 +231,14 @@ export const UpdateAdminUserResponse = zod.object({
   "referrerId": zod.string().nullable(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number(),
+  "adsWatchedToday": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "currentPoints": zod.number(),
+  "miningLevel": zod.number(),
+  "energy": zod.number(),
+  "maxEnergy": zod.number(),
+  "profitPerHour": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

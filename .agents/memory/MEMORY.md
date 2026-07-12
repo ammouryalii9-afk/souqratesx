@@ -2,4 +2,5 @@
 - [Atomic reward credit paths](atomic-reward-credit-paths.md) — server point-credit paths must guard-in-WHERE + check rowCount (no read-then-write) AND bump state.weeklyPoints via creditedStateSql(), or races double-credit / weekly board undercounts.
 - [Telegram Mini App deep links](telegram-miniapp-deeplinks.md) — viral invite links that feed server-side start_param must use `startapp=`, not `start=` (start= only hits the /start webhook, never initData).
 - [Vault state-sync authority](vault-state-sync-authority.md) — one-time-reward flags in the state JSONB (e.g. hasClaimedWelcome) must be MONOTONIC (sticky-true) in PUT /vault/me merge, not in PROTECTED_STATE_KEYS, or clients re-claim.
+- [OpenAPI/Zod response stripping](openapi-zod-response-stripping.md) — generated Zod .parse() silently drops response fields missing from openapi.yaml; blank frontend detail views with 200 responses = stripped keys.
 - [Onclicka TMA SDK split](onclicka-sdk-split.md) — rewarded video uses js.onclckvd.com tma.js (initCdTma); inpage/interstitial uses onclicka.js + data-admpid. Wrong script = eternal "SDK unavailable".
