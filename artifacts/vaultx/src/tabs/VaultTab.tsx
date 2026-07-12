@@ -282,7 +282,7 @@ export const VaultTab = () => {
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
         <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
-          ${(tempMiningPoints / 1_000_000).toFixed(2)}
+          ${(lifetimePoints / 1_000_000).toFixed(2)}
         </div>
         <div className="flex items-center gap-3 relative z-10 w-full">
           <button

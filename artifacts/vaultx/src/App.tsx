@@ -70,7 +70,7 @@ function Header() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{tr.header.balance}</span>
-            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(tempMiningPoints / 1_000_000).toFixed(2)}</span>
+            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(lifetimePoints / 1_000_000).toFixed(2)}</span>
           </div>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
