@@ -208,6 +208,8 @@ const GameHeader = ({ title, onBack }: { title: string; onBack: () => void }) =>
 
 const SPEED_TAP_DURATION = 10;
 const SPEED_TAP_PTS_PER_TAP = 15;
+const SPEED_TAP_MAX_TAPS = 200;
+const SPEED_TAP_MAX_PER_SECOND = 20;
 
 const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
@@ -216,8 +218,12 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
   const [timeLeft, setTimeLeft] = useState(SPEED_TAP_DURATION);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endTimeRef = useRef(0);
+  const tapCountRef = useRef(0);
+  const tapTimestampsRef = useRef<number[]>([]);
 
   const start = () => {
+    tapCountRef.current = 0;
+    tapTimestampsRef.current = [];
     setTaps(0);
     setPhase('playing');
     setTimeLeft(SPEED_TAP_DURATION);
@@ -241,8 +247,8 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
   }, []);
 
   useEffect(() => {
-    if (phase === 'done' && taps > 0) {
-      const earned = taps * SPEED_TAP_PTS_PER_TAP;
+    if (phase === 'done' && tapCountRef.current > 0) {
+      const earned = tapCountRef.current * SPEED_TAP_PTS_PER_TAP;
       setTempMiningPoints(prev => prev + earned);
       addLifetimePoints(earned);
       haptic('success');
@@ -253,7 +259,13 @@ const SpeedTapGame = ({ onBack }: { onBack: () => void }) => {
 
   const handleTap = () => {
     if (phase !== 'playing') return;
-    setTaps(t => t + 1);
+    if (tapCountRef.current >= SPEED_TAP_MAX_TAPS) return;
+    const now = Date.now();
+    tapTimestampsRef.current = tapTimestampsRef.current.filter(t => now - t < 1000);
+    if (tapTimestampsRef.current.length >= SPEED_TAP_MAX_PER_SECOND) return;
+    tapTimestampsRef.current.push(now);
+    tapCountRef.current += 1;
+    setTaps(tapCountRef.current);
     haptic('light');
   };
 
