@@ -610,6 +610,11 @@ export const GetPublicConfigResponse = zod.object({
   "welcomeText": zod.string()
 }),
   "botUsername": zod.string().nullable(),
+  "richads": zod.object({
+  "enabled": zod.boolean(),
+  "pubId": zod.string().nullable(),
+  "appId": zod.string().nullable()
+}),
   "exoclick": zod.object({
   "enabled": zod.boolean(),
   "zoneId": zod.string().nullable(),

@@ -276,6 +276,14 @@ export type PublicConfigBotMessages = {
   welcomeText: string;
 };
 
+export type PublicConfigRichads = {
+  enabled: boolean;
+  /** @nullable */
+  pubId: string | null;
+  /** @nullable */
+  appId: string | null;
+};
+
 export type PublicConfigExoclick = {
   enabled: boolean;
   /** @nullable */
@@ -296,6 +304,7 @@ export interface PublicConfig {
   botMessages: PublicConfigBotMessages;
   /** @nullable */
   botUsername: string | null;
+  richads: PublicConfigRichads;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
 }

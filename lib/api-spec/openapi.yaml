@@ -1453,6 +1453,16 @@ components:
           required: [termsText, welcomeText]
         botUsername:
           type: ["string", "null"]
+        richads:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            pubId:
+              type: ["string", "null"]
+            appId:
+              type: ["string", "null"]
+          required: [enabled, pubId, appId]
         exoclick:
           type: object
           properties:
@@ -1475,6 +1485,7 @@ components:
         - adsgram
         - monetag
         - onclicka
+        - richads
         - exoclick
         - offerwalls
         - stars

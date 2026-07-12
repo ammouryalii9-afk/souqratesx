@@ -28,6 +28,11 @@ export type PublicConfig = {
     cooldownSeconds: number;
     dailyCap: number;
   };
+  richads: {
+    enabled: boolean;
+    pubId: string | null;
+    appId: string | null;
+  };
   exoclick: {
     enabled: boolean;
     zoneId: string | null;

@@ -174,6 +174,11 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           enabled: Boolean(cpxresearchAppId && asString(settings.cpxresearchSecureHash)),
         },
       ],
+      richads: {
+        enabled: Boolean(asString(settings.richadsPubId) && asString(settings.richadsAppId)),
+        pubId: asString(settings.richadsPubId) || null,
+        appId: asString(settings.richadsAppId) || null,
+      },
       exoclick: {
         enabled: Boolean(asString(settings.exoclickZoneId) && asString(settings.exoclickInsClass)),
         zoneId: asString(settings.exoclickZoneId) || null,

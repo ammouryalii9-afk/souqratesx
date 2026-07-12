@@ -154,6 +154,13 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "RichAds (إعلانات تلقائية — Telegram)",
+    fields: [
+      { key: "richadsPubId", label: "RichAds Publisher ID (pubId)", type: "text", defaultValue: "" },
+      { key: "richadsAppId", label: "RichAds App ID (appId)", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "ExoClick (إعلان بيني - Mobile Fullpage Interstitial)",
     fields: [
       { key: "exoclickZoneId", label: "ExoClick Zone ID", type: "text", defaultValue: "" },
