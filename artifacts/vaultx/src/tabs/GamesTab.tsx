@@ -295,39 +295,45 @@ const GameHeader = ({ title, onBack }: { title: string; onBack: () => void }) =>
 
 // ---- Shared UI helpers for daily play limits ----
 
-const DailyPlaysBar = ({ plays }: { plays: DailyPlays }) => (
-  <div className="w-full flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5">
-    <div className="flex items-center gap-1.5">
-      <PlayCircle className="w-4 h-4 text-primary" />
-      <span className="text-sm font-bold text-white">
-        {plays.playsLeft} <span className="text-muted-foreground font-normal">/ {FREE_PLAYS_PER_DAY + (MAX_EXTRA_PLAYS_PER_DAY - plays.extraPlaysLeft)}</span>
-      </span>
-      <span className="text-xs text-muted-foreground">أدوار اليوم</span>
+const DailyPlaysBar = ({ plays }: { plays: DailyPlays }) => {
+  const { tr } = useLanguage();
+  return (
+    <div className="w-full flex items-center justify-between bg-white/5 border border-white/8 rounded-xl px-4 py-2.5">
+      <div className="flex items-center gap-1.5">
+        <PlayCircle className="w-4 h-4 text-primary" />
+        <span className="text-sm font-bold text-white">
+          {plays.playsLeft} <span className="text-muted-foreground font-normal">/ {FREE_PLAYS_PER_DAY + (MAX_EXTRA_PLAYS_PER_DAY - plays.extraPlaysLeft)}</span>
+        </span>
+        <span className="text-xs text-muted-foreground">{tr.games.playsLeftToday}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Tv className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">{tr.games.adsAvailable(plays.extraPlaysLeft)}</span>
+      </div>
     </div>
-    <div className="flex items-center gap-1">
-      <Tv className="w-3.5 h-3.5 text-muted-foreground" />
-      <span className="text-xs text-muted-foreground">{plays.extraPlaysLeft} إعلان متاح</span>
-    </div>
-  </div>
-);
+  );
+};
 
-const WatchAdButton = ({ plays }: { plays: DailyPlays }) => (
-  <div className="w-full flex flex-col items-center gap-3 mt-1">
-    <p className="text-sm text-muted-foreground text-center">انتهت أدوارك اليوم</p>
-    {plays.extraPlaysLeft > 0 ? (
-      <button
-        onClick={plays.watchAdForPlay}
-        disabled={plays.watchingAd}
-        className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary px-6 py-3 rounded-xl font-bold active:scale-[0.98] transition-all w-full justify-center disabled:opacity-50"
-      >
-        <Tv className="w-4 h-4" />
-        {plays.watchingAd ? 'جاري التحميل...' : 'شاهد إعلاناً ← +1 دور'}
-      </button>
-    ) : (
-      <p className="text-xs text-muted-foreground text-center bg-white/5 rounded-xl px-4 py-3 w-full">لقد استخدمت كل الإعلانات اليوم — عُد غداً!</p>
-    )}
-  </div>
-);
+const WatchAdButton = ({ plays }: { plays: DailyPlays }) => {
+  const { tr } = useLanguage();
+  return (
+    <div className="w-full flex flex-col items-center gap-3 mt-1">
+      <p className="text-sm text-muted-foreground text-center">{tr.games.noPlaysLeft}</p>
+      {plays.extraPlaysLeft > 0 ? (
+        <button
+          onClick={plays.watchAdForPlay}
+          disabled={plays.watchingAd}
+          className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary px-6 py-3 rounded-xl font-bold active:scale-[0.98] transition-all w-full justify-center disabled:opacity-50"
+        >
+          <Tv className="w-4 h-4" />
+          {plays.watchingAd ? tr.games.loadingAd : tr.games.watchAdForPlay}
+        </button>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center bg-white/5 rounded-xl px-4 py-3 w-full">{tr.games.noAdsLeft}</p>
+      )}
+    </div>
+  );
+};
 
 // ---------------- Speed Tap ----------------
 
@@ -338,6 +344,7 @@ const SPEED_TAP_MAX_PER_SECOND = 20;
 
 const SpeedTapGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
+  const { tr } = useLanguage();
   const [phase, setPhase] = useState<'idle' | 'playing' | 'done'>('idle');
   const [taps, setTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(SPEED_TAP_DURATION);
@@ -449,7 +456,7 @@ const SpeedTapGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays
               <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
             </div>
             {plays.playsLeft > 0
-              ? <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">العب مجدداً ({plays.playsLeft} متبقية)</button>
+              ? <button data-testid="button-again-speedtap" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">{tr.games.playAgain(plays.playsLeft)}</button>
               : <WatchAdButton plays={plays} />
             }
           </>
@@ -477,6 +484,7 @@ function buildMemoryDeck(): MemoryCard[] {
 
 const MemoryMatchGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
+  const { tr } = useLanguage();
   const [phase, setPhase] = useState<'idle' | 'playing' | 'done'>('idle');
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -633,7 +641,7 @@ const MemoryMatchGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPl
               <span className="text-sm font-bold text-primary">+{earned.toLocaleString()} pts added to Vault!</span>
             </div>
             {plays.playsLeft > 0
-              ? <button data-testid="button-again-memory" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">العب مجدداً ({plays.playsLeft} متبقية)</button>
+              ? <button data-testid="button-again-memory" onClick={start} className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all text-sm w-full mt-2">{tr.games.playAgain(plays.playsLeft)}</button>
               : <WatchAdButton plays={plays} />
             }
           </>
