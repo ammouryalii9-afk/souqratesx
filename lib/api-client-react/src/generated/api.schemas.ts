@@ -245,6 +245,15 @@ export type PublicConfigMonetag = {
   dailyCap: number;
 };
 
+export type PublicConfigOnclicka = {
+  enabled: boolean;
+  /** @nullable */
+  spotId: string | null;
+  rewardPoints: number;
+  cooldownSeconds: number;
+  dailyCap: number;
+};
+
 export type PublicConfigOfferwallsItem = {
   id: string;
   name: string;
@@ -273,6 +282,7 @@ export type PublicConfigStars = {
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
+  onclicka: PublicConfigOnclicka;
   offerwalls: PublicConfigOfferwallsItem[];
   botMessages: PublicConfigBotMessages;
   /** @nullable */

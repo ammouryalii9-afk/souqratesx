@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { createAdsgramProvider } from "./adsgram";
 import { createMonetagProvider } from "./monetag";
+import { createOnclickaProvider } from "./onclicka";
 import { createCpxResearchProvider } from "./cpxResearch";
 import { createOfferwallProvider } from "./offerwall";
 import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
@@ -10,6 +11,7 @@ import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
 const REGISTRY: EarnProvider[] = [
   createAdsgramProvider(),
   createMonetagProvider(),
+  createOnclickaProvider(),
   createCpxResearchProvider(),
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
@@ -221,6 +223,17 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
       },
     },
     {
+      key: "onclicka",
+      name: "Onclicka",
+      type: "rewarded_ad",
+      config: {
+        spotId: asStr(settings["onclickaSpotId"]),
+        rewardPoints: asNum(settings["onclickaRewardPoints"], 100),
+        cooldownSeconds: asNum(settings["onclickaCooldownSeconds"], 30),
+        dailyCap: asNum(settings["onclickaDailyCap"], 20),
+      },
+    },
+    {
       key: "adscendmedia",
       name: "Adscend Media",
       type: "offerwall",
@@ -254,7 +267,7 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
   for (const seed of seeds) {
     const enabled =
       seed.type === "rewarded_ad"
-        ? Boolean((seed.config["blockId"] as string) || (seed.config["zoneId"] as string) || "")
+        ? Boolean((seed.config["blockId"] as string) || (seed.config["zoneId"] as string) || (seed.config["spotId"] as string) || "")
         : seed.key === "cpxresearch"
           ? Boolean((seed.config["appId"] as string) && (seed.config["secureHash"] as string))
           : Boolean((seed.config["url"] as string) || "");

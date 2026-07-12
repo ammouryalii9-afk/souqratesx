@@ -10,11 +10,13 @@ import type { PublicConfigBotMessages } from './publicConfigBotMessages';
 import type { PublicConfigExoclick } from './publicConfigExoclick';
 import type { PublicConfigMonetag } from './publicConfigMonetag';
 import type { PublicConfigOfferwallsItem } from './publicConfigOfferwallsItem';
+import type { PublicConfigOnclicka } from './publicConfigOnclicka';
 import type { PublicConfigStars } from './publicConfigStars';
 
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
+  onclicka: PublicConfigOnclicka;
   offerwalls: PublicConfigOfferwallsItem[];
   botMessages: PublicConfigBotMessages;
   /** @nullable */

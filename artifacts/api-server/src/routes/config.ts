@@ -74,6 +74,13 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         cooldownSeconds: asNumber(settings.monetagCooldownSeconds, 30),
         dailyCap: asNumber(settings.monetagDailyCap, 20),
       },
+      onclicka: {
+        enabled: Boolean(asString(settings.onclickaSpotId)),
+        spotId: asString(settings.onclickaSpotId) || null,
+        rewardPoints: asNumber(settings.onclickaRewardPoints, 100),
+        cooldownSeconds: asNumber(settings.onclickaCooldownSeconds, 30),
+        dailyCap: asNumber(settings.onclickaDailyCap, 20),
+      },
       offerwalls: [
         {
           id: "cpa",

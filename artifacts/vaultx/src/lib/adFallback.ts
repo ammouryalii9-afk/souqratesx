@@ -1,8 +1,9 @@
 import { showAdsgramRewardedAd } from "./adsgram";
 import { showMonetagRewardedAd } from "./monetag";
+import { showOnclickaRewardedAd } from "./onclicka";
 import type { PublicConfig } from "./gameApi";
 
-export type AdProvider = "adsgram" | "monetag";
+export type AdProvider = "adsgram" | "monetag" | "onclicka";
 
 /**
  * Returns true when the error from an ad SDK means "no ad available right now"
@@ -39,26 +40,41 @@ export async function watchRewardedAdWithFallback(
 ): Promise<AdProvider> {
   const adsgramReady = config?.adsgram.enabled && config.adsgram.blockId;
   const monetagReady = config?.monetag.enabled && config.monetag.zoneId;
+  const onclickaReady = config?.onclicka.enabled && config.onclicka.spotId;
+
+  async function tryMonetagThenOnclicka(): Promise<AdProvider> {
+    if (monetagReady) {
+      try {
+        await showMonetagRewardedAd(config!.monetag.zoneId as string);
+        return "monetag";
+      } catch (err) {
+        if (isNoFillError(err) && onclickaReady) {
+          await showOnclickaRewardedAd(config!.onclicka.spotId as string);
+          return "onclicka";
+        }
+        throw err;
+      }
+    }
+    if (onclickaReady) {
+      await showOnclickaRewardedAd(config!.onclicka.spotId as string);
+      return "onclicka";
+    }
+    throw new Error("No ad provider is available right now");
+  }
 
   if (adsgramReady) {
     try {
       await showAdsgramRewardedAd(config!.adsgram.blockId as string);
       return "adsgram";
     } catch (err) {
-      if (isNoFillError(err) && monetagReady) {
-        // Adsgram has no inventory — silently try Monetag
-        await showMonetagRewardedAd(config!.monetag.zoneId as string);
-        return "monetag";
+      if (isNoFillError(err) && (monetagReady || onclickaReady)) {
+        // Adsgram has no inventory — silently try the next network
+        return tryMonetagThenOnclicka();
       }
       // User dismissed or real SDK error — rethrow
       throw err;
     }
   }
 
-  if (monetagReady) {
-    await showMonetagRewardedAd(config!.monetag.zoneId as string);
-    return "monetag";
-  }
-
-  throw new Error("No ad provider is available right now");
+  return tryMonetagThenOnclicka();
 }

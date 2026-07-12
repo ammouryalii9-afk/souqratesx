@@ -5,7 +5,7 @@ import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, claimMonetagReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp } from '../lib/telegram';
 
@@ -50,6 +50,7 @@ export const TasksTab = () => {
   const [adLoading, setAdLoading] = useState(false);
   const [bannerAdLoading, setBannerAdLoading] = useState(false);
   const [monetagLoading, setMonetagLoading] = useState(false);
+  const [onclickaLoading, setOnclickaLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
   const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
   const [confirmProduct, setConfirmProduct] = useState<StarProduct | null>(null);
@@ -133,12 +134,15 @@ export const TasksTab = () => {
 
   const handleWatchAd = async () => {
     const hasAny = (config?.adsgram.enabled && config.adsgram.blockId) ||
-                   (config?.monetag.enabled && config.monetag.zoneId);
+                   (config?.monetag.enabled && config.monetag.zoneId) ||
+                   (config?.onclicka.enabled && config.onclicka.spotId);
     if (!hasAny || adLoading) return;
     setAdLoading(true);
     try {
       const provider = await watchRewardedAdWithFallback(config);
-      const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimMonetagReward();
+      const result = provider === 'adsgram' ? await claimAdsgramReward()
+        : provider === 'monetag' ? await claimMonetagReward()
+        : await claimOnclickaReward();
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
@@ -177,6 +181,22 @@ export const TasksTab = () => {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
       setMonetagLoading(false);
+    }
+  };
+
+  const handleWatchOnclickaAd = async () => {
+    if (!config?.onclicka.enabled || !config.onclicka.spotId || onclickaLoading) return;
+    setOnclickaLoading(true);
+    try {
+      const { showOnclickaRewardedAd } = await import('../lib/onclicka');
+      await showOnclickaRewardedAd(config.onclicka.spotId);
+      const result = await claimOnclickaReward();
+      addLifetimePoints(result.creditedPoints);
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setOnclickaLoading(false);
     }
   };
 
@@ -758,6 +778,24 @@ export const TasksTab = () => {
               className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
             >
               {monetagLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+            </button>
+          </div>
+        )}
+        {config?.onclicka.enabled && (
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
+            <div className="flex-1 pr-4">
+              <h3 className="font-semibold text-white text-sm mb-1">Watch a bonus ad</h3>
+              <p className="text-xs font-medium text-primary">
+                +{config.onclicka.rewardPoints.toLocaleString()} pts per ad
+              </p>
+            </div>
+            <button
+              data-testid="button-watch-onclicka-ad"
+              onClick={handleWatchOnclickaAd}
+              disabled={!config?.onclicka.enabled || onclickaLoading}
+              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            >
+              {onclickaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
             </button>
           </div>
         )}

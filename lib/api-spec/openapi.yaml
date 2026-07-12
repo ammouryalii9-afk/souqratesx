@@ -1392,6 +1392,20 @@ components:
             dailyCap:
               type: integer
           required: [enabled, zoneId, rewardPoints, cooldownSeconds, dailyCap]
+        onclicka:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            spotId:
+              type: ["string", "null"]
+            rewardPoints:
+              type: integer
+            cooldownSeconds:
+              type: integer
+            dailyCap:
+              type: integer
+          required: [enabled, spotId, rewardPoints, cooldownSeconds, dailyCap]
         offerwalls:
           type: array
           items:
@@ -1437,6 +1451,7 @@ components:
         - botUsername
         - adsgram
         - monetag
+        - onclicka
         - exoclick
         - offerwalls
         - stars

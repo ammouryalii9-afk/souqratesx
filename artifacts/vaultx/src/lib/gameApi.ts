@@ -20,6 +20,13 @@ export type PublicConfig = {
     cooldownSeconds: number;
     dailyCap: number;
   };
+  onclicka: {
+    enabled: boolean;
+    spotId: string | null;
+    rewardPoints: number;
+    cooldownSeconds: number;
+    dailyCap: number;
+  };
   exoclick: {
     enabled: boolean;
     zoneId: string | null;
@@ -73,6 +80,10 @@ export function claimAdsgramReward(): Promise<{ creditedPoints: number; lifetime
 
 export function claimMonetagReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
   return apiFetch("/earn/monetag/reward", { method: "POST" });
+}
+
+export function claimOnclickaReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
+  return apiFetch("/earn/onclicka/reward", { method: "POST" });
 }
 
 export type StarProduct = {

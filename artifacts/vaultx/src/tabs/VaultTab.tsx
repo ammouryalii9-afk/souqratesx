@@ -247,7 +247,8 @@ export const VaultTab = () => {
     setClaimProgress(0);
 
     const hasAnyAd = (config?.adsgram.enabled && config.adsgram.blockId) ||
-                     (config?.monetag.enabled && config.monetag.zoneId);
+                     (config?.monetag.enabled && config.monetag.zoneId) ||
+                     (config?.onclicka.enabled && config.onclicka.spotId);
 
     if (!hasAnyAd) {
       runFallbackProgress();
@@ -553,7 +554,7 @@ export const VaultTab = () => {
         <DialogContent className="sm:max-w-md border-white/10 bg-card/90 backdrop-blur-2xl p-8">
           <DialogTitle className="text-center text-xl font-bold text-white tracking-tight">{tr.vault.watchingAd}</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground text-sm mt-2">
-            {(config?.adsgram.enabled && config.adsgram.blockId) || (config?.monetag.enabled && config.monetag.zoneId)
+            {(config?.adsgram.enabled && config.adsgram.blockId) || (config?.monetag.enabled && config.monetag.zoneId) || (config?.onclicka.enabled && config.onclicka.spotId)
               ? tr.vault.watchAdUnlock
               : tr.vault.preparingTransfer}
           </DialogDescription>
