@@ -281,7 +281,12 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
   for (const seed of seeds) {
     const enabled =
       seed.type === "rewarded_ad"
-        ? Boolean((seed.config["blockId"] as string) || (seed.config["zoneId"] as string) || (seed.config["spotId"] as string) || "")
+        ? Boolean(
+            (seed.config["blockId"] as string) ||
+            (seed.config["zoneId"] as string) ||
+            (seed.config["spotId"] as string) ||
+            ((seed.config["pubId"] as string) && (seed.config["appId"] as string))
+          )
         : seed.key === "cpxresearch"
           ? Boolean((seed.config["appId"] as string) && (seed.config["secureHash"] as string))
           : Boolean((seed.config["url"] as string) || "");
