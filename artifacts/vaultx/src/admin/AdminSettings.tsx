@@ -136,7 +136,8 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
   {
     title: "Onclicka (إعلان مكافأة)",
     fields: [
-      { key: "onclickaSpotId", label: "Onclicka Spot ID (data-admpid)", type: "text", defaultValue: "" },
+      { key: "onclickaSpotId", label: "Onclicka Video Spot ID (إعلان الفيديو بمكافأة)", type: "text", defaultValue: "" },
+      { key: "onclickaInpageId", label: "Onclicka Inpage ID (إعلانات تلقائية داخل الصفحة)", type: "text", defaultValue: "" },
       { key: "onclickaRewardPoints", label: "نقاط مقابل كل عرض إعلان", type: "number", defaultValue: 100 },
       { key: "onclickaCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
       { key: "onclickaDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },

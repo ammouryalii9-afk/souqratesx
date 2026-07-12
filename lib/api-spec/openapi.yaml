@@ -1399,13 +1399,15 @@ components:
               type: boolean
             spotId:
               type: ["string", "null"]
+            inpageId:
+              type: ["string", "null"]
             rewardPoints:
               type: integer
             cooldownSeconds:
               type: integer
             dailyCap:
               type: integer
-          required: [enabled, spotId, rewardPoints, cooldownSeconds, dailyCap]
+          required: [enabled, spotId, inpageId, rewardPoints, cooldownSeconds, dailyCap]
         offerwalls:
           type: array
           items:

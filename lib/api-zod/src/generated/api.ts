@@ -580,6 +580,7 @@ export const GetPublicConfigResponse = zod.object({
   "onclicka": zod.object({
   "enabled": zod.boolean(),
   "spotId": zod.string().nullable(),
+  "inpageId": zod.string().nullable(),
   "rewardPoints": zod.number(),
   "cooldownSeconds": zod.number(),
   "dailyCap": zod.number()

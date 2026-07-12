@@ -2,14 +2,16 @@ type OnclickaShowFn = () => Promise<void>;
 
 declare global {
   interface Window {
-    initCdTma?: (opts: { id: string }) => Promise<OnclickaShowFn>;
+    initCdTma?: (opts: { id: number | string }) => Promise<OnclickaShowFn>;
   }
 }
 
-let scriptPromise: Promise<void> | null = null;
+const VIDEO_SDK_URL = "https://js.onclckvd.com/in-stream-ad-admanager/tma.js";
+const INPAGE_SDK_URL = "https://js.onclckmn.com/static/onclicka.js";
+
+let videoScriptPromise: Promise<void> | null = null;
 const showFns = new Map<string, Promise<OnclickaShowFn>>();
 
-/** Polls window.initCdTma until it appears or timeout expires. */
 function waitForSdk(maxWaitMs = 5000): Promise<void> {
   if (typeof window.initCdTma === "function") return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -27,39 +29,40 @@ function waitForSdk(maxWaitMs = 5000): Promise<void> {
   });
 }
 
-function loadOnclickaScript(spotId: string): Promise<void> {
-  if (scriptPromise) return scriptPromise;
+function loadVideoSdk(): Promise<void> {
+  if (videoScriptPromise) return videoScriptPromise;
 
-  scriptPromise = new Promise<void>((resolve, reject) => {
+  videoScriptPromise = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(
-      `script[src*="onclckmn.com"]`,
+      `script[src="${VIDEO_SDK_URL}"]`,
     );
     if (existing) {
       resolve();
       return;
     }
     const script = document.createElement("script");
-    script.src = "https://js.onclckmn.com/static/onclicka.js";
-    script.dataset.admpid = spotId;
+    script.src = VIDEO_SDK_URL;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => {
-      scriptPromise = null;
+      videoScriptPromise = null;
       reject(new Error("Failed to load Onclicka SDK"));
     };
     document.head.appendChild(script);
   });
 
-  return scriptPromise;
+  return videoScriptPromise;
 }
 
+/** Rewarded video (TMA in-stream): load tma.js, init with the video spot id, then show. */
 export async function showOnclickaRewardedAd(spotId: string): Promise<void> {
-  await loadOnclickaScript(spotId);
+  await loadVideoSdk();
   await waitForSdk(5000);
 
   let showPromise = showFns.get(spotId);
   if (!showPromise) {
-    showPromise = window.initCdTma!({ id: spotId });
+    const numericId = /^\d+$/.test(spotId) ? Number(spotId) : spotId;
+    showPromise = window.initCdTma!({ id: numericId });
     showFns.set(spotId, showPromise);
   }
   let show: OnclickaShowFn;
@@ -70,4 +73,28 @@ export async function showOnclickaRewardedAd(spotId: string): Promise<void> {
     throw err;
   }
   await show();
+}
+
+let inpageLoaded = false;
+
+/**
+ * Inpage/interstitial ads (auto-displaying, no reward flow): load onclicka.js
+ * once with the ad-code id in data-admpid. Ads render automatically.
+ */
+export function initOnclickaInpage(adCodeId: string): void {
+  if (inpageLoaded) return;
+  if (document.querySelector(`script[src="${INPAGE_SDK_URL}"]`)) {
+    inpageLoaded = true;
+    return;
+  }
+  const script = document.createElement("script");
+  script.src = INPAGE_SDK_URL;
+  script.dataset.admpid = adCodeId;
+  script.async = true;
+  script.onerror = () => {
+    script.remove();
+    inpageLoaded = false;
+  };
+  document.head.appendChild(script);
+  inpageLoaded = true;
 }

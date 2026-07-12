@@ -91,6 +91,11 @@ function MainLayout() {
     getPublicConfig()
       .then((config) => {
         setBannerBlockId(config.adsgram.bannerBlockId);
+        if (config.onclicka.inpageId) {
+          import('./lib/onclicka').then(({ initOnclickaInpage }) => {
+            initOnclickaInpage(config.onclicka.inpageId as string);
+          });
+        }
       })
       .catch(() => setBannerBlockId(null));
   }, []);

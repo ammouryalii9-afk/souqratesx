@@ -249,6 +249,8 @@ export type PublicConfigOnclicka = {
   enabled: boolean;
   /** @nullable */
   spotId: string | null;
+  /** @nullable */
+  inpageId: string | null;
   rewardPoints: number;
   cooldownSeconds: number;
   dailyCap: number;
