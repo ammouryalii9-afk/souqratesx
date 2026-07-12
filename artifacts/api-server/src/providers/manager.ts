@@ -4,6 +4,7 @@ import { logger } from "../lib/logger";
 import { createAdsgramProvider } from "./adsgram";
 import { createMonetagProvider } from "./monetag";
 import { createOnclickaProvider } from "./onclicka";
+import { createRichAdsProvider } from "./richads";
 import { createCpxResearchProvider } from "./cpxResearch";
 import { createOfferwallProvider } from "./offerwall";
 import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
@@ -12,6 +13,7 @@ const REGISTRY: EarnProvider[] = [
   createAdsgramProvider(),
   createMonetagProvider(),
   createOnclickaProvider(),
+  createRichAdsProvider(),
   createCpxResearchProvider(),
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
@@ -231,6 +233,18 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         rewardPoints: asNum(settings["onclickaRewardPoints"], 100),
         cooldownSeconds: asNum(settings["onclickaCooldownSeconds"], 30),
         dailyCap: asNum(settings["onclickaDailyCap"], 20),
+      },
+    },
+    {
+      key: "richads",
+      name: "RichAds",
+      type: "rewarded_ad",
+      config: {
+        pubId: asStr(settings["richadsPubId"]),
+        appId: asStr(settings["richadsAppId"]),
+        rewardPoints: asNum(settings["richadsRewardPoints"], 100),
+        cooldownSeconds: asNum(settings["richadsCooldownSeconds"], 30),
+        dailyCap: asNum(settings["richadsDailyCap"], 20),
       },
     },
     {

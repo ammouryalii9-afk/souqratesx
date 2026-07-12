@@ -282,6 +282,9 @@ export type PublicConfigRichads = {
   pubId: string | null;
   /** @nullable */
   appId: string | null;
+  rewardPoints: number;
+  cooldownSeconds: number;
+  dailyCap: number;
 };
 
 export type PublicConfigExoclick = {

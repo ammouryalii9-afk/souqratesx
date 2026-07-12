@@ -154,10 +154,13 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
-    title: "RichAds (إعلانات تلقائية — Telegram)",
+    title: "RichAds (إعلانات بزر — Telegram)",
     fields: [
       { key: "richadsPubId", label: "RichAds Publisher ID (pubId)", type: "text", defaultValue: "" },
       { key: "richadsAppId", label: "RichAds App ID (appId)", type: "text", defaultValue: "" },
+      { key: "richadsRewardPoints", label: "نقاط مقابل كل مشاهدة إعلان", type: "number", defaultValue: 100 },
+      { key: "richadsCooldownSeconds", label: "مدة الانتظار بين الإعلانات (ثانية)", type: "number", defaultValue: 30 },
+      { key: "richadsDailyCap", label: "الحد الأقصى للإعلانات يوميًا", type: "number", defaultValue: 20 },
     ],
   },
   {

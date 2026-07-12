@@ -849,6 +849,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /earn/richads/reward:
+    post:
+      operationId: claimRichAdsReward
+      tags: [earn]
+      summary: Credit points for a completed RichAds ad view (button-triggered, client-trusted cooldown + daily cap)
+      responses:
+        "200":
+          description: Reward credited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarnRewardResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: RichAds disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Cooldown active or daily cap reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /earn/adsgram/postback:
     get:
       operationId: adsgramPostback
@@ -1462,7 +1492,13 @@ components:
               type: ["string", "null"]
             appId:
               type: ["string", "null"]
-          required: [enabled, pubId, appId]
+            rewardPoints:
+              type: integer
+            cooldownSeconds:
+              type: integer
+            dailyCap:
+              type: integer
+          required: [enabled, pubId, appId, rewardPoints, cooldownSeconds, dailyCap]
         exoclick:
           type: object
           properties:

@@ -5,7 +5,7 @@ import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, claimRichAdsReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp } from '../lib/telegram';
 
@@ -51,6 +51,7 @@ export const TasksTab = () => {
   const [bannerAdLoading, setBannerAdLoading] = useState(false);
   const [monetagLoading, setMonetagLoading] = useState(false);
   const [onclickaLoading, setOnclickaLoading] = useState(false);
+  const [richadsLoading, setRichadsLoading] = useState(false);
   const [purchasingProduct, setPurchasingProduct] = useState<number | null>(null);
   const [starProducts, setStarProducts] = useState<StarProduct[]>([]);
   const [confirmProduct, setConfirmProduct] = useState<StarProduct | null>(null);
@@ -197,6 +198,22 @@ export const TasksTab = () => {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
       setOnclickaLoading(false);
+    }
+  };
+
+  const handleWatchRichAdsAd = async () => {
+    if (!config?.richads.enabled || !config.richads.pubId || !config.richads.appId || richadsLoading) return;
+    setRichadsLoading(true);
+    try {
+      const { showRichAdsInterstitial } = await import('../lib/richads');
+      await showRichAdsInterstitial(config.richads.pubId, config.richads.appId);
+      const result = await claimRichAdsReward();
+      addLifetimePoints(result.creditedPoints);
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+    } catch (err) {
+      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+    } finally {
+      setRichadsLoading(false);
     }
   };
 
@@ -796,6 +813,24 @@ export const TasksTab = () => {
               className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
             >
               {onclickaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+            </button>
+          </div>
+        )}
+        {config?.richads.enabled && (
+          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
+            <div className="flex-1 pr-4">
+              <h3 className="font-semibold text-white text-sm mb-1">Watch a RichAds ad</h3>
+              <p className="text-xs font-medium text-primary">
+                +{config.richads.rewardPoints.toLocaleString()} pts per ad
+              </p>
+            </div>
+            <button
+              data-testid="button-watch-richads-ad"
+              onClick={handleWatchRichAdsAd}
+              disabled={richadsLoading}
+              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
+            >
+              {richadsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
             </button>
           </div>
         )}

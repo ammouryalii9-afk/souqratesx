@@ -32,6 +32,9 @@ export type PublicConfig = {
     enabled: boolean;
     pubId: string | null;
     appId: string | null;
+    rewardPoints: number;
+    cooldownSeconds: number;
+    dailyCap: number;
   };
   exoclick: {
     enabled: boolean;
@@ -90,6 +93,10 @@ export function claimMonetagReward(): Promise<{ creditedPoints: number; lifetime
 
 export function claimOnclickaReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
   return apiFetch("/earn/onclicka/reward", { method: "POST" });
+}
+
+export function claimRichAdsReward(): Promise<{ creditedPoints: number; lifetimePoints: number }> {
+  return apiFetch("/earn/richads/reward", { method: "POST" });
 }
 
 export type StarProduct = {
