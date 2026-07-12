@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
@@ -19,6 +20,7 @@ const EMOJI_CHOICES = ['🛡️', '⚡', '🔥', '💎', '👑', '🚀', '🐉',
 export const SquadTab = () => {
   const { isTelegramUser, refreshFromServer } = useVault();
   const { toast } = useToast();
+  const { tr } = useLanguage();
 
   const [mySquad, setMySquad] = useState<MySquad | null>(null);
   const [board, setBoard] = useState<SquadBoardEntry[]>([]);
@@ -54,7 +56,7 @@ export const SquadTab = () => {
   const share = () => {
     if (!inviteLink) return;
     haptic('medium');
-    const text = `⚡ Join my squad "${mySquad?.name}" on SouqrateX and mine together! Get a bonus when you join 👇`;
+    const text = tr.squad.inviteShareText(mySquad?.name ?? '');
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`;
     window.open(shareUrl, '_blank');
   };
@@ -63,7 +65,7 @@ export const SquadTab = () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
       haptic('success');
-      toast({ title: 'Copied!', description: 'Invite link copied — share it to grow your squad!' });
+      toast({ title: tr.squad.copiedTitle, description: tr.squad.inviteCopied });
     } catch {
       toast({ title: 'Error', description: 'Failed to copy link.', variant: 'destructive' });
     }
@@ -71,18 +73,18 @@ export const SquadTab = () => {
 
   const handleCreate = async () => {
     if (!isTelegramUser) {
-      toast({ title: 'Open in Telegram', description: 'Squads are available inside Telegram.', variant: 'destructive' });
+      toast({ title: tr.squad.openInTelegram, description: tr.squad.telegramOnly, variant: 'destructive' });
       return;
     }
     if (name.trim().length < 2) {
-      toast({ title: 'Name too short', description: 'Pick a squad name of at least 2 characters.', variant: 'destructive' });
+      toast({ title: tr.squad.nameTooShort, description: tr.squad.nameTooShortDesc, variant: 'destructive' });
       return;
     }
     setBusy(true);
     try {
       await createSquad(name.trim(), emoji);
       haptic('success');
-      toast({ title: 'Squad created! ⚡', description: 'Invite friends to climb the ranks.' });
+      toast({ title: tr.squad.createdTitle, description: tr.squad.createdDesc });
       setCreating(false);
       setName('');
       await load();
@@ -95,7 +97,7 @@ export const SquadTab = () => {
 
   const handleJoin = async (id: number) => {
     if (!isTelegramUser) {
-      toast({ title: 'Open in Telegram', description: 'Squads are available inside Telegram.', variant: 'destructive' });
+      toast({ title: tr.squad.openInTelegram, description: tr.squad.telegramOnly, variant: 'destructive' });
       return;
     }
     setBusy(true);
@@ -103,8 +105,8 @@ export const SquadTab = () => {
       const res = await joinSquad(id);
       haptic('success');
       toast({
-        title: 'Joined! ⚡',
-        description: res.creditedBonus > 0 ? `+${res.creditedBonus.toLocaleString()} bonus points!` : 'Welcome to the squad!',
+        title: tr.squad.joinedTitle,
+        description: res.creditedBonus > 0 ? `+${res.creditedBonus.toLocaleString()} ${tr.squad.bonusPoints}` : tr.squad.welcome,
       });
       await Promise.all([load(), refreshFromServer()]);
     } catch (e) {
@@ -119,7 +121,7 @@ export const SquadTab = () => {
     try {
       await leaveSquad();
       haptic('warning');
-      toast({ title: 'Left squad', description: 'You can join or create another anytime.' });
+      toast({ title: tr.squad.leftTitle, description: tr.squad.leftDesc });
       await load();
     } catch (e) {
       toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed to leave.', variant: 'destructive' });
@@ -136,10 +138,10 @@ export const SquadTab = () => {
           <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 shadow-inner">
             <Shield className="w-5 h-5 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Squads</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">{tr.squad.title}</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Team up, pool your points, and climb the squad leaderboard. Recruit friends — everyone who joins gets a bonus.
+          {tr.squad.subtitle}
         </p>
       </section>
 
@@ -175,13 +177,13 @@ export const SquadTab = () => {
           <div className="bg-yellow-500/10 p-2.5 rounded-xl border border-yellow-500/20 shadow-inner">
             <Trophy className="w-5 h-5 text-yellow-400" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Top Squads</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">{tr.squad.topSquads}</h2>
         </div>
 
         <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
           {board.length === 0 ? (
             <div className="py-16 text-center text-sm text-muted-foreground">
-              No squads yet — be the first to create one!
+              {tr.squad.noSquads}
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-white/5">
@@ -203,7 +205,7 @@ export const SquadTab = () => {
                       <span className="text-2xl shrink-0">{s.emoji}</span>
                       <div className="flex flex-col min-w-0">
                         <span className={`text-sm font-bold tracking-tight truncate ${mine ? 'text-primary' : 'text-white'}`}>
-                          {s.name}{mine ? ' (Yours)' : ''}
+                          {s.name}{mine ? ` ${tr.squad.yours}` : ''}
                         </span>
                         <span className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
                           <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {s.memberCount}</span>
@@ -217,7 +219,7 @@ export const SquadTab = () => {
                         disabled={busy}
                         className="shrink-0 bg-primary/90 hover:bg-primary text-primary-foreground text-xs font-bold px-4 py-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_15px_rgba(52,211,153,0.25)]"
                       >
-                        Join
+                        {tr.squad.joinBtn}
                       </button>
                     )}
                   </div>
@@ -246,6 +248,7 @@ function MySquadCard({
   onLeave: () => void;
   busy: boolean;
 }) {
+  const { tr } = useLanguage();
   return (
     <section>
       <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden">
@@ -260,7 +263,7 @@ function MySquadCard({
               {squad.isOwner && <Crown className="w-4 h-4 text-yellow-400 shrink-0" />}
             </div>
             <span className="text-xs text-muted-foreground mt-0.5">
-              {squad.rank ? `Ranked #${squad.rank}` : 'Unranked'} · {squad.memberCount} members
+              {squad.rank ? `${tr.squad.rankedLabel} #${squad.rank}` : tr.squad.unranked} · {squad.memberCount} {tr.squad.membersLabel}
             </span>
           </div>
         </div>
@@ -268,25 +271,25 @@ function MySquadCard({
         <div className="grid grid-cols-2 gap-3 mb-5 relative z-10">
           <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
             <span className="text-2xl font-black text-white tabular-nums">{squad.totalPoints.toLocaleString()}</span>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Squad Points</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">{tr.squad.squadPoints}</p>
           </div>
           <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
             <span className="text-2xl font-black text-white tabular-nums">{squad.memberCount}</span>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Members</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">{tr.squad.members}</p>
           </div>
         </div>
 
         {/* Viral invite */}
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-3 text-xs text-primary font-bold">
-            <Zap className="w-4 h-4" /> Recruit friends — they get a bonus, you climb the ranks
+            <Zap className="w-4 h-4" /> {tr.squad.recruitFriends}
           </div>
           <div className="flex gap-2">
             <button
               onClick={onShare}
               className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(52,211,153,0.3)]"
             >
-              <Share2 className="w-4 h-4" /> Invite
+              <Share2 className="w-4 h-4" /> {tr.squad.invite}
             </button>
             <button
               onClick={onCopy}
@@ -302,7 +305,7 @@ function MySquadCard({
       {/* Members */}
       <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm mb-4">
         <div className="p-3.5 text-center text-xs text-muted-foreground font-bold uppercase tracking-widest border-b border-white/5">
-          Squad Members
+          {tr.squad.squadMembers}
         </div>
         <div className="flex flex-col divide-y divide-white/5">
           {squad.members.map((m, i) => (
@@ -325,7 +328,7 @@ function MySquadCard({
         disabled={busy}
         className="w-full flex items-center justify-center gap-2 text-red-400/80 hover:text-red-400 text-sm font-bold py-3 transition-colors disabled:opacity-50"
       >
-        <LogOut className="w-4 h-4" /> Leave Squad
+        <LogOut className="w-4 h-4" /> {tr.squad.leaveSquad}
       </button>
     </section>
   );
@@ -350,6 +353,7 @@ function CreateOrJoin({
   onCreate: () => void;
   busy: boolean;
 }) {
+  const { tr } = useLanguage();
   return (
     <section>
       <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 shadow-sm relative overflow-hidden">
@@ -359,23 +363,23 @@ function CreateOrJoin({
             <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
               <Shield className="w-8 h-8 text-primary" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-1">Start your own squad</h3>
+            <h3 className="text-lg font-bold text-white mb-1">{tr.squad.startOwn}</h3>
             <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-              Create a squad, invite friends, and combine your points to dominate the leaderboard.
+              {tr.squad.startOwnDesc}
             </p>
             <button
               onClick={() => setCreating(true)}
               className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(52,211,153,0.3)]"
             >
-              <Plus className="w-4 h-4" /> Create Squad
+              <Plus className="w-4 h-4" /> {tr.squad.createSquad}
             </button>
-            <p className="text-xs text-muted-foreground mt-4">…or join one from the leaderboard below.</p>
+            <p className="text-xs text-muted-foreground mt-4">{tr.squad.orJoinBelow}</p>
           </div>
         ) : (
           <div className="relative z-10 space-y-4">
-            <h3 className="text-lg font-bold text-white">Create your squad</h3>
+            <h3 className="text-lg font-bold text-white">{tr.squad.createYourSquad}</h3>
             <div>
-              <label className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Pick an icon</label>
+              <label className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{tr.squad.pickIcon}</label>
               <div className="grid grid-cols-6 gap-2 mt-2">
                 {EMOJI_CHOICES.map((e) => (
                   <button
@@ -391,7 +395,7 @@ function CreateOrJoin({
               </div>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Squad name</label>
+              <label className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{tr.squad.squadName}</label>
               <input
                 type="text"
                 value={name}
@@ -405,14 +409,14 @@ function CreateOrJoin({
                 onClick={() => setCreating(false)}
                 className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl transition-all"
               >
-                Cancel
+                {tr.squad.cancel}
               </button>
               <button
                 onClick={onCreate}
                 disabled={busy}
                 className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : tr.squad.create}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layers, Gamepad2, Target, Users, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '../lib/i18n';
 
 interface BottomNavProps {
   activeTab: string;
@@ -8,12 +9,14 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
+  const { tr } = useLanguage();
+
   const tabs = [
-    { id: 'vault', label: 'Vault', icon: Layers },
-    { id: 'games', label: 'Games', icon: Gamepad2 },
-    { id: 'tasks', label: 'Tasks', icon: Target },
-    { id: 'squad', label: 'Squad', icon: Shield },
-    { id: 'friends', label: 'Friends', icon: Users },
+    { id: 'vault', label: tr.nav.vault, icon: Layers },
+    { id: 'games', label: tr.nav.games, icon: Gamepad2 },
+    { id: 'tasks', label: tr.nav.tasks, icon: Target },
+    { id: 'squad', label: tr.nav.squad, icon: Shield },
+    { id: 'friends', label: tr.nav.friends, icon: Users },
   ];
 
   return (

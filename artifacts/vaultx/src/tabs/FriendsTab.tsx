@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '../lib/i18n';
 import { useVault, getLeague } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Users, Coins, ArrowRightLeft, Wallet, Trophy, Loader2 } from 'lucide-react';
@@ -30,6 +31,7 @@ type Row = {
 export const FriendsTab = () => {
   const { userId, username, totalReferrals, referralEarnings, lifetimePoints, isTelegramUser } = useVault();
   const { toast } = useToast();
+  const { tr } = useLanguage();
 
   const [mode, setMode] = useState<'all' | 'weekly'>('all');
   const [rows, setRows] = useState<Row[]>([]);
@@ -82,9 +84,9 @@ export const FriendsTab = () => {
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(referralLink);
-      toast({ title: 'Copied!', description: 'Link copied to clipboard!' });
+      toast({ title: tr.friends.copiedTitle, description: tr.friends.linkCopiedDesc });
     } catch {
-      toast({ title: 'Error', description: 'Failed to copy link.', variant: 'destructive' });
+      toast({ title: tr.common.error, description: 'Failed to copy link.', variant: 'destructive' });
     }
   };
 
@@ -99,7 +101,7 @@ export const FriendsTab = () => {
           <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 shadow-inner">
             <Trophy className="w-5 h-5 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Leaderboard</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">{tr.friends.leaderboard}</h2>
         </div>
 
         {/* All-time / Weekly toggle */}
@@ -114,7 +116,7 @@ export const FriendsTab = () => {
                 color: mode === m ? 'hsl(224,71%,4%)' : 'rgba(255,255,255,0.6)',
               }}
             >
-              {m === 'all' ? 'All-Time' : 'This Week'}
+              {m === 'all' ? tr.friends.allTime : tr.friends.thisWeek}
             </button>
           ))}
         </div>
@@ -122,9 +124,9 @@ export const FriendsTab = () => {
         <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
           <div className="p-3.5 bg-primary/10 text-center text-sm text-primary font-bold border-b border-white/5 shadow-inner">
             {myRow ? (
-              <>Your Rank: <span className="text-white">#{myRow.rank}</span> {mode === 'all' ? 'globally' : 'this week'}</>
+              <>{tr.friends.yourRank}: <span className="text-white">#{myRow.rank}</span> {mode === 'all' ? tr.friends.globally : tr.friends.thisWeekLabel}</>
             ) : (
-              <>You're not ranked yet — start mining!</>
+              <>{tr.friends.notRanked}</>
             )}
           </div>
 
@@ -134,7 +136,7 @@ export const FriendsTab = () => {
             </div>
           ) : rows.length === 0 ? (
             <div className="py-16 text-center text-sm text-muted-foreground">
-              No players on the leaderboard yet.
+              {tr.friends.noPlayers}
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-white/5">
@@ -155,7 +157,7 @@ export const FriendsTab = () => {
                       </div>
                       <div className="flex flex-col">
                         <span className={`text-sm font-bold tracking-tight ${user.isCurrentUser ? 'text-primary' : 'text-white'}`}>
-                          {user.isCurrentUser ? `${user.name} (You)` : user.name}
+                          {user.isCurrentUser ? `${user.name} ${tr.friends.youLabel}` : user.name}
                         </span>
                         <span className="text-[11px] text-muted-foreground font-mono mt-0.5">{user.pts.toLocaleString()} pts</span>
                       </div>
@@ -177,12 +179,12 @@ export const FriendsTab = () => {
           <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20 shadow-inner">
             <Users className="w-5 h-5 text-cyan-400" />
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Referral Center</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">{tr.friends.referralCenter}</h2>
         </div>
 
         <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none" />
-          <p className="text-sm text-muted-foreground mb-4 leading-relaxed relative z-10">Invite friends and earn <span className="text-white font-bold">10%</span> of their mining rewards permanently.</p>
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed relative z-10">{tr.friends.referralDesc}</p>
 
           <div className="flex items-center gap-2 bg-black/60 p-2 rounded-xl border border-white/10 shadow-inner relative z-10">
             <input
@@ -208,7 +210,7 @@ export const FriendsTab = () => {
               <Users className="w-5 h-5 text-cyan-400" />
             </div>
             <span className="text-3xl font-black text-white tracking-tight tabular-nums">{totalReferrals}</span>
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Friends Joined</span>
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">{tr.friends.totalReferrals}</span>
           </div>
           <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 flex flex-col relative overflow-hidden shadow-sm">
             <div className="absolute bottom-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-[30px] pointer-events-none" />
@@ -216,18 +218,18 @@ export const FriendsTab = () => {
               <Coins className="w-5 h-5 text-emerald-400" />
             </div>
             <span className="text-3xl font-black text-white tracking-tight tabular-nums">{Math.floor(referralEarnings).toLocaleString()}</span>
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Points Earned</span>
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">{tr.friends.referralEarnings}</span>
           </div>
         </div>
       </section>
 
       {/* Withdrawal history */}
       <section>
-        <h2 className="text-xl font-bold text-white tracking-tight mb-4 mt-2">Your Withdrawals</h2>
+        <h2 className="text-xl font-bold text-white tracking-tight mb-4 mt-2">{tr.friends.withdrawHistory}</h2>
         <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
           {history.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No withdrawals yet. Reach the minimum to request a payout.
+              {tr.friends.noHistory}
             </div>
           ) : (
             <div className="overflow-x-auto">

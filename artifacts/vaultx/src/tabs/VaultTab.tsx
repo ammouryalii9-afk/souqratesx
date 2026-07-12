@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
+import { useLanguage } from '../lib/i18n';
 
 interface FloatingPoint {
   id: number;
@@ -38,6 +39,7 @@ export const VaultTab = () => {
     lifetimePoints, profitPerHour, equippedSkinId, addBonusPoints
   } = useVault();
 
+  const { tr } = useLanguage();
   const [idCopied, setIdCopied] = useState(false);
   function copyUserId() {
     void navigator.clipboard.writeText(userId).then(() => {
@@ -99,10 +101,10 @@ export const VaultTab = () => {
         const next = prev + 1;
         if (next >= 3) {
           setEnergy(maxEnergy);
-          toast({ title: 'Energy Refilled!', description: 'Your energy is now full' });
+          toast({ title: tr.vault.energyRefilledTitle, description: tr.vault.energyRefilledDesc });
           return 0;
         }
-        toast({ title: 'Ad Watched!', description: `${next}/3 videos watched` });
+        toast({ title: tr.vault.adWatchedTitle, description: `${next}/3 videos watched` });
         return next;
       });
     } catch (err) {
@@ -121,10 +123,10 @@ export const VaultTab = () => {
         const next = prev + 1;
         if (next >= 3) {
           grantAdTurbo();
-          toast({ title: 'Turbo Activated!', description: '5x mining speed for 20s' });
+          toast({ title: tr.vault.turboActivatedTitle, description: tr.vault.turboActivatedDesc });
           return 0;
         }
-        toast({ title: 'Ad Watched!', description: `${next}/3 videos watched` });
+        toast({ title: tr.vault.adWatchedTitle, description: `${next}/3 videos watched` });
         return next;
       });
     } catch (err) {
@@ -234,7 +236,7 @@ export const VaultTab = () => {
         clearInterval(timer);
         setIsClaiming(false);
         claimEarnings();
-        toast({ title: "Success!", description: "Earnings transferred to your Vault" });
+        toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred });
       }
     }, interval);
   };
@@ -256,10 +258,10 @@ export const VaultTab = () => {
       await watchRewardedAdWithFallback(config);
       setIsClaiming(false);
       claimEarnings();
-      toast({ title: "Success!", description: "Earnings transferred to your Vault" });
+      toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred });
     } catch (err) {
       setIsClaiming(false);
-      toast({ title: "Ad not completed", description: err instanceof Error ? err.message : "Try again to claim your earnings", variant: "destructive" });
+      toast({ title: tr.vault.adNotCompleted, description: err instanceof Error ? err.message : tr.vault.tryAgain, variant: "destructive" });
     }
   };
 
@@ -277,7 +279,7 @@ export const VaultTab = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
-        <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">Total Vault Balance</h2>
+        <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
         <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
           ${totalBalanceUSD.toFixed(2)}
         </div>
@@ -287,10 +289,10 @@ export const VaultTab = () => {
             onClick={() => setShowWithdraw(true)}
             className="flex-1 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/40 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] shadow-inner"
           >
-            Withdraw
+            {tr.vault.withdraw}
           </button>
           <div className="flex-1 py-2.5 bg-white/5 rounded-xl text-sm text-center text-white font-semibold border border-white/5 shadow-inner">
-            Level <span className="text-primary">{miningLevel}</span>
+            {tr.vault.level} <span className="text-primary">{miningLevel}</span>
           </div>
         </div>
       </div>
@@ -339,7 +341,7 @@ export const VaultTab = () => {
           </div>
         )}
         <p className="text-xs text-primary/70 uppercase tracking-widest mb-6 font-semibold animate-pulse">
-          {energy > 0 ? 'Tap the Vault to Mine' : 'No Energy — Recharging...'}
+          {energy > 0 ? tr.vault.tapToMine : tr.vault.noEnergy}
         </p>
 
         <button
@@ -377,7 +379,7 @@ export const VaultTab = () => {
             
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/10 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
             
-            <span className="text-[9px] text-primary/50 font-bold uppercase tracking-[0.3em] mb-1 relative z-10">Mined</span>
+            <span className="text-[9px] text-primary/50 font-bold uppercase tracking-[0.3em] mb-1 relative z-10">{tr.vault.mined}</span>
             
             <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: '0 0 30px rgba(52,211,153,0.25)' }}>
               {Math.floor(tempMiningPoints).toLocaleString()}
@@ -388,7 +390,7 @@ export const VaultTab = () => {
             <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.12)' }}>
               <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
               <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
-                +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} / tap
+                +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} {tr.vault.perTap}
               </span>
             </div>
             
@@ -420,7 +422,7 @@ export const VaultTab = () => {
         <div className="mt-8 w-full max-w-[280px]">
           <div className="flex justify-between text-xs font-bold mb-2.5 px-1">
             <span className="text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 text-primary" /> Energy
+              <Zap className="w-3.5 h-3.5 text-primary" /> {tr.vault.energy}
             </span>
             <span className={energy === 0 ? 'text-destructive font-mono' : 'text-white font-mono'}>
               {energy} <span className="text-muted-foreground">/ {maxEnergy}</span>
@@ -442,8 +444,8 @@ export const VaultTab = () => {
             <Battery className="w-5 h-5 text-primary" />
           </div>
           <div className="flex flex-col items-start">
-            <span className="text-sm font-bold text-white leading-tight">{energyAdLoading ? 'Watching...' : 'Watch 3 Ads'}</span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">Full Energy · {adEnergyProgress}/3</span>
+            <span className="text-sm font-bold text-white leading-tight">{energyAdLoading ? tr.vault.watching : tr.vault.watch3Ads}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{tr.vault.fullEnergy} · {adEnergyProgress}/3</span>
           </div>
         </button>
         <button
@@ -456,8 +458,8 @@ export const VaultTab = () => {
             <FastForward className="w-5 h-5 text-cyan-400" />
           </div>
           <div className="flex flex-col items-start">
-            <span className="text-sm font-bold text-white leading-tight">{turboAdLoading ? 'Watching...' : 'Watch 3 Ads'}</span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">Get Turbo · {adTurboProgress}/3</span>
+            <span className="text-sm font-bold text-white leading-tight">{turboAdLoading ? tr.vault.watching : tr.vault.watch3Ads}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{tr.vault.getTurbo} · {adTurboProgress}/3</span>
           </div>
         </button>
       </div>
@@ -474,8 +476,8 @@ export const VaultTab = () => {
             <FastForward className="w-5 h-5 text-cyan-400" />
           </div>
           <div className="flex flex-col items-start">
-            <span className="text-sm font-bold text-white leading-tight">Turbo</span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - turboUsesToday} left</span>
+            <span className="text-sm font-bold text-white leading-tight">{tr.vault.turbo}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - turboUsesToday} {tr.vault.left}</span>
           </div>
         </button>
         <button
@@ -488,8 +490,8 @@ export const VaultTab = () => {
             <Battery className="w-5 h-5 text-primary" />
           </div>
           <div className="flex flex-col items-start">
-            <span className="text-sm font-bold text-white leading-tight">Recharge</span>
-            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - rechargeUsesToday} left</span>
+            <span className="text-sm font-bold text-white leading-tight">{tr.vault.recharge}</span>
+            <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{3 - rechargeUsesToday} {tr.vault.left}</span>
           </div>
         </button>
       </div>
@@ -504,11 +506,11 @@ export const VaultTab = () => {
                 <Sprout className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-tight">Start Farming</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Farm 500 pts/hr for 8h</p>
+                <h3 className="text-sm font-bold text-white tracking-tight">{tr.vault.startFarming}</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{tr.vault.farmDesc}</p>
               </div>
             </div>
-            <button data-testid="button-farm-start" onClick={startFarming} className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">Start</button>
+            <button data-testid="button-farm-start" onClick={startFarming} className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-xs font-bold active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">{tr.vault.start}</button>
           </div>
         )}
         {farmState === 'farming' && (
@@ -516,7 +518,7 @@ export const VaultTab = () => {
             <div className="flex justify-between items-center text-sm">
               <span className="text-white font-bold flex items-center gap-2">
                 <Sprout className="w-4 h-4 text-emerald-400 animate-pulse"/> 
-                Harvesting
+                {tr.vault.harvesting}
               </span>
               <span className="text-primary font-bold font-mono bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">{farmYield.toLocaleString()} pts</span>
             </div>
@@ -527,10 +529,10 @@ export const VaultTab = () => {
           <div className="flex flex-col gap-3 relative z-10">
             <div className="flex items-center justify-center gap-2 mb-1 bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">
               <Sprout className="w-5 h-5 text-emerald-400 animate-bounce" />
-              <span className="text-emerald-400 font-bold tracking-wide">Farm Ready!</span>
+              <span className="text-emerald-400 font-bold tracking-wide">{tr.vault.farmReady}</span>
             </div>
             <button data-testid="button-farm-claim" onClick={claimFarming} className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-wide py-3.5 rounded-xl active:scale-[0.98] text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-              Claim 4,000 pts
+              {tr.vault.claimFarm}
             </button>
           </div>
         )}
@@ -544,16 +546,16 @@ export const VaultTab = () => {
         className="w-full bg-white text-black font-black tracking-wide py-4.5 rounded-[16px] shadow-[0_4px_20px_rgba(255,255,255,0.15)] disabled:opacity-40 disabled:shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-2.5 text-base border border-white/20 mt-2"
       >
         <Download className="w-5 h-5" />
-        Transfer Earnings to Vault
+        {tr.vault.transferEarnings}
       </button>
 
       <Dialog open={isClaiming} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md border-white/10 bg-card/90 backdrop-blur-2xl p-8">
-          <DialogTitle className="text-center text-xl font-bold text-white tracking-tight">Watching Ad</DialogTitle>
+          <DialogTitle className="text-center text-xl font-bold text-white tracking-tight">{tr.vault.watchingAd}</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground text-sm mt-2">
             {(config?.adsgram.enabled && config.adsgram.blockId) || (config?.monetag.enabled && config.monetag.zoneId)
-              ? 'Please watch the ad to unlock your earnings...'
-              : 'Preparing your transfer...'}
+              ? tr.vault.watchAdUnlock
+              : tr.vault.preparingTransfer}
           </DialogDescription>
           <div className="py-6 flex flex-col gap-4">
             <Progress value={claimProgress} className="h-2.5 bg-black/40" />

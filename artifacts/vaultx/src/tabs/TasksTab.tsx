@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
@@ -36,6 +37,7 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 export const TasksTab = () => {
   const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
   const { toast } = useToast();
+  const { tr } = useLanguage();
 
   const [claimedTasks, setClaimedTasks] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('claimedTasks') || '[]'); } catch { return []; }
@@ -439,9 +441,9 @@ export const TasksTab = () => {
   };
 
   const dailyGames = [
-    { label: 'Daily Cipher', done: cipherSolved, reward: 30000 },
-    { label: 'Daily Combo', done: comboResult !== 'none', reward: 50000 },
-    { label: 'Daily Spin', done: spinHasSpun, reward: 10000 },
+    { label: tr.tasks.dailyCipher, done: cipherSolved, reward: 30000 },
+    { label: tr.tasks.dailyCombo, done: comboResult !== 'none', reward: 50000 },
+    { label: tr.tasks.dailySpin, done: spinHasSpun, reward: 10000 },
   ];
   const dailyDone = dailyGames.filter(g => g.done).length;
   const dailyRemaining = dailyGames.reduce((sum, g) => sum + (g.done ? 0 : g.reward), 0);
@@ -456,7 +458,7 @@ export const TasksTab = () => {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold text-white">Daily Rewards</h2>
+              <h2 className="text-lg font-bold text-white">{tr.tasks.dailyRewards}</h2>
             </div>
             <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20 tabular-nums">{dailyDone}/{dailyGames.length}</span>
           </div>
@@ -465,8 +467,8 @@ export const TasksTab = () => {
           </div>
           <p className="text-xs text-muted-foreground">
             {dailyDone === dailyGames.length
-              ? '🎉 All daily rewards claimed — come back tomorrow!'
-              : `${dailyGames.length - dailyDone} left today · earn up to ${dailyRemaining.toLocaleString()} pts below`}
+              ? tr.tasks.allClaimed
+              : tr.tasks.remaining(dailyGames.length - dailyDone, dailyRemaining)}
           </p>
         </div>
       </section>
@@ -478,7 +480,7 @@ export const TasksTab = () => {
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-white">Daily Cipher</h2>
+            <h2 className="text-xl font-bold text-white">{tr.tasks.dailyCipher}</h2>
           </div>
           <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+30,000 pts</span>
         </div>
@@ -486,13 +488,13 @@ export const TasksTab = () => {
           {cipherSolved ? (
             <div className="text-center py-4 text-emerald-400 font-bold flex flex-col items-center gap-2">
               <Check className="w-8 h-8" />
-              Cipher Solved! +30,000 pts
+              {tr.tasks.cipherSolved}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
               <div className="text-center">
                 <div className="text-2xl tracking-widest font-mono text-primary font-bold">{morseCode}</div>
-                <div className="text-xs text-muted-foreground mt-2">Decode the morse code!</div>
+                <div className="text-xs text-muted-foreground mt-2">{tr.tasks.decodeMorse}</div>
               </div>
               <input
                 type="text"
@@ -509,7 +511,7 @@ export const TasksTab = () => {
                     onClick={() => setCipherGuess(dailyWord[0])}
                     className="flex-1 bg-white/10 text-white font-bold py-3 rounded-lg"
                   >
-                    Reveal Hint
+                    {tr.tasks.revealHint}
                   </button>
                 )}
                 <button 
@@ -518,7 +520,7 @@ export const TasksTab = () => {
                   disabled={cipherGuess.length !== dailyWord.length}
                   className="flex-[2] bg-primary text-black font-bold py-3 rounded-lg disabled:opacity-50"
                 >
-                  Submit
+                  {tr.tasks.submit}
                 </button>
               </div>
             </div>
@@ -529,19 +531,19 @@ export const TasksTab = () => {
       {/* Daily Combo */}
       <section>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Daily Combo</h2>
+          <h2 className="text-xl font-bold text-white">{tr.tasks.dailyCombo}</h2>
           <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+50,000 pts</span>
         </div>
         <div className="bg-card border border-white/5 rounded-xl p-4">
           {comboResult === 'success' ? (
             <div className="text-center py-4 text-emerald-400 font-bold flex flex-col items-center gap-2">
               <Check className="w-8 h-8" />
-              Combo Solved! Come back tomorrow.
+              {tr.tasks.comboSolved}
             </div>
           ) : comboResult === 'failed' ? (
             <div className="text-center py-4 text-red-400 font-bold flex flex-col items-center gap-2">
               <Lock className="w-8 h-8" />
-              Wrong combo. Try again tomorrow.
+              {tr.tasks.comboFailed}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -583,7 +585,7 @@ export const TasksTab = () => {
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Disc3 className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-bold text-white">Daily Spin</h2>
+          <h2 className="text-xl font-bold text-white">{tr.tasks.dailySpin}</h2>
         </div>
         <div className="rounded-[28px] p-6 flex flex-col items-center overflow-hidden relative" style={{
           background: 'linear-gradient(135deg, rgba(52,211,153,0.06) 0%, rgba(52,211,153,0.02) 60%, transparent 100%)',
@@ -717,7 +719,7 @@ export const TasksTab = () => {
         </div>
       </section>
 
-      <SectionLabel>Earn Points</SectionLabel>
+      <SectionLabel>{tr.tasks.earnPoints}</SectionLabel>
 
       {/* Watch Ads */}
       <section>
@@ -837,7 +839,7 @@ export const TasksTab = () => {
         );
       })()}
 
-      <SectionLabel>Store &amp; Partners</SectionLabel>
+      <SectionLabel>{tr.tasks.storePartners}</SectionLabel>
 
       {/* Telegram Stars Store */}
       <section>

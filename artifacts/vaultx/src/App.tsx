@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultContext";
+import { useLanguage } from "./lib/i18n";
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
 import { AdBanner } from "./components/AdBanner";
@@ -19,6 +20,7 @@ import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard"
 
 function Header() {
   const { totalBalanceUSD, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
+  const { lang, toggleLang, tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   
@@ -51,20 +53,29 @@ function Header() {
           </div>
         </div>
       </div>
-      <div className="px-4 py-2 rounded-2xl flex flex-col items-end justify-center relative overflow-hidden group" style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.07)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.3)',
-      }}>
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Balance</span>
-          <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${totalBalanceUSD.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center gap-1 mt-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-          <span className="text-[11px] text-primary font-bold tabular-nums tracking-wide">+{profitPerHour}/hr</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggleLang}
+          className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all active:scale-95"
+          title={lang === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
+        >
+          {tr.header.langToggle}
+        </button>
+        <div className="px-4 py-2 rounded-2xl flex flex-col items-end justify-center relative overflow-hidden group" style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.3)',
+        }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{tr.header.balance}</span>
+            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${totalBalanceUSD.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-1 mt-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+            <span className="text-[11px] text-primary font-bold tabular-nums tracking-wide">+{profitPerHour}/hr</span>
+          </div>
         </div>
       </div>
     </header>

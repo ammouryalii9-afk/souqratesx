@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
@@ -32,16 +33,23 @@ export const GamesTab = () => {
 
   const { tempMiningPoints, miningLevel, maxEnergy, upgradeMiningLevel, expandBattery, passiveCards, buyPassiveCard } = useVault();
   const { toast } = useToast();
+  const { tr } = useLanguage();
 
   const nextLevelCost = miningLevel === 1 ? 10000 : miningLevel === 2 ? 50000 : miningLevel === 3 ? 200000 : null;
   const batteryCost = 30000;
   const hasBatteryUpgrade = maxEnergy >= 200;
 
+  const gameI18n: Record<string, { name: string; desc: string }> = {
+    'speed-tap': tr.games.speedTap,
+    'memory-match': tr.games.memoryMatch,
+    'lucky-wheel': tr.games.luckyWheel,
+  };
+
   const handleBuyLevel = () => {
     if (nextLevelCost && tempMiningPoints >= nextLevelCost) {
       upgradeMiningLevel(nextLevelCost, miningLevel + 1);
       haptic('success');
-      toast({ title: "Upgraded!", description: `You are now a Level ${miningLevel + 1} Miner.` });
+      toast({ title: tr.games.upgradedTitle, description: tr.games.nowLevel(miningLevel + 1) });
     }
   };
 
@@ -49,7 +57,7 @@ export const GamesTab = () => {
     if (tempMiningPoints >= batteryCost && !hasBatteryUpgrade) {
       expandBattery(batteryCost);
       haptic('success');
-      toast({ title: "Upgraded!", description: "Battery capacity expanded to 200." });
+      toast({ title: tr.games.upgradedTitle, description: tr.games.batteryUpgraded });
     }
   };
 
@@ -62,8 +70,8 @@ export const GamesTab = () => {
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-500">
       <div className="px-4 pt-4">
-        <h2 className="text-lg font-bold text-white">Games</h2>
-        <p className="text-xs text-muted-foreground">Play mini-games to earn extra points</p>
+        <h2 className="text-lg font-bold text-white">{tr.games.title}</h2>
+        <p className="text-xs text-muted-foreground">{tr.games.subtitle}</p>
       </div>
 
       <div className="px-4 mt-3 grid grid-cols-2 gap-3">
@@ -91,8 +99,8 @@ export const GamesTab = () => {
               }}>
                 <Icon className="w-6 h-6" style={{ color: g.color, filter: `drop-shadow(0 0 6px ${g.color}50)` }} />
               </div>
-              <h3 className="font-semibold text-white text-sm">{g.name}</h3>
-              <p className="text-xs text-muted-foreground leading-snug">{g.desc}</p>
+              <h3 className="font-semibold text-white text-sm">{gameI18n[g.id]?.name ?? g.name}</h3>
+              <p className="text-xs text-muted-foreground leading-snug">{gameI18n[g.id]?.desc ?? g.desc}</p>
             </button>
           );
         })}
@@ -101,8 +109,8 @@ export const GamesTab = () => {
       {/* Passive Income Cards */}
       <div className="px-4 mt-6 space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-white">Passive Income</h2>
-          <p className="text-xs text-muted-foreground">Earn pts/hr automatically</p>
+          <h2 className="text-lg font-bold text-white">{tr.games.passiveIncome}</h2>
+          <p className="text-xs text-muted-foreground">{tr.games.passiveSubtitle}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -121,10 +129,10 @@ export const GamesTab = () => {
                   <div className={`p-2 rounded-lg ${owned ? 'bg-primary/20' : 'bg-white/5'}`}>
                     <Icon className={`w-5 h-5 ${owned ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground">Lv {level}</span>
+                  <span className="text-xs font-bold text-muted-foreground">{tr.games.lv} {level}</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-sm">{def.name}</h3>
+                  <h3 className="font-semibold text-white text-sm">{tr.games.passiveCards[def.id] ?? def.name}</h3>
                   <p className="text-xs text-emerald-400 font-medium">+{currentYield.toLocaleString()} /hr</p>
                 </div>
                 <button
@@ -133,7 +141,7 @@ export const GamesTab = () => {
                   disabled={tempMiningPoints < cost}
                   className="mt-1 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-1.5 rounded-lg disabled:opacity-40 transition-colors"
                 >
-                  Buy Lv{nextLevel} ({cost.toLocaleString()})
+                  {tr.games.buyLv}{nextLevel} ({cost.toLocaleString()})
                 </button>
               </div>
             );
@@ -142,14 +150,14 @@ export const GamesTab = () => {
       </div>
 
       <div className="px-4 mt-6 space-y-4">
-        <h2 className="text-lg font-bold text-white">Booster Upgrades</h2>
+        <h2 className="text-lg font-bold text-white">{tr.games.boosterUpgrades}</h2>
 
         <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
           <div className="bg-primary/10 p-3 rounded-xl border border-primary/20 shrink-0"><Zap className="w-5 h-5 text-primary" /></div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-white text-sm tracking-tight">Laser Drill Upgrade</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Multiplies mining & tap speed</p>
-            <div className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md inline-block mt-2 font-bold border border-primary/20">Level {miningLevel} active</div>
+            <h3 className="font-bold text-white text-sm tracking-tight">{tr.games.laserDrill}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{tr.games.laserDrillDesc}</p>
+            <div className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md inline-block mt-2 font-bold border border-primary/20">{tr.games.levelActive(miningLevel)}</div>
           </div>
           <div className="shrink-0">
             {miningLevel < 4 ? (
@@ -157,7 +165,7 @@ export const GamesTab = () => {
                 {nextLevelCost?.toLocaleString()} pts
               </button>
             ) : (
-              <span className="text-xs text-primary font-bold px-3 bg-primary/10 border border-primary/20 py-2 rounded-xl">Max</span>
+              <span className="text-xs text-primary font-bold px-3 bg-primary/10 border border-primary/20 py-2 rounded-xl">{tr.games.max}</span>
             )}
           </div>
         </div>
@@ -165,12 +173,12 @@ export const GamesTab = () => {
         <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
           <div className="bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20 shrink-0"><Battery className="w-5 h-5 text-cyan-400" /></div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-white text-sm tracking-tight">Battery Expansion</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Max energy 100 → 200</p>
+            <h3 className="font-bold text-white text-sm tracking-tight">{tr.games.batteryExpansion}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{tr.games.batteryDesc}</p>
           </div>
           <div className="shrink-0">
             {hasBatteryUpgrade ? (
-              <span className="text-xs text-cyan-400 font-bold px-3 bg-cyan-500/10 border border-cyan-500/20 py-2 rounded-xl">Installed</span>
+              <span className="text-xs text-cyan-400 font-bold px-3 bg-cyan-500/10 border border-cyan-500/20 py-2 rounded-xl">{tr.games.installed}</span>
             ) : (
               <button data-testid="button-buy-battery" onClick={handleBuyBattery} disabled={tempMiningPoints < batteryCost} className="bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] active:scale-[0.98] whitespace-nowrap">
                 {batteryCost.toLocaleString()} pts

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getPublicConfig } from "../lib/gameApi";
+import { useLanguage } from "../lib/i18n";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 
 const TERMS_ACCEPTED_KEY = "souqratesx_terms_accepted_v1";
@@ -9,6 +10,7 @@ interface OnboardingCardProps {
 }
 
 export function OnboardingCard({ onAccept }: OnboardingCardProps) {
+  const { tr } = useLanguage();
   const [termsText, setTermsText] = useState<string>("");
   const [welcomeText, setWelcomeText] = useState<string>("");
   const [loaded, setLoaded] = useState(false);
@@ -23,11 +25,8 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
       .finally(() => setLoaded(true));
   }, []);
 
-  const defaultWelcome = "Welcome to SouqratesX ⛏️\n\nTap to mine, upgrade your miner, and turn your effort into real rewards.";
-  const defaultTerms = `By tapping "Accept" you agree to:\n• Personal use of the app only\n• No bots, scripts, or cheat tools\n• The platform may suspend accounts found cheating\n• We never share your data with third parties`;
-
-  const displayWelcome = welcomeText || defaultWelcome;
-  const displayTerms = termsText || defaultTerms;
+  const displayWelcome = welcomeText || tr.onboarding.defaultWelcome;
+  const displayTerms = termsText || tr.onboarding.defaultTerms;
 
   function handleAccept() {
     localStorage.setItem(TERMS_ACCEPTED_KEY, "1");
@@ -54,8 +53,8 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
         </div>
 
         <div className="w-full rounded-xl border border-white/10 bg-white/5 p-4 max-h-52 overflow-y-auto">
-          <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">Terms & Conditions</p>
-          <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed">{loaded ? displayTerms : "Loading..."}</p>
+          <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wider">{tr.onboarding.terms}</p>
+          <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed">{loaded ? displayTerms : tr.onboarding.loading}</p>
         </div>
 
         <button
@@ -66,11 +65,11 @@ export function OnboardingCard({ onAccept }: OnboardingCardProps) {
             boxShadow: "0 0 24px rgba(52,211,153,0.35), 0 0 48px rgba(212,175,55,0.15)",
           }}
         >
-          ✅ Accept & Continue
+          {tr.onboarding.accept}
         </button>
 
         <p className="text-[10px] text-muted-foreground/50 text-center">
-          By tapping Accept you confirm your agreement to the terms above
+          {tr.onboarding.note}
         </p>
       </div>
     </div>
