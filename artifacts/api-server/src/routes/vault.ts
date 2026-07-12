@@ -144,6 +144,38 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     mergedState["hasClaimedWelcome"] = true;
   }
 
+  // Progression fields are monotonic: a stale session (second device, old tab,
+  // reopened WebView) must never downgrade what the server already recorded —
+  // these upgrades cost points that were already spent. tempMiningPoints is
+  // intentionally NOT clamped: spending legitimately lowers it.
+  for (const k of ["miningLevel", "maxEnergy", "permanentMultiplierPercent"]) {
+    const prev = num(existingState[k]);
+    if (prev > num(mergedState[k])) mergedState[k] = prev;
+  }
+
+  // Purchased cosmetics survive stale syncs: union of client + server lists.
+  for (const k of ["ownedSkinIds", "ownedBadgeIds"]) {
+    const prev = Array.isArray(existingState[k]) ? (existingState[k] as unknown[]) : [];
+    const next = Array.isArray(mergedState[k]) ? (mergedState[k] as unknown[]) : [];
+    if (prev.length > 0) mergedState[k] = [...new Set([...next, ...prev])];
+  }
+
+  // Passive income cards: per-card, the higher level wins (they only ever go up).
+  const prevCards = Array.isArray(existingState["passiveCards"]) ? (existingState["passiveCards"] as Array<Record<string, unknown>>) : [];
+  if (prevCards.length > 0) {
+    const nextCards = Array.isArray(mergedState["passiveCards"]) ? (mergedState["passiveCards"] as Array<Record<string, unknown>>) : [];
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const c of nextCards) {
+      if (typeof c?.id === "string") byId.set(c.id, c);
+    }
+    for (const c of prevCards) {
+      if (typeof c?.id !== "string") continue;
+      const clientCard = byId.get(c.id);
+      if (!clientCard || num(c.level) > num(clientCard.level)) byId.set(c.id, c);
+    }
+    mergedState["passiveCards"] = [...byId.values()];
+  }
+
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
   const wk = weekKey();
   const prevWeekly = existingState["weekKey"] === wk ? num(existingState["weeklyPoints"]) : 0;
