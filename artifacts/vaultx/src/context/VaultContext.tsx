@@ -508,6 +508,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setEquippedSkinId(skinId);
   };
 
+  // Deducts `cost` from Mined buffer with priority: game points first, then ad points.
+  // Returns false if total Mined is insufficient.
+  const spendFromMined = (cost: number): boolean => {
+    if (tempMiningPoints < cost) return false;
+    const gamePts = Math.max(0, tempMiningPoints - adMiningPoints);
+    if (gamePts < cost) {
+      // Game points alone aren't enough — also deduct from ad portion.
+      const adDeduct = cost - gamePts;
+      setAdMiningPoints(p => Math.max(0, p - adDeduct));
+    }
+    setTempMiningPoints(p => p - cost);
+    return true;
+  };
+
   const buySkin = (skinId: number): boolean => {
     if (isHydrationPending()) return false;
     const skin = SKINS[skinId];
@@ -516,8 +530,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setEquippedSkinId(skinId);
       return true;
     }
-    if (tempMiningPoints < skin.price) return false;
-    setTempMiningPoints(prev => prev - skin.price);
+    if (!spendFromMined(skin.price)) return false;
     setOwnedSkinIds(prev => (prev.includes(skinId) ? prev : [...prev, skinId]));
     setEquippedSkinId(skinId);
     return true;
@@ -540,16 +553,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const upgradeMiningLevel = (cost: number, newLevel: number) => {
     if (isHydrationPending()) return;
-    if (tempMiningPoints >= cost) {
-      setTempMiningPoints(prev => prev - cost);
+    if (spendFromMined(cost)) {
       setMiningLevel(newLevel);
     }
   };
 
   const expandBattery = (cost: number) => {
     if (isHydrationPending()) return;
-    if (tempMiningPoints >= cost && maxEnergy < 200) {
-      setTempMiningPoints(prev => prev - cost);
+    if (maxEnergy < 200 && spendFromMined(cost)) {
       setMaxEnergy(200);
     }
   };
@@ -618,8 +629,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const buyPassiveCard = (cardId: string, cost: number, newLevel: number, newPtsPerHour: number, name: string) => {
     if (isHydrationPending()) return;
-    if (tempMiningPoints >= cost) {
-      setTempMiningPoints(p => p - cost);
+    if (spendFromMined(cost)) {
       setPassiveCards(prev => {
         const existing = prev.find(c => c.id === cardId);
         if (existing) {
