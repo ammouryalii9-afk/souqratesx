@@ -880,95 +880,122 @@ export const TasksTab = () => {
       <SectionLabel>{tr.tasks.storePartners}</SectionLabel>
 
       {/* Telegram Stars Store */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
-            background: 'linear-gradient(145deg, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.06) 100%)',
-            border: '1px solid rgba(52,211,153,0.2)',
-            boxShadow: '0 0 16px rgba(52,211,153,0.15)',
-          }}>
-            <Star className="w-4 h-4 text-primary" style={{ filter: 'drop-shadow(0 0 4px rgba(52,211,153,0.6))' }} />
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-xl font-bold text-white leading-none">Store</h2>
-            <span className="text-[10px] text-primary/60 font-semibold uppercase tracking-wider mt-0.5">Telegram Stars</span>
-          </div>
-        </div>
-        {!config?.stars.enabled ? (
-          <div className="rounded-2xl p-5 text-center text-xs text-muted-foreground" style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
-          }}>Not activated yet</div>
-        ) : starProducts.length === 0 ? (
-          <div className="rounded-2xl p-5 text-center text-xs text-muted-foreground" style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
-          }}>No items available right now</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {starProducts.map((product) => {
-              const Icon = product.effectType === 'premium_days' ? Crown : product.effectType === 'turbo_boost' ? Flame : product.effectType === 'energy_refill' ? Zap : product.effectType === 'permanent_multiplier' ? Sparkles : product.effectType === 'badge' ? Award : product.effectType === 'skin' ? Palette : Gem;
-              const isPremium = product.effectType === 'premium_days';
-              return (
-                <div
-                  key={product.id}
-                  className="rounded-2xl p-4 flex flex-col items-center text-center relative overflow-hidden"
-                  style={isPremium ? {
-                    background: 'linear-gradient(160deg, rgba(52,211,153,0.12) 0%, rgba(52,211,153,0.03) 100%)',
-                    border: '1px solid rgba(52,211,153,0.25)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.25)',
-                  } : {
-                    background: 'linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.2)',
-                  }}
-                >
-                  {isPremium && (
-                    <span className="absolute top-2 right-2 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md" style={{
-                      background: 'rgba(52,211,153,0.15)', color: 'hsl(152,76%,55%)', border: '1px solid rgba(52,211,153,0.25)',
-                    }}>VIP</span>
-                  )}
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 relative" style={{
-                    background: 'radial-gradient(circle at 35% 25%, rgba(52,211,153,0.2) 0%, rgba(52,211,153,0.04) 100%)',
-                    border: '1px solid rgba(52,211,153,0.15)',
-                    boxShadow: '0 0 16px rgba(52,211,153,0.1)',
-                  }}>
-                    {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.title} className="w-9 h-9 rounded-xl object-cover" />
-                    ) : (
-                      <Icon className="w-6 h-6 text-primary" style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.5))' }} />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-white text-sm leading-tight mb-1 line-clamp-1">{product.title}</h3>
-                  {product.description && (
-                    <p className="text-[10px] text-muted-foreground leading-tight mb-2 line-clamp-2 min-h-[24px]">{product.description}</p>
-                  )}
-                  <div className="flex items-center gap-1 mb-3 mt-auto">
-                    <span className="text-sm font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
-                    <span className="text-sm">⭐</span>
-                  </div>
-                  <button
-                    onClick={() => handleBuyWithStars(product.id)}
-                    disabled={purchasingProduct === product.id}
-                    className="w-full h-9 text-xs font-bold rounded-xl flex items-center justify-center transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={isPremium ? {
-                      background: 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,42%) 100%)',
-                      color: 'hsl(224,71%,4%)',
-                      boxShadow: '0 0 16px rgba(52,211,153,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
-                    } : {
-                      background: 'rgba(52,211,153,0.1)',
-                      color: 'hsl(152,76%,55%)',
-                      border: '1px solid rgba(52,211,153,0.2)',
-                    }}
-                  >
-                    {purchasingProduct === product.id ? <Loader2 className="w-4 h-4 animate-spin" /> : isPremium ? 'Subscribe' : 'Buy'}
-                  </button>
+      {(() => {
+        const STAR_META: Record<string, { emoji: string; label: string; color: string; glow: string; gradient: string }> = {
+          premium_days:         { emoji: '👑', label: 'VIP',   color: '#f59e0b', glow: 'rgba(245,158,11,0.28)',  gradient: 'linear-gradient(145deg, rgba(245,158,11,0.14) 0%, rgba(14,11,4,0.97) 100%)' },
+          turbo_boost:          { emoji: '🔥', label: 'بوست', color: '#f97316', glow: 'rgba(249,115,22,0.28)',  gradient: 'linear-gradient(145deg, rgba(249,115,22,0.14) 0%, rgba(14,7,3,0.97) 100%)' },
+          energy_refill:        { emoji: '⚡', label: 'طاقة', color: '#38bdf8', glow: 'rgba(56,189,248,0.28)',  gradient: 'linear-gradient(145deg, rgba(56,189,248,0.14) 0%, rgba(3,11,17,0.97) 100%)' },
+          permanent_multiplier: { emoji: '✨', label: 'قوة',  color: '#a78bfa', glow: 'rgba(167,139,250,0.28)', gradient: 'linear-gradient(145deg, rgba(167,139,250,0.14) 0%, rgba(9,7,17,0.97) 100%)' },
+          badge:                { emoji: '🏅', label: 'شارة', color: '#2dd4bf', glow: 'rgba(45,212,191,0.28)',  gradient: 'linear-gradient(145deg, rgba(45,212,191,0.14) 0%, rgba(3,13,13,0.97) 100%)' },
+          skin:                 { emoji: '🎨', label: 'سكن',  color: '#f472b6', glow: 'rgba(244,114,182,0.28)', gradient: 'linear-gradient(145deg, rgba(244,114,182,0.14) 0%, rgba(14,4,11,0.97) 100%)' },
+        };
+        const getMeta = (type: string) => STAR_META[type] ?? { emoji: '💎', label: 'آيتم', color: '#34d399', glow: 'rgba(52,211,153,0.28)', gradient: 'linear-gradient(145deg, rgba(52,211,153,0.14) 0%, rgba(4,13,8,0.97) 100%)' };
+
+        return (
+          <section>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{
+                  background: 'linear-gradient(145deg, rgba(245,158,11,0.2) 0%, rgba(245,158,11,0.06) 100%)',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  boxShadow: '0 0 14px rgba(245,158,11,0.15)',
+                }}>
+                  <span className="text-base leading-none">⭐</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                <div className="flex flex-col">
+                  <h2 className="text-lg font-bold text-white leading-none">متجر النجوم</h2>
+                  <span className="text-[10px] text-amber-400/60 font-semibold uppercase tracking-wider mt-0.5">Telegram Stars</span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
+                ⭐ حصري
+              </span>
+            </div>
+
+            {!config?.stars.enabled ? (
+              <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-2xl mb-2 block">🔒</span>
+                <p className="text-xs text-muted-foreground">لم يتم التفعيل بعد</p>
+              </div>
+            ) : starProducts.length === 0 ? (
+              <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-2xl mb-2 block">📭</span>
+                <p className="text-xs text-muted-foreground">لا توجد منتجات متاحة حالياً</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {starProducts.map((product) => {
+                  const meta = getMeta(product.effectType);
+                  const isBuying = purchasingProduct === product.id;
+
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => handleBuyWithStars(product.id)}
+                      disabled={isBuying}
+                      className="relative rounded-2xl overflow-hidden text-left flex flex-col transition-all duration-150 active:scale-[0.94] disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{
+                        background: meta.gradient,
+                        border: `1.5px solid ${meta.color}44`,
+                        boxShadow: `0 4px 20px ${meta.glow}55`,
+                      }}
+                    >
+                      {/* Type badge */}
+                      <div className="absolute top-2 right-2">
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}33` }}>
+                          {meta.label}
+                        </span>
+                      </div>
+
+                      {/* Emoji orb */}
+                      <div className="flex items-center justify-center pt-7 pb-2 px-4">
+                        <div className="relative flex items-center justify-center">
+                          {/* glow ring */}
+                          <div className="absolute w-14 h-14 rounded-full opacity-25" style={{ background: `radial-gradient(circle, ${meta.color} 0%, transparent 70%)` }} />
+                          {/* orb */}
+                          <div className="relative w-13 h-13 w-12 h-12 rounded-full flex items-center justify-center" style={{
+                            background: `radial-gradient(circle at 35% 35%, ${meta.color}cc 0%, ${meta.color}44 60%, transparent 100%)`,
+                            boxShadow: `0 0 18px ${meta.glow}, inset 0 1px 1px rgba(255,255,255,0.18)`,
+                          }}>
+                            {product.imageUrl
+                              ? <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-lg object-cover" />
+                              : <span className="text-2xl leading-none">{meta.emoji}</span>
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="px-3 pb-3 flex flex-col gap-2 flex-1">
+                        <div>
+                          <p className="text-sm font-bold text-white text-center leading-tight line-clamp-1">{product.title}</p>
+                          {product.description && (
+                            <p className="text-[10px] text-muted-foreground text-center mt-0.5 line-clamp-2 leading-snug">{product.description}</p>
+                          )}
+                        </div>
+
+                        {/* Price */}
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-base font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
+                          <span className="text-base">⭐</span>
+                        </div>
+
+                        {/* Buy button */}
+                        <div className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-bold gap-1"
+                          style={{ background: `linear-gradient(135deg, ${meta.color} 0%, ${meta.color}bb 100%)`, color: '#000', boxShadow: `0 2px 10px ${meta.glow}` }}
+                        >
+                          {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>شراء ⭐</>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {/* Partner Tasks */}
       {partnerTasks.length > 0 && (
@@ -1027,79 +1054,100 @@ export const TasksTab = () => {
       )}
 
       {/* Stars Purchase Confirmation Modal */}
-      {confirmProduct && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div
-            className="w-full max-w-sm rounded-2xl overflow-hidden"
-            style={{
-              background: 'linear-gradient(180deg, hsl(224,71%,8%) 0%, hsl(224,71%,4%) 100%)',
-              border: '1px solid rgba(52,211,153,0.2)',
-              boxShadow: '0 -8px 40px rgba(52,211,153,0.08)',
-            }}
-          >
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-white/5">
-              <div className="flex items-center gap-3 mb-1">
-                {confirmProduct.imageUrl ? (
-                  <img src={confirmProduct.imageUrl} alt={confirmProduct.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
-                    <Star className="w-6 h-6 text-primary" />
-                  </div>
+      {confirmProduct && (() => {
+        const CONFIRM_META: Record<string, { emoji: string; color: string; glow: string }> = {
+          premium_days:         { emoji: '👑', color: '#f59e0b', glow: 'rgba(245,158,11,0.25)' },
+          turbo_boost:          { emoji: '🔥', color: '#f97316', glow: 'rgba(249,115,22,0.25)' },
+          energy_refill:        { emoji: '⚡', color: '#38bdf8', glow: 'rgba(56,189,248,0.25)' },
+          permanent_multiplier: { emoji: '✨', color: '#a78bfa', glow: 'rgba(167,139,250,0.25)' },
+          badge:                { emoji: '🏅', color: '#2dd4bf', glow: 'rgba(45,212,191,0.25)' },
+          skin:                 { emoji: '🎨', color: '#f472b6', glow: 'rgba(244,114,182,0.25)' },
+        };
+        const cm = CONFIRM_META[confirmProduct.effectType] ?? { emoji: '💎', color: '#34d399', glow: 'rgba(52,211,153,0.25)' };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end justify-center p-4 pb-6">
+            <div
+              className="w-full max-w-sm rounded-3xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, hsl(224,71%,7%) 0%, hsl(224,71%,4%) 100%)',
+                border: `1.5px solid ${cm.color}33`,
+                boxShadow: `0 -12px 50px ${cm.glow}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
+              }}
+            >
+              {/* Top glow strip */}
+              <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, transparent 0%, ${cm.color} 50%, transparent 100%)`, opacity: 0.6 }} />
+
+              {/* Header */}
+              <div className="px-6 pt-5 pb-4 flex flex-col items-center text-center">
+                {/* Icon */}
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 relative" style={{
+                  background: `radial-gradient(circle at 35% 35%, ${cm.color}99 0%, ${cm.color}33 60%, transparent 100%)`,
+                  border: `1.5px solid ${cm.color}44`,
+                  boxShadow: `0 0 24px ${cm.glow}`,
+                }}>
+                  {confirmProduct.imageUrl
+                    ? <img src={confirmProduct.imageUrl} alt={confirmProduct.title} className="w-10 h-10 rounded-xl object-cover" />
+                    : <span className="text-3xl leading-none">{cm.emoji}</span>
+                  }
+                </div>
+
+                <h3 className="font-black text-white text-lg leading-tight mb-1">{confirmProduct.title}</h3>
+                {confirmProduct.description && (
+                  <p className="text-xs text-muted-foreground leading-relaxed">{confirmProduct.description}</p>
                 )}
-                <div>
-                  <h3 className="font-bold text-white text-base leading-tight">{confirmProduct.title}</h3>
-                  {confirmProduct.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{confirmProduct.description}</p>
-                  )}
+
+                {/* Price pill */}
+                <div className="flex items-center gap-2 mt-4 px-5 py-2 rounded-full" style={{ background: `${cm.color}15`, border: `1px solid ${cm.color}33` }}>
+                  <span className="text-xl font-black text-white tabular-nums">{confirmProduct.priceStars.toLocaleString()}</span>
+                  <span className="text-xl">⭐</span>
+                  <span className="text-xs text-muted-foreground">Telegram Stars</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-3">
-                <span className="text-2xl font-black text-white tabular-nums">{confirmProduct.priceStars.toLocaleString()}</span>
-                <span className="text-xl">⭐</span>
-                <span className="text-sm text-muted-foreground ml-1">Telegram Stars</span>
-              </div>
-            </div>
 
-            {/* Benefits */}
-            {confirmProduct.benefitsBullets && (
-              <div className="px-6 py-4 border-b border-white/5">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">What you get</p>
-                <ul className="flex flex-col gap-2">
-                  {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-white/90 leading-snug">
-                      <span className="text-primary flex-shrink-0 mt-px">•</span>
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {/* Benefits */}
+              {confirmProduct.benefitsBullets && (
+                <div className="mx-5 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: cm.color }}>ما ستحصل عليه</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-white/85 leading-snug">
+                        <span className="flex-shrink-0 mt-px" style={{ color: cm.color }}>✦</span>
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            {/* Actions */}
-            <div className="px-6 py-4 flex flex-col gap-2">
-              <button
-                onClick={handleConfirmPurchase}
-                disabled={!!purchasingProduct}
-                className="w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-                style={{
-                  background: 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,42%) 100%)',
-                  color: 'hsl(224,71%,4%)',
-                  boxShadow: '0 0 20px rgba(52,211,153,0.3)',
-                }}
-              >
-                {purchasingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Confirm &amp; Pay ⭐ {confirmProduct.priceStars.toLocaleString()}</>}
-              </button>
-              <button
-                onClick={() => setConfirmProduct(null)}
-                className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
+              {/* Actions */}
+              <div className="px-5 pb-5 flex flex-col gap-2">
+                <button
+                  onClick={handleConfirmPurchase}
+                  disabled={!!purchasingProduct}
+                  className="w-full h-13 h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50"
+                  style={{
+                    background: `linear-gradient(135deg, ${cm.color} 0%, ${cm.color}bb 100%)`,
+                    color: '#000',
+                    boxShadow: `0 4px 20px ${cm.glow}`,
+                  }}
+                >
+                  {purchasingProduct
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <>تأكيد الدفع ⭐ {confirmProduct.priceStars.toLocaleString()}</>
+                  }
+                </button>
+                <button
+                  onClick={() => setConfirmProduct(null)}
+                  className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground active:text-white transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Survey Modal */}
       {showSurveyModal && (
