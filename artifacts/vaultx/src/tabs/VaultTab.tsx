@@ -304,9 +304,7 @@ export const VaultTab = () => {
             </div>
           )}
         </div>
-        <div className="text-sm font-bold text-muted-foreground mb-5 relative z-10">
-          ≈ ${(availablePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
-        </div>
+        <div className="mb-5" />
         <div className="flex items-center gap-3 relative z-10 w-full">
           <button
             data-testid="button-withdraw"
@@ -345,7 +343,6 @@ export const VaultTab = () => {
         </div>
         <div className="flex justify-between items-center text-xs font-bold bg-card/50 backdrop-blur-xl border border-white/5 rounded-xl px-4 py-3 shadow-inner">
           <span className="text-primary flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> +{profitPerHour.toLocaleString()} /hr</span>
-          <span className="text-white flex items-center gap-1.5"><Vault className="w-3.5 h-3.5 text-cyan-400" /> {lifetimePoints.toLocaleString()} pts</span>
         </div>
       </div>
 
