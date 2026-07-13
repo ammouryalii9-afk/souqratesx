@@ -617,7 +617,9 @@ export const GetPublicConfigResponse = zod.object({
 }),
   "stars": zod.object({
   "enabled": zod.boolean()
-})
+}),
+  "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),
+  "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)')
 })
 
 

@@ -37,6 +37,8 @@ export type PublicConfig = {
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
   stars: { enabled: boolean };
   botUsername: string | null;
+  pointsPerDollar: number;
+  dollarBonus: number;
 };
 
 const FALLBACK_BOT_USERNAME = "SouqratesX_bot";

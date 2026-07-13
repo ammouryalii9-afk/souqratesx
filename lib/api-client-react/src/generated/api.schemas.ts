@@ -298,6 +298,10 @@ export interface PublicConfig {
   botUsername: string | null;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
+  /** How many points equal $1 (default 2000000) */
+  pointsPerDollar: number;
+  /** Flat bonus dollar amount shown to users (admin-controlled incentive) */
+  dollarBonus: number;
 }
 
 export interface EarnRewardResult {

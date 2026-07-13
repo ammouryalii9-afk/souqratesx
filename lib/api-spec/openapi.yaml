@@ -1471,6 +1471,12 @@ components:
             enabled:
               type: boolean
           required: [enabled]
+        pointsPerDollar:
+          type: integer
+          description: "How many points equal $1 (default 2000000)"
+        dollarBonus:
+          type: number
+          description: "Flat bonus dollar amount shown to users (admin-controlled incentive)"
       required:
         - botMessages
         - botUsername
@@ -1481,6 +1487,8 @@ components:
         - exoclick
         - offerwalls
         - stars
+        - pointsPerDollar
+        - dollarBonus
     EarnRewardResult:
       type: object
       properties:

@@ -281,8 +281,17 @@ export const VaultTab = () => {
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
-        <div className="text-[40px] font-black text-white mb-5 tracking-tighter relative z-10 drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
-          ${(lifetimePoints / 1_000_000).toFixed(2)}
+        <div className="flex items-end gap-3 mb-5 relative z-10">
+          <div className="text-[40px] font-black text-white tracking-tighter drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
+            ${(lifetimePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
+          </div>
+          {(config?.dollarBonus ?? 0) > 0 && (
+            <div className="mb-2 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+              style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.25), rgba(245,158,11,0.15))', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
+              <span>+${(config?.dollarBonus ?? 0).toFixed(2)}</span>
+              <span className="text-[10px] font-semibold opacity-80">bonus</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3 relative z-10 w-full">
           <button
