@@ -1474,6 +1474,17 @@ components:
             enabled:
               type: boolean
           required: [enabled]
+        features:
+          type: object
+          description: "Admin-controlled feature flags (all default false until enabled in admin panel)"
+          properties:
+            weeklyPrizesEnabled:
+              type: boolean
+            referralMilestonesEnabled:
+              type: boolean
+            offlineEarningsEnabled:
+              type: boolean
+          required: [weeklyPrizesEnabled, referralMilestonesEnabled, offlineEarningsEnabled]
         pointsPerDollar:
           type: integer
           description: "How many points equal $1 (default 2000000)"
@@ -1490,6 +1501,7 @@ components:
         - exoclick
         - offerwalls
         - stars
+        - features
         - pointsPerDollar
         - dollarBonus
     EarnRewardResult:

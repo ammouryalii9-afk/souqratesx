@@ -8,6 +8,7 @@
 import type { PublicConfigAdsgram } from './publicConfigAdsgram';
 import type { PublicConfigBotMessages } from './publicConfigBotMessages';
 import type { PublicConfigExoclick } from './publicConfigExoclick';
+import type { PublicConfigFeatures } from './publicConfigFeatures';
 import type { PublicConfigMonetag } from './publicConfigMonetag';
 import type { PublicConfigOfferwallsItem } from './publicConfigOfferwallsItem';
 import type { PublicConfigOnclicka } from './publicConfigOnclicka';
@@ -23,6 +24,8 @@ export interface PublicConfig {
   botUsername: string | null;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
+  /** Admin-controlled feature flags (all default false until enabled in admin panel) */
+  features: PublicConfigFeatures;
   /** How many points equal $1 (default 2000000) */
   pointsPerDollar: number;
   /** Flat bonus dollar amount shown to users (admin-controlled incentive) */

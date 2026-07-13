@@ -183,6 +183,11 @@ router.get("/config/public", async (_req, res): Promise<void> => {
       stars: {
         enabled: Boolean(process.env.TELEGRAM_BOT_TOKEN),
       },
+      features: {
+        weeklyPrizesEnabled: Boolean(settings.weeklyPrizesEnabled),
+        referralMilestonesEnabled: Boolean(settings.referralMilestonesEnabled),
+        offlineEarningsEnabled: Boolean(settings.offlineEarningsEnabled),
+      },
       pointsPerDollar: asNumber(settings.pointsPerDollar, 2_000_000),
       dollarBonus: asNumber(settings.dollarBonus, 0),
     }),

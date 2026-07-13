@@ -129,6 +129,13 @@ async function runDailyReminders(): Promise<void> {
 async function runWeeklyPrizes(): Promise<void> {
   const { logger } = await import("./lib/logger");
   try {
+    const { getSettingsMap } = await import("./lib/settings");
+    const settings = await getSettingsMap();
+    if (!settings.weeklyPrizesEnabled) {
+      logger.info("Weekly prizes: feature disabled in admin settings, skipping");
+      return;
+    }
+
     const { db, vaultUsersTable } = await import("@workspace/db");
     const { and, eq, sql } = await import("drizzle-orm");
     const { weekKey } = await import("./lib/weeklyCredit");

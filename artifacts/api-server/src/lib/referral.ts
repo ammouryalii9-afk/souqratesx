@@ -56,7 +56,10 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
   const newCount = bumped?.referralCount ?? 0;
   const milestoneBonus = REFERRAL_MILESTONES[newCount];
   if (milestoneBonus) {
-    await awardReferralMilestone(referrerTelegramId, newCount, milestoneBonus);
+    const settings = await getSettingsMap();
+    if (settings.referralMilestonesEnabled) {
+      await awardReferralMilestone(referrerTelegramId, newCount, milestoneBonus);
+    }
   }
 }
 

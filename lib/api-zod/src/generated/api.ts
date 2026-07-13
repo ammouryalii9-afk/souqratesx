@@ -621,6 +621,11 @@ export const GetPublicConfigResponse = zod.object({
   "stars": zod.object({
   "enabled": zod.boolean()
 }),
+  "features": zod.object({
+  "weeklyPrizesEnabled": zod.boolean(),
+  "referralMilestonesEnabled": zod.boolean(),
+  "offlineEarningsEnabled": zod.boolean()
+}).describe('Admin-controlled feature flags (all default false until enabled in admin panel)'),
   "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),
   "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)')
 })

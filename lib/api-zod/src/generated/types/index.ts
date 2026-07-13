@@ -43,6 +43,7 @@ export * from './publicConfig';
 export * from './publicConfigAdsgram';
 export * from './publicConfigBotMessages';
 export * from './publicConfigExoclick';
+export * from './publicConfigFeatures';
 export * from './publicConfigMonetag';
 export * from './publicConfigOfferwallsItem';
 export * from './publicConfigOnclicka';

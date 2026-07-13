@@ -289,6 +289,15 @@ export type PublicConfigStars = {
   enabled: boolean;
 };
 
+/**
+ * Admin-controlled feature flags (all default false until enabled in admin panel)
+ */
+export type PublicConfigFeatures = {
+  weeklyPrizesEnabled: boolean;
+  referralMilestonesEnabled: boolean;
+  offlineEarningsEnabled: boolean;
+};
+
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
@@ -299,6 +308,8 @@ export interface PublicConfig {
   botUsername: string | null;
   exoclick: PublicConfigExoclick;
   stars: PublicConfigStars;
+  /** Admin-controlled feature flags (all default false until enabled in admin panel) */
+  features: PublicConfigFeatures;
   /** How many points equal $1 (default 2000000) */
   pointsPerDollar: number;
   /** Flat bonus dollar amount shown to users (admin-controlled incentive) */

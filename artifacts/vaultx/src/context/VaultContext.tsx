@@ -431,23 +431,34 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // server, so this must not run before that. The amount is only granted when
   // the player taps "collect" in the popup; it then flows through the normal
   // debounced sync (bounded server-side by maxPointsPerHourCap).
+  // Guard: only shows when offlineEarningsEnabled flag is true in admin settings.
   useEffect(() => {
     if (isSyncing || !hasHydratedFromServer.current || offlineChecked.current) return;
     offlineChecked.current = true;
 
-    const last = Number(localStorage.getItem('lastOnlineAt')) || 0;
-    const now = Date.now();
-    if (last > 0 && now > last && profitPerHour > 0) {
-      const awayMs = now - last;
-      const MIN_AWAY_MS = 10 * 60 * 1000; // ignore short absences
-      const MAX_OFFLINE_HOURS = 3;        // classic idle-game cap
-      if (awayMs >= MIN_AWAY_MS) {
-        const cappedHours = Math.min(awayMs / 3_600_000, MAX_OFFLINE_HOURS);
-        const earned = Math.floor(profitPerHour * cappedHours);
-        if (earned >= 1) setOfflineEarnings({ amount: earned, awayMs });
-      }
-    }
-    localStorage.setItem('lastOnlineAt', now.toString());
+    import('../lib/gameApi').then(({ getPublicConfig }) => {
+      getPublicConfig().then(cfg => {
+        if (!cfg.features.offlineEarningsEnabled) {
+          localStorage.setItem('lastOnlineAt', Date.now().toString());
+          return;
+        }
+        const last = Number(localStorage.getItem('lastOnlineAt')) || 0;
+        const now = Date.now();
+        if (last > 0 && now > last && profitPerHour > 0) {
+          const awayMs = now - last;
+          const MIN_AWAY_MS = 10 * 60 * 1000;
+          const MAX_OFFLINE_HOURS = 3;
+          if (awayMs >= MIN_AWAY_MS) {
+            const cappedHours = Math.min(awayMs / 3_600_000, MAX_OFFLINE_HOURS);
+            const earned = Math.floor(profitPerHour * cappedHours);
+            if (earned >= 1) setOfflineEarnings({ amount: earned, awayMs });
+          }
+        }
+        localStorage.setItem('lastOnlineAt', now.toString());
+      }).catch(() => {
+        localStorage.setItem('lastOnlineAt', Date.now().toString());
+      });
+    });
   }, [isSyncing, profitPerHour]);
 
   // Heartbeat so the next session knows when this one ended. Declared AFTER the

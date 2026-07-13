@@ -2,7 +2,28 @@ import { useEffect, useState } from "react";
 import { adminApi, type AdminSettingsMap } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Save } from "lucide-react";
+
+type ToggleDef = { key: string; label: string; description: string };
+
+const FEATURE_TOGGLES: ToggleDef[] = [
+  {
+    key: "weeklyPrizesEnabled",
+    label: "🏆 الجوائز الأسبوعية التلقائية",
+    description: "توزيع جوائز تلقائية على أفضل 10 لاعبين كل أسبوع (1M / 600k / ... / 100k نقطة)",
+  },
+  {
+    key: "referralMilestonesEnabled",
+    label: "🎯 مكافآت أهداف الإحالة",
+    description: "مكافآت تصاعدية عند وصول المُحيل إلى 5 / 10 / 25 / 50 / 100 دعوة",
+  },
+  {
+    key: "offlineEarningsEnabled",
+    label: "🕐 أرباح وضع عدم الاتصال",
+    description: "يعرض للاعب نافذة بأرباحه السلبية بعد غياب 10 دقائق أو أكثر (سقف 3 ساعات)",
+  },
+];
 
 type FieldDef = {
   key: string;
@@ -239,6 +260,30 @@ export function AdminSettings() {
 
   return (
     <div className="flex flex-col gap-5" data-testid="section-admin-settings">
+
+      {/* ── ميزات اللعبة (أزرار تفعيل / إيقاف) ── */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-white mb-1">ميزات اللعبة</h3>
+        <p className="text-xs text-muted-foreground mb-4">كل الميزات معطّلة بشكل افتراضي — فعّلها متى شئت.</p>
+        <div className="flex flex-col gap-4">
+          {FEATURE_TOGGLES.map((t) => (
+            <div key={t.key} className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm text-white">{t.label}</span>
+                <span className="text-xs text-muted-foreground">{t.description}</span>
+              </div>
+              <Switch
+                checked={Boolean(values[t.key])}
+                onCheckedChange={(checked) =>
+                  setValues((prev) => ({ ...prev, [t.key]: checked }))
+                }
+                data-testid={`toggle-${t.key}`}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-white/5 border border-white/10 rounded-xl p-4">
         <h3 className="text-sm font-bold text-white mb-2">Telegram Bot Webhook</h3>
         <p className="text-xs text-muted-foreground mb-3">

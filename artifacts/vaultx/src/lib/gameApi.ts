@@ -36,6 +36,11 @@ export type PublicConfig = {
   };
   offerwalls: { id: string; name: string; url: string | null; enabled: boolean }[];
   stars: { enabled: boolean };
+  features: {
+    weeklyPrizesEnabled: boolean;
+    referralMilestonesEnabled: boolean;
+    offlineEarningsEnabled: boolean;
+  };
   botUsername: string | null;
   pointsPerDollar: number;
   dollarBonus: number;
