@@ -429,7 +429,12 @@ export const VaultTab = () => {
           ))}
         </button>
 
-        <div className="mt-8 w-full max-w-[280px]">
+        <div className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.15)' }}>
+          <span className="text-[10px] font-bold text-primary/60">📺</span>
+          <span className="text-[10px] font-semibold text-primary/70 tracking-wide">Ad points count <span className="text-primary font-black">+80%</span> more than regular points</span>
+        </div>
+
+        <div className="mt-4 w-full max-w-[280px]">
           <div className="flex justify-between text-xs font-bold mb-2.5 px-1">
             <span className="text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5 text-primary" /> {tr.vault.energy}
