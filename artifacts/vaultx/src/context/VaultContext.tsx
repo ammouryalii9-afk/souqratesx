@@ -387,8 +387,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setEnergy((prevEnergy) => {
         if (prevEnergy <= 0) return prevEnergy;
         const idlePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-        const spendable = Math.floor(idlePts * gameToSpendablePct.current / 100);
-        if (spendable > 0) setTempMiningPoints((prevPoints) => prevPoints + spendable);
+        setTempMiningPoints((prevPoints) => prevPoints + idlePts);
         setLifetimePoints((prevLifetime) => prevLifetime + idlePts);
         return prevEnergy - 1;
       });
@@ -429,8 +428,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const interval = setInterval(() => {
       if (profitPerHour > 0) {
-        const spendable = Math.floor(profitPerHour * gameToSpendablePct.current / 100);
-        if (spendable > 0) setTempMiningPoints(p => p + spendable);
+        setTempMiningPoints(p => p + profitPerHour);
         setLifetimePoints(p => p + profitPerHour);
       }
     }, 3600000);
@@ -518,7 +516,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const claimEarnings = () => {
     if (isHydrationPending()) return;
-    const usdToAdd = (tempMiningPoints / 10000) * 0.01;
+    // Apply gameToSpendablePercent: only that fraction of Mined converts to Total.
+    // Ads bypass Mined entirely (credited directly to totalBalanceUSD server-side),
+    // so they are always 100%. Default rate is 0 — admin must enable via settings.
+    const rate = gameToSpendablePct.current / 100;
+    const usdToAdd = (tempMiningPoints * rate / 10000) * 0.01;
     setTotalBalanceUSD(prev => prev + usdToAdd);
     setTempMiningPoints(0);
   };
@@ -547,11 +549,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const basePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
       const boostedPts = activeTurbo ? basePts * 5 : basePts;
       earned = Math.round(boostedPts * multiplierFactor);
-      // Tapping only adds to the leaderboard (lifetimePoints). The spendable
-      // balance (tempMiningPoints) gets gameToSpendablePercent% of tap points —
-      // configured by the admin; default 0 (ads/surveys are always 100%).
-      const spendable = Math.floor(earned * gameToSpendablePct.current / 100);
-      if (spendable > 0) setTempMiningPoints(p => p + spendable);
+      // Tapping fills the Mined buffer (tempMiningPoints) fully.
+      // The rate (gameToSpendablePercent) is applied only at Claim time,
+      // so the on-screen Mined counter always reflects real tap work.
+      setTempMiningPoints(p => p + earned);
       setLifetimePoints(p => p + earned);
       return prev - 1;
     });
@@ -595,8 +596,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isHydrationPending()) return;
     if (farmState === 'ready') {
       const farmPts = 4000;
-      const spendable = Math.floor(farmPts * gameToSpendablePct.current / 100);
-      if (spendable > 0) setTempMiningPoints(p => p + spendable);
+      setTempMiningPoints(p => p + farmPts);
       setLifetimePoints(p => p + farmPts);
       setFarmState('idle');
       setFarmStartTime(0);
@@ -621,17 +621,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addLifetimePoints = (n: number) => {
     if (isHydrationPending()) return;
     setLifetimePoints(p => p + n);
-    const spendable = Math.floor(n * gameToSpendablePct.current / 100);
-    if (spendable > 0) setTempMiningPoints(p => p + spendable);
+    setTempMiningPoints(p => p + n);
   };
 
-  // Client-side bonus points (e.g. tap combo, mini-games). Only the configured
-  // spendable fraction goes to tempMiningPoints; full amount to lifetimePoints.
+  // Client-side bonus points (e.g. tap combo, mini-games). Added to Mined
+  // buffer fully; rate is applied at Claim time, not here.
   const addBonusPoints = (n: number) => {
     if (isHydrationPending() || n <= 0) return;
     setLifetimePoints(p => p + n);
-    const spendable = Math.floor(n * gameToSpendablePct.current / 100);
-    if (spendable > 0) setTempMiningPoints(p => p + spendable);
+    setTempMiningPoints(p => p + n);
   };
 
   const WELCOME_REWARD = 5000;
@@ -645,8 +643,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const claimOfflineEarnings = () => {
     if (isHydrationPending() || !offlineEarnings) return;
-    const spendable = Math.floor(offlineEarnings.amount * gameToSpendablePct.current / 100);
-    if (spendable > 0) setTempMiningPoints(p => p + spendable);
+    setTempMiningPoints(p => p + offlineEarnings.amount);
     setLifetimePoints(p => p + offlineEarnings.amount);
     setOfflineEarnings(null);
     haptic('success');

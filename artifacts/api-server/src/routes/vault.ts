@@ -189,20 +189,17 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     mergedState["passiveCards"] = [...byId.values()];
   }
 
-  // Spendable balance (tempMiningPoints) cap: game-sourced point increases
-  // (tapping, mini-games, farming, passive idle) credit only a configurable
-  // fraction to the spendable balance. Ads/surveys credit 100% via separate
-  // server routes and are not affected here. This prevents a cheating client
-  // from claiming full spendable balance regardless of the admin setting.
+  // Mined buffer (tempMiningPoints) cap: tap/game-sourced increases are allowed
+  // up to the full creditedDelta. The conversion rate (gameToSpendablePercent)
+  // is applied client-side at Claim time, not here. Ads bypass tempMiningPoints
+  // entirely — they credit totalBalanceUSD directly on the server, so any
+  // increase beyond creditedDelta is cheating. Spending (decrease) is always allowed.
   const settings = await getSettingsMap();
-  const gameToSpendablePct = asNumber(settings.gameToSpendablePercent, 0);
   const creditedDelta = Math.max(0, finalLifetimePoints - existing.lifetimePoints);
-  const maxTempIncrease = Math.floor(creditedDelta * gameToSpendablePct / 100);
   const existingTemp = num(existingState["tempMiningPoints"]);
   const requestedTemp = num(mergedState["tempMiningPoints"]);
   if (requestedTemp > existingTemp) {
-    // Client tried to increase spendable balance from game sources — cap it.
-    mergedState["tempMiningPoints"] = existingTemp + Math.min(requestedTemp - existingTemp, maxTempIncrease);
+    mergedState["tempMiningPoints"] = existingTemp + Math.min(requestedTemp - existingTemp, creditedDelta);
   }
   // (If requestedTemp <= existingTemp the user is spending points; allow.)
 

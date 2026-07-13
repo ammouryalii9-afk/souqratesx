@@ -72,9 +72,9 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
         .update(vaultUsersTable)
         .set({
           lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-          // Also write tempMiningPoints + weeklyPoints into the state JSONB so
-          // the cap in PUT /vault/me doesn't zero out the offerwall reward.
-          state: creditedStateSql(amount, {}),
+          // Offerwalls bypass the Mined buffer (tempMiningPoints) and credit
+          // totalBalanceUSD directly at 100%. Also updates weeklyPoints.
+          state: sql`jsonb_set(${creditedStateSql(amount, {}, { toSpendable: false })}, '{totalBalanceUSD}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'totalBalanceUSD')::numeric, 0) + ${amount / 1_000_000}::numeric))`,
         })
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();
