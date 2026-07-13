@@ -1066,7 +1066,7 @@ export const TasksTab = () => {
         const cm = CONFIRM_META[confirmProduct.effectType] ?? { emoji: '💎', color: '#34d399', glow: 'rgba(52,211,153,0.25)' };
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end justify-center p-4 pb-6">
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div
               className="w-full max-w-sm rounded-3xl overflow-hidden"
               style={{
