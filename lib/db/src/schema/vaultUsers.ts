@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,6 +20,13 @@ export const vaultUsersTable = pgTable("vault_users", {
   // unsafe: an online client's debounced PUT /vault/me sends its own stale
   // tempMiningPoints verbatim and would silently erase the credit.
   pendingBonusPoints: integer("pending_bonus_points").notNull().default(0),
+  // SKX — the hard/withdrawable currency. Server-authoritative ONLY: credited by
+  // verified server paths (ad rewards, offerwall postbacks, referral bonuses,
+  // weekly prizes, pixel dividends, SKP→SKX conversion) and debited by
+  // withdrawals + pixel purchases. The client NEVER writes this column, so
+  // background jobs can credit it directly (no pendingBonus dance needed).
+  // SKP (the soft currency) remains state.tempMiningPoints in the JSONB.
+  skxBalance: bigint("skx_balance", { mode: "number" }).notNull().default(0),
   state: jsonb("state").notNull().default({}),
   isBanned: boolean("is_banned").notNull().default(false),
   isPremium: boolean("is_premium").notNull().default(false),

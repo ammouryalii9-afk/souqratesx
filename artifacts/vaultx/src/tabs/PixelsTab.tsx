@@ -1,0 +1,317 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Grid3x3, Loader2, Minus, Plus, TrendingUp, Clock, Coins, Info } from 'lucide-react';
+import { useVault } from '../context/VaultContext';
+import { useLanguage } from '../lib/i18n';
+import { useToast } from '@/hooks/use-toast';
+import { haptic } from '../lib/telegram';
+import {
+  getPixelMarket,
+  getMyPixels,
+  buyPixels,
+  ApiError,
+  type PixelMarket,
+  type PixelDividend,
+} from '../lib/gameApi';
+
+function formatCountdown(endDate: string, tr: ReturnType<typeof useLanguage>['tr']) {
+  const ms = new Date(endDate).getTime() - Date.now();
+  if (ms <= 0) return `0${tr.pixels.hours}`;
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  if (days > 0) return `${days}${tr.pixels.days} ${hours}${tr.pixels.hours}`;
+  if (hours > 0) return `${hours}${tr.pixels.hours} ${mins}${tr.pixels.mins}`;
+  return `${mins}${tr.pixels.mins}`;
+}
+
+export function PixelsTab() {
+  const { skxBalance, isTelegramUser, refreshFromServer } = useVault();
+  const { tr } = useLanguage();
+  const { toast } = useToast();
+
+  const [market, setMarket] = useState<PixelMarket | null>(null);
+  const [noCycle, setNoCycle] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dividends, setDividends] = useState<PixelDividend[]>([]);
+  const [myPixels, setMyPixels] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [buying, setBuying] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const m = await getPixelMarket();
+      setMarket(m);
+      setMyPixels(m.myPixels);
+      setNoCycle(false);
+    } catch (err) {
+      setMarket(null);
+      if (err instanceof ApiError && err.status === 404) {
+        // 404 = no active cycle
+        setNoCycle(true);
+      } else {
+        setNoCycle(false);
+        setLoadError(true);
+      }
+    }
+    try {
+      const me = await getMyPixels();
+      setDividends(me.dividends);
+      if (me.myPixels > 0) setMyPixels(me.myPixels);
+    } catch {
+      // not authed (non-Telegram) — ignore
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (isTelegramUser) load();
+    else setLoading(false);
+  }, [isTelegramUser, load]);
+
+  // Cost for the selected quantity, honoring tier boundaries (price steps up
+  // as supply sells) — mirrors the server's tiered pricing so the preview
+  // matches what will actually be charged.
+  const totalCost = useMemo(() => {
+    if (!market) return 0;
+    let cost = 0;
+    let sold = market.sold;
+    for (let i = 0; i < quantity; i++) {
+      const tier = market.tiers.find(t => sold < t.upTo);
+      cost += tier ? tier.price : market.tiers[market.tiers.length - 1]?.price ?? 0;
+      sold++;
+    }
+    return cost;
+  }, [market, quantity]);
+
+  const maxQty = market ? Math.min(market.maxPerPurchase, market.remaining) : 1;
+  const canAfford = totalCost <= skxBalance;
+  const soldPct = market && market.totalSupply > 0 ? (market.sold / market.totalSupply) * 100 : 0;
+
+  const handleBuy = async () => {
+    if (!market || buying || quantity < 1) return;
+    setBuying(true);
+    try {
+      const res = await buyPixels(quantity);
+      haptic('medium');
+      toast({
+        title: tr.pixels.boughtTitle,
+        description: tr.pixels.bought(res.purchasedQuantity, res.pricePaidSkx.toLocaleString()),
+      });
+      setQuantity(1);
+      await refreshFromServer();
+      await load();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast({
+        title: msg || tr.pixels.insufficientSkx,
+        variant: 'destructive',
+      });
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  if (!isTelegramUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-8 text-center gap-3 pb-24">
+        <Grid3x3 className="w-10 h-10 text-primary/40" />
+        <p className="text-sm text-muted-foreground">{tr.pixels.telegramOnly}</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full pb-24">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col space-y-4 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto h-full">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-2xl font-black text-white flex items-center justify-center gap-2">
+          <Grid3x3 className="w-6 h-6 text-primary" /> {tr.pixels.title}
+        </h1>
+        {market && (
+          <p className="text-xs text-muted-foreground mt-1 px-4">{tr.pixels.subtitle(market.dividendPercent)}</p>
+        )}
+      </div>
+
+      {/* SKX balance */}
+      <div className="flex items-center justify-between px-4 py-3 rounded-xl"
+        style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.15)' }}>
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Coins className="w-3.5 h-3.5 text-primary" /> {tr.pixels.balance}</span>
+        <span className="text-sm font-bold text-primary">{skxBalance.toLocaleString()} SKX</span>
+      </div>
+
+      {noCycle && (
+        <div className="rounded-2xl p-6 text-center border border-white/10 bg-white/5">
+          <p className="text-sm text-muted-foreground">{tr.pixels.noCycle}</p>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="rounded-2xl p-6 text-center border border-red-500/20 bg-red-500/5">
+          <p className="text-sm text-muted-foreground mb-3">{tr.pixels.loadFailed}</p>
+          <button
+            onClick={() => load()}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-primary border border-primary/30 bg-primary/10"
+          >
+            {tr.pixels.retry}
+          </button>
+        </div>
+      )}
+
+      {market && (
+        <>
+          {/* Cycle stats */}
+          <div className="rounded-2xl p-5 border border-white/10" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.06), rgba(6,182,212,0.04))' }}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {tr.pixels.cycleEnds}</span>
+              <span className="text-sm font-bold text-white tabular-nums">{formatCountdown(market.endDate, tr)}</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400 transition-all" style={{ width: `${soldPct}%` }} />
+            </div>
+            <div className="flex justify-between text-[11px] font-semibold">
+              <span className="text-primary">{tr.pixels.sold}: {market.sold.toLocaleString()}</span>
+              <span className="text-muted-foreground">{tr.pixels.remaining}: {market.remaining.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center mt-4 pt-3 border-t border-white/5">
+              <span className="text-xs text-muted-foreground">{tr.pixels.currentPrice}</span>
+              <span className="text-sm font-black text-white">{market.currentPrice.toLocaleString()} SKX <span className="text-[10px] text-muted-foreground font-semibold">{tr.pixels.perPixel}</span></span>
+            </div>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-amber-400" /> {tr.pixels.estimatedPool}</span>
+              <span className="text-sm font-bold text-amber-300">{market.estimatedPoolSkx.toLocaleString()} SKX</span>
+            </div>
+          </div>
+
+          {/* My holdings */}
+          {myPixels > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+              <span className="text-xs text-muted-foreground">{tr.pixels.yourPixels}</span>
+              <div className="text-right">
+                <span className="text-sm font-black text-primary">{myPixels.toLocaleString()}</span>
+                {market.sold > 0 && (
+                  <span className="text-[10px] text-muted-foreground ml-2">{tr.pixels.yourShare}: {((myPixels / market.sold) * 100).toFixed(2)}%</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Buy panel */}
+          <div className="rounded-2xl p-5 border border-white/10 bg-card/50">
+            <h3 className="text-sm font-bold text-white mb-3">{tr.pixels.buyTitle}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-muted-foreground">{tr.pixels.quantity}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white active:scale-95 transition-all"
+                  disabled={quantity <= 1}
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={maxQty}
+                  value={quantity}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10);
+                    setQuantity(Number.isNaN(v) ? 1 : Math.max(1, Math.min(maxQty, v)));
+                  }}
+                  className="w-16 h-8 text-center rounded-lg bg-white/5 border border-white/10 text-white font-bold text-sm focus:border-primary/50 focus:outline-none"
+                />
+                <button
+                  onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
+                  className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white active:scale-95 transition-all"
+                  disabled={quantity >= maxQty}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground/60 mb-3 text-right">{tr.pixels.maxPerPurchase(maxQty)}</p>
+            <div className="flex items-center justify-between mb-4 px-3 py-2 rounded-lg bg-white/3 border border-white/5">
+              <span className="text-xs text-muted-foreground">{tr.pixels.totalCost}</span>
+              <span className={`text-sm font-black ${canAfford ? 'text-white' : 'text-red-400'}`}>{totalCost.toLocaleString()} SKX</span>
+            </div>
+            {!canAfford && (
+              <p className="text-xs text-red-400 mb-3">{tr.pixels.insufficientSkx}</p>
+            )}
+            <button
+              onClick={handleBuy}
+              disabled={buying || !canAfford || market.remaining <= 0 || quantity < 1}
+              className="w-full h-11 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{
+                background: canAfford && !buying
+                  ? 'linear-gradient(135deg, hsl(152,76%,50%) 0%, hsl(152,76%,38%) 100%)'
+                  : 'rgba(255,255,255,0.06)',
+                color: canAfford && !buying ? 'hsl(224,71%,4%)' : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              {buying ? (<><Loader2 className="w-4 h-4 animate-spin" /> {tr.pixels.buying}</>) : tr.pixels.buyBtn}
+            </button>
+          </div>
+
+          {/* Price tiers */}
+          <div className="rounded-2xl p-4 border border-white/5 bg-white/[0.02]">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">{tr.pixels.priceTiers}</h4>
+            <div className="flex flex-col gap-1.5">
+              {market.tiers.map((tier, i) => {
+                const from = i === 0 ? 1 : market.tiers[i - 1].upTo + 1;
+                const active = market.sold + 1 >= from && market.sold < tier.upTo;
+                return (
+                  <div key={tier.upTo} className={`flex justify-between text-[11px] font-semibold px-2 py-1 rounded ${active ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}>
+                    <span>{tr.pixels.tierRange(from, tier.upTo)}</span>
+                    <span>{tier.price.toLocaleString()} SKX</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* How it works */}
+          <div className="rounded-2xl p-4 border border-white/5 bg-white/[0.02] flex gap-2.5">
+            <Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-bold text-white mb-1">{tr.pixels.howItWorks}</h4>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {tr.pixels.howItWorksDesc(market.dividendPercent, Math.max(1, Math.round((new Date(market.endDate).getTime() - Date.now()) / 86_400_000)))}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Dividend history */}
+      <div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{tr.pixels.dividendHistory}</h3>
+        {dividends.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground/60 px-1">{tr.pixels.noDividends}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {dividends.map(d => (
+              <div key={`${d.cycleId}-${d.paidAt}`} className="flex items-center justify-between px-4 py-3 rounded-xl border border-white/5 bg-white/[0.03]">
+                <div>
+                  <p className="text-xs font-bold text-white">+{d.dividendSkx.toLocaleString()} SKX</p>
+                  <p className="text-[10px] text-muted-foreground">{tr.pixels.dividendRow(d.pixelsHeld)}</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground/50">{new Date(d.paidAt).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

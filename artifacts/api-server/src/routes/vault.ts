@@ -7,6 +7,8 @@ import {
   GetVaultMeResponse,
   UpdateVaultMeResponse,
   GetVaultLeaderboardResponse,
+  ConvertSkpToSkxBody,
+  ConvertSkpToSkxResponse,
 } from "@workspace/api-zod";
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
@@ -38,12 +40,9 @@ const PROTECTED_STATE_KEYS = [
   "weekKey",
   "prevWeekKey",
   "prevWeekPoints",
-  // The withdrawable balance: only POST /vault/claim (server-side two-rate
-  // conversion) may change it — never the client-authoritative PUT sync.
-  "claimedPoints",
-  // Bumped by every /vault/claim; the PUT sync's UPDATE is guarded on it so a
-  // stale in-flight sync (read before a claim, written after) can never restore
-  // the pre-claim Mined buffer (which would allow double-claiming).
+  // Bumped by every /vault/convert; the PUT sync's UPDATE is guarded on it so a
+  // stale in-flight sync (read before a convert, written after) can never
+  // restore the pre-convert SKP buffer (which would allow double-converting).
   "claimSeq",
 ];
 
@@ -93,6 +92,7 @@ router.get("/vault/me", async (req, res): Promise<void> => {
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        skxBalance: user.skxBalance,
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
@@ -102,47 +102,84 @@ router.get("/vault/me", async (req, res): Promise<void> => {
   );
 });
 
-// Manual Claim: converts the Mined buffer (tempMiningPoints) into the withdrawable
-// claimedPoints balance, atomically, entirely server-side (tamper-proof):
-//   ad-earned portion (adMiningPoints, capped to the buffer) → 100%
-//   game/tap remainder → gameToSpendablePercent% (admin-tunable, default 0; rest burned)
-// Then zeroes both buffer counters. claimedPoints is a PROTECTED state key, so the
-// debounced PUT sync can never fake or clobber it.
-router.post("/vault/claim", rateLimit("vault-claim", 30, 60_000), async (req, res): Promise<void> => {
+const DEFAULT_SKP_TO_SKX_RATE = 5;
+
+// SKP → SKX conversion: deducts SKP (the client-synced tempMiningPoints buffer)
+// and credits floor(amount × rate / 100) into the server-authoritative SKX
+// column; the remainder is burned. Entirely one atomic UPDATE (tamper-proof):
+//   - the SKP deduction is guarded in the WHERE (buffer must still hold the
+//     amount — no overdraft race with a concurrent spend/convert),
+//   - claimSeq is bumped so a stale in-flight PUT /vault/me (read before the
+//     convert, written after) is dropped instead of resurrecting the burned SKP.
+router.post("/vault/convert", rateLimit("vault-convert", 30, 60_000), async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
   if (!telegramId) {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
 
+  const parsed = ConvertSkpToSkxBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const requested = parsed.data.skpAmount; // undefined = convert everything
+
   const settings = await getSettingsMap();
-  const ratePct = Math.min(100, Math.max(0, asNumber(settings.gameToSpendablePercent, 0)));
+  const ratePct = Math.min(100, Math.max(0, asNumber(settings.skpToSkxConversionRate, DEFAULT_SKP_TO_SKX_RATE)));
 
-  const st = sql`COALESCE(${vaultUsersTable.state}, '{}'::jsonb)`;
-  const temp = sql`GREATEST(COALESCE((${st}->>'tempMiningPoints')::numeric, 0), 0)`;
-  const adPts = sql`LEAST(GREATEST(COALESCE((${st}->>'adMiningPoints')::numeric, 0), 0), ${temp})`;
-  const credit = sql`FLOOR(${adPts} + (${temp} - ${adPts}) * ${ratePct}::numeric / 100)`;
-
-  const [user] = await db
-    .update(vaultUsersTable)
-    .set({
-      state: sql`jsonb_set(jsonb_set(jsonb_set(jsonb_set(
-        ${st},
-        '{claimedPoints}',
-        to_jsonb(GREATEST(COALESCE((${st}->>'claimedPoints')::numeric, 0), 0) + ${credit})
-      ), '{tempMiningPoints}', '0'::jsonb), '{adMiningPoints}', '0'::jsonb),
-      '{claimSeq}', to_jsonb(COALESCE((${st}->>'claimSeq')::numeric, 0) + 1))`,
-    })
-    .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
-    .returning();
-
-  if (!user) {
-    res.status(403).json({ error: "User not found or banned" });
+  // Pre-read only to compute the exact amounts for the response/guard; the
+  // UPDATE itself re-checks the buffer in its WHERE clause, so a concurrent
+  // spend can only make it a no-op (409), never an overdraft.
+  const [existing] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+  if (!existing) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (existing.isBanned) {
+    res.status(403).json({ error: "This account has been banned" });
     return;
   }
 
+  const st0 = (existing.state ?? {}) as Record<string, unknown>;
+  const buffer = Math.max(0, Math.floor(num(st0["tempMiningPoints"])));
+  const convertAmount = requested !== undefined ? Math.min(Math.floor(requested), buffer) : buffer;
+  if (convertAmount <= 0 || (requested !== undefined && Math.floor(requested) > buffer)) {
+    res.status(400).json({ error: "Insufficient SKP balance" });
+    return;
+  }
+  const receivedSkx = Math.floor((convertAmount * ratePct) / 100);
+
+  const st = sql`COALESCE(${vaultUsersTable.state}, '{}'::jsonb)`;
+  const [user] = await db
+    .update(vaultUsersTable)
+    .set({
+      skxBalance: sql`${vaultUsersTable.skxBalance} + ${receivedSkx}::bigint`,
+      state: sql`jsonb_set(jsonb_set(
+        ${st},
+        '{tempMiningPoints}',
+        to_jsonb(COALESCE((${st}->>'tempMiningPoints')::numeric, 0) - ${convertAmount}::numeric)
+      ), '{claimSeq}', to_jsonb(COALESCE((${st}->>'claimSeq')::numeric, 0) + 1))`,
+    })
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, telegramId),
+        eq(vaultUsersTable.isBanned, false),
+        sql`COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::numeric, 0) >= ${convertAmount}::numeric`,
+      ),
+    )
+    .returning();
+
+  if (!user) {
+    // Buffer changed under us (concurrent spend/convert) — client should refresh.
+    res.status(409).json({ error: "Balance changed, please try again" });
+    return;
+  }
+
+  req.log.info({ telegramId, convertAmount, receivedSkx, ratePct }, "SKP converted to SKX");
+
   res.json(
-    GetVaultMeResponse.parse({
+    ConvertSkpToSkxResponse.parse({
       user: {
         telegramId: user.telegramId,
         username: user.username,
@@ -150,11 +187,14 @@ router.post("/vault/claim", rateLimit("vault-claim", 30, 60_000), async (req, re
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        skxBalance: user.skxBalance,
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
       },
       state: user.state,
+      convertedSkp: convertAmount,
+      receivedSkx,
     }),
   );
 });
@@ -265,15 +305,6 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
   }
   // (If requestedTemp <= existingTemp the user is spending points; allow.)
 
-  // adMiningPoints: only server ad-reward routes can increase this sub-counter.
-  // If the client tries to inflate it, clamp it back to the server value.
-  // Decreases (spending reducing the pool) are allowed.
-  const existingAdMining = num(existingState["adMiningPoints"]);
-  const requestedAdMining = num(mergedState["adMiningPoints"]);
-  if (requestedAdMining > existingAdMining) {
-    mergedState["adMiningPoints"] = existingAdMining;
-  }
-
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
   // On rollover, ARCHIVE last week's score first — the weekly-prize job pays
   // winners from prevWeekKey/prevWeekPoints, so a score lazily reset by an
@@ -288,10 +319,10 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
   mergedState["weekKey"] = wk;
   finalState = mergedState;
 
-  // Optimistic-concurrency guard against /vault/claim: this UPDATE only lands if
-  // no claim happened between our pre-read and this write (claimSeq unchanged).
-  // Otherwise the stale merged state would resurrect the pre-claim Mined buffer
-  // and revert claimedPoints — enabling double-claims.
+  // Optimistic-concurrency guard against /vault/convert: this UPDATE only lands
+  // if no conversion happened between our pre-read and this write (claimSeq
+  // unchanged). Otherwise the stale merged state would resurrect the
+  // pre-convert SKP buffer — enabling double-converts.
   const preReadClaimSeq = num(existingState["claimSeq"]);
   let [user] = await db
     .update(vaultUsersTable)
@@ -317,7 +348,7 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
-    req.log.info({ telegramId }, "vault sync skipped: claim raced the sync (claimSeq changed)");
+    req.log.info({ telegramId }, "vault sync skipped: convert raced the sync (claimSeq changed)");
     user = current;
   }
 
@@ -330,6 +361,7 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        skxBalance: user.skxBalance,
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,

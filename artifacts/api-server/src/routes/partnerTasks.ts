@@ -3,6 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, partnerTasksTable, partnerTaskCompletionsTable, vaultUsersTable } from "@workspace/db";
 import { getSessionTelegramId } from "../lib/session";
 import { getChatMemberStatus, isTelegramBotConfigured } from "../lib/telegramBot";
+import { skxCreditFields } from "../lib/skxCredit";
 import { rateLimit } from "../lib/rateLimit";
 
 const router: IRouter = Router();
@@ -118,16 +119,11 @@ router.post("/partner-tasks/:id/verify", rateLimit("partner-verify", 10, 60_000)
     return;
   }
 
+  // Partner task rewards are SKX (hard currency) — server-verified via
+  // getChatMember, credited to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
-    .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${task.rewardPoints}`,
-      state: sql`jsonb_set(
-        coalesce(${vaultUsersTable.state}, '{}'::jsonb),
-        '{tempMiningPoints}',
-        to_jsonb(coalesce((${vaultUsersTable.state}->>'tempMiningPoints')::bigint, 0) + ${task.rewardPoints})
-      )`,
-    })
+    .set(skxCreditFields(task.rewardPoints))
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
 

@@ -6,6 +6,7 @@ import { getSessionTelegramId } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
 import { logUserActivity } from "../lib/activityLog";
 import { awardReferralBonus } from "../lib/referral";
+import { skxCreditFields, bumpCycleAdRevenue } from "../lib/skxCredit";
 import { getSettingsMap, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
@@ -148,9 +149,11 @@ router.post("/ads/:id/claim", rateLimit("ads-claim", 30, 60_000), async (req, re
     return;
   }
 
+  // Sponsored ad rewards are SKX (hard currency) — advertiser-funded, credited
+  // to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
-    .set({ lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${ad.rewardPoints}` })
+    .set(skxCreditFields(ad.rewardPoints))
     .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
     .returning();
 
@@ -159,6 +162,7 @@ router.post("/ads/:id/claim", rateLimit("ads-claim", 30, 60_000), async (req, re
     return;
   }
 
+  await bumpCycleAdRevenue(ad.rewardPoints);
   await logUserActivity(telegramId, "sponsored_ad_claim", { adId, creditedPoints: ad.rewardPoints, lifetimePoints: updated.lifetimePoints });
   await awardReferralBonus(telegramId, ad.rewardPoints, "sponsored_ad", { adId });
 

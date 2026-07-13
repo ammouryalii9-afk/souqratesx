@@ -195,6 +195,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         referralMilestonesEnabled: Boolean(settings.referralMilestonesEnabled),
         offlineEarningsEnabled: Boolean(settings.offlineEarningsEnabled),
         gameToSpendablePercent: asNumber(settings.gameToSpendablePercent, 0),
+        skpToSkxConversionRate: asNumber(settings.skpToSkxConversionRate, 5),
         maintenanceMode: Boolean(settings.maintenanceMode),
       },
       pointsPerDollar: asNumber(settings.pointsPerDollar, 2_000_000),

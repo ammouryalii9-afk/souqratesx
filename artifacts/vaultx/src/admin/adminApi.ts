@@ -231,6 +231,33 @@ export type AntiCheatData = {
   capPerHour: number;
 };
 
+// ─── Pixels types ─────────────────────────────────────────────────────────────
+
+export type PixelSettings = {
+  totalSupply: number;
+  dividendPercent: number;
+  cycleDays: number;
+  maxPerPurchase: number;
+  tiers: { upTo: number; price: number }[];
+  autoStart: boolean;
+};
+
+export type PixelCycleRow = {
+  id: number;
+  status: string;
+  startDate: string;
+  endDate: string;
+  totalAdRevenueSkx: number;
+  distributionAmountSkx: number;
+  totalPixelsSold: number;
+};
+
+export type PixelCyclesData = {
+  settings: PixelSettings;
+  activeStats: { sold: number; holders: number } | null;
+  cycles: PixelCycleRow[];
+};
+
 // ─── Provider Report types ────────────────────────────────────────────────────
 
 export type ProviderSummary = { key: string; name: string; type: string; enabled: boolean; priority: number };
@@ -292,6 +319,8 @@ export const adminApi = {
   updateStarProduct: (id: number, patch: UpdateStarProductInput) =>
     adminFetch<StarProduct>(`/admin/star-products/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteStarProduct: (id: number) => adminFetch<AdminSessionStatus>(`/admin/star-products/${id}`, { method: "DELETE" }),
+  pixelCycles: () => adminFetch<PixelCyclesData>("/admin/pixels/cycles"),
+  closePixelCycle: () => adminFetch<{ ok: boolean }>("/admin/pixels/cycles/close", { method: "POST" }),
   sendReminders: (inactiveDays: number, message?: string) =>
     adminFetch<{ ok: boolean; total: number; sent: number; failed: number }>("/admin/reminders/send", {
       method: "POST",

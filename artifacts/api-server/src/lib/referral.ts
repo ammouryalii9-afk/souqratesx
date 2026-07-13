@@ -3,7 +3,7 @@ import { db, vaultUsersTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
-import { creditedStateSql } from "./weeklyCredit";
+import { skxCreditFields } from "./skxCredit";
 
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
 
@@ -64,20 +64,16 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
 }
 
 /**
- * Credits a one-time referral milestone bonus (lifetime + weekly + pending
- * spendable). The spendable share goes through pendingBonusPoints (redeemed at
- * the referrer's next hydration) instead of state.tempMiningPoints directly —
- * if the referrer is online right now, their debounced PUT /vault/me would
- * silently erase a direct tempMiningPoints write.
+ * Credits a one-time referral milestone bonus in SKX (hard currency).
+ * skx_balance is a server-authoritative column the client never syncs, so a
+ * direct credit is safe even while the referrer is online.
  */
 async function awardReferralMilestone(referrerTelegramId: string, milestone: number, bonus: number): Promise<void> {
   const [credited] = await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonus}`,
+      ...skxCreditFields(bonus),
       referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
-      pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonus}`,
-      state: creditedStateSql(bonus, {}, { toSpendable: false }),
     })
     .where(and(eq(vaultUsersTable.telegramId, referrerTelegramId), eq(vaultUsersTable.isBanned, false)))
     .returning({ telegramId: vaultUsersTable.telegramId });
@@ -123,10 +119,12 @@ export async function awardReferralBonus(
   const bonus = Math.round(baseAmount * (ratePercent / 100));
   if (bonus <= 0) return;
 
+  // Referral trickle from server-verified earnings is SKX (hard currency),
+  // credited directly to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonus}`,
+      ...skxCreditFields(bonus),
       referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
     })
     .where(and(eq(vaultUsersTable.telegramId, earner.referrerId), eq(vaultUsersTable.isBanned, false)))

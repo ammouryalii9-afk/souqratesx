@@ -66,6 +66,7 @@ type VaultContextType = {
   tempMiningPoints: number;
   adMiningPoints: number;
   claimedPoints: number;
+  skxBalance: number;
   miningLevel: number;
   energy: number;
   maxEnergy: number;
@@ -108,7 +109,7 @@ type VaultContextType = {
   setEnergy: (val: number | ((prev: number) => number)) => void;
   setMaxEnergy: (val: number | ((prev: number) => number)) => void;
 
-  claimEarnings: () => Promise<void>;
+  claimEarnings: () => Promise<{ convertedSkp: number; receivedSkx: number } | null>;
   upgradeMiningLevel: (cost: number, newLevel: number) => void;
   expandBattery: (cost: number) => void;
   tapMine: () => number;
@@ -158,6 +159,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // the Mined buffer. Server-authoritative for Telegram users (claim happens via
   // POST /vault/claim; the PUT sync can never change it).
   const [claimedPoints, setClaimedPoints] = useState(() => Number(localStorage.getItem('claimedPoints')) || 0);
+  // SKX: the hard, withdrawable currency. Server-authoritative column
+  // (vault_users.skx_balance) for Telegram users — only /vault/convert,
+  // pixel buys/dividends, and withdrawals can change it server-side.
+  const [skxBalance, setSkxBalance] = useState(() => Number(localStorage.getItem('skxBalance')) || 0);
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 100);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
@@ -223,10 +228,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // % of game points (tap, farming, mini-games) credited to spendable balance.
   // Fetched from /config/public once after mount; ads/surveys are always 100%.
   const gameToSpendablePct = useRef(0);
+  // % of converted SKP that becomes SKX (rest is burned). Default 5.
+  const skpToSkxRate = useRef(5);
   useEffect(() => {
     getPublicConfig().then(cfg => {
       gameToSpendablePct.current = cfg.features.gameToSpendablePercent;
-    }).catch(() => { /* keep 0 on error */ });
+      if (typeof cfg.features.skpToSkxConversionRate === 'number') {
+        skpToSkxRate.current = cfg.features.skpToSkxConversionRate;
+      }
+    }).catch(() => { /* keep defaults on error */ });
   }, []);
 
   const basePassiveProfitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
@@ -273,6 +283,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
         setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
         setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
+        setSkxBalance(typeof data.user.skxBalance === 'number' ? data.user.skxBalance : 0);
         setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
         setEnergy(typeof state.energy === 'number' ? state.energy : 100);
         setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
@@ -321,6 +332,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('tempMiningPoints', tempMiningPoints.toString());
     localStorage.setItem('adMiningPoints', adMiningPoints.toString());
     localStorage.setItem('claimedPoints', claimedPoints.toString());
+    localStorage.setItem('skxBalance', skxBalance.toString());
     localStorage.setItem('miningLevel', miningLevel.toString());
     localStorage.setItem('energy', energy.toString());
     localStorage.setItem('maxEnergy', maxEnergy.toString());
@@ -340,7 +352,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('selectedExchange', selectedExchange ?? '');
     localStorage.setItem('claimedAchievements', JSON.stringify(claimedAchievements));
     localStorage.setItem('hasClaimedWelcome', hasClaimedWelcome ? 'true' : 'false');
-  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, claimedPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
+  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, claimedPoints, skxBalance, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -544,31 +556,33 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  const claimEarnings = async (): Promise<void> => {
-    if (isHydrationPending()) return;
+  const claimEarnings = async (): Promise<{ convertedSkp: number; receivedSkx: number } | null> => {
+    if (isHydrationPending()) return null;
     if (isTelegramUser) {
-      // Server-side conversion (authoritative, tamper-proof): the server applies
-      // the two-rate policy (ads 100%, game remainder at gameToSpendablePercent%)
-      // atomically, credits claimedPoints, and zeroes the Mined buffer.
+      // Server-side SKP → SKX conversion (authoritative, tamper-proof): the
+      // server converts the entire SKP buffer at skpToSkxConversionRate% into
+      // the skx_balance column atomically and burns the rest.
       // Throws on failure so the UI can show an error instead of a false success.
-      const res = await apiFetch('/vault/claim', { method: 'POST' });
-      if (!res.ok) throw new Error('Claim failed');
+      const res = await apiFetch('/vault/convert', { method: 'POST', body: JSON.stringify({}) });
+      if (!res.ok) throw new Error('Convert failed');
       const data = await res.json();
       const state = (data.state ?? {}) as Partial<SyncedState>;
-      setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
+      if (typeof data.user?.skxBalance === 'number') setSkxBalance(data.user.skxBalance);
       setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
       setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
-      return;
+      return {
+        convertedSkp: typeof data.convertedSkp === 'number' ? data.convertedSkp : 0,
+        receivedSkx: typeof data.receivedSkx === 'number' ? data.receivedSkx : 0,
+      };
     }
-    // Local (non-Telegram) fallback: same two-rate conversion computed locally.
-    //   adMiningPoints  → 100% (ads always fully convert)
-    //   game remainder  → gameToSpendablePercent% (default 0, admin-tunable)
-    const rate = gameToSpendablePct.current / 100;
-    const adPts   = Math.min(adMiningPoints, tempMiningPoints);
-    const gamePts = Math.max(0, tempMiningPoints - adPts);
-    setClaimedPoints(prev => prev + Math.floor(adPts + gamePts * rate));
+    // Local (non-Telegram) fallback: same conversion computed locally at the
+    // admin-set rate (the remainder is burned, mirroring the server).
+    const buffer = Math.floor(tempMiningPoints);
+    const receivedSkx = Math.floor((buffer * skpToSkxRate.current) / 100);
+    setSkxBalance(prev => prev + receivedSkx);
     setTempMiningPoints(0);
     setAdMiningPoints(0);
+    return { convertedSkp: buffer, receivedSkx };
   };
 
   const upgradeMiningLevel = (cost: number, newLevel: number) => {
@@ -710,6 +724,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
       setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
       setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
+      setSkxBalance(typeof data.user.skxBalance === 'number' ? data.user.skxBalance : 0);
       setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
       setEnergy(typeof state.energy === 'number' ? state.energy : 100);
       setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
@@ -756,6 +771,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         tempMiningPoints,
         adMiningPoints,
         claimedPoints,
+        skxBalance,
         miningLevel,
         energy,
         maxEnergy,
@@ -763,9 +779,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         referralEarnings,
         lifetimePoints,
         withdrawnPoints,
-        // Withdrawable balance = claimed (converted) points minus locked/withdrawn.
-        // lifetimePoints is leaderboard-only and NOT withdrawable.
-        availablePoints: Math.max(0, claimedPoints - withdrawnPoints),
+        // Withdrawable balance = SKX. The server already deducts skx_balance on
+        // withdrawal requests, so no client-side subtraction is needed.
+        // lifetimePoints (SKP lifetime) is leaderboard-only and NOT withdrawable.
+        availablePoints: Math.max(0, skxBalance),
         profitPerHour,
         activeTurbo,
         turboExpiresAt,

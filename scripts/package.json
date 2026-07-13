@@ -9,6 +9,8 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@workspace/db": "workspace:*",
+    "drizzle-orm": "catalog:",
     "tsx": "catalog:"
   }
 }

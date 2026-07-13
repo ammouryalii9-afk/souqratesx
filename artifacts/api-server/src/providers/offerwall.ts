@@ -1,7 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
-import { creditedStateSql } from "../lib/weeklyCredit";
+import { skxCreditFields } from "../lib/skxCredit";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
 // Upper bound per single postback — a sanity cap against buggy/malicious postbacks,
@@ -71,10 +70,9 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
       const [updated] = await db
         .update(vaultUsersTable)
         .set({
-          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-          // Offerwalls add to tempMiningPoints AND adMiningPoints.
-          // At Claim time the client converts adMiningPoints at 100%.
-          state: sql`jsonb_set(${creditedStateSql(amount, {})}, '{adMiningPoints}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'adMiningPoints')::numeric, 0) + ${amount}::numeric))`,
+          // Offerwall/survey rewards are SKX (hard currency) — credited to the
+          // server-authoritative skx_balance column directly.
+          ...skxCreditFields(amount),
         })
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();

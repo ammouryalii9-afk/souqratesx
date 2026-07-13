@@ -14,6 +14,7 @@ import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
 import { FriendsTab } from "./tabs/FriendsTab";
 import { SquadTab } from "./tabs/SquadTab";
+import { PixelsTab } from "./tabs/PixelsTab";
 import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
@@ -79,8 +80,9 @@ function Header() {
         }}>
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{tr.header.balance}</span>
-            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(availablePoints / pointsPerDollar).toFixed(2)}</span>
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">SKX</span>
+            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">{availablePoints.toLocaleString()}</span>
+            <span className="text-[10px] text-muted-foreground font-bold tabular-nums">≈${(availablePoints / pointsPerDollar).toFixed(2)}</span>
             {dollarBonus > 0 && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
                 style={{ background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
@@ -133,6 +135,7 @@ function MainLayout() {
           {activeTab === 'games' && <GamesTab />}
           {activeTab === 'tasks' && <TasksTab />}
           {activeTab === 'squad' && <SquadTab />}
+          {activeTab === 'pixels' && <PixelsTab />}
           {activeTab === 'friends' && <FriendsTab />}
         </div>
       </main>

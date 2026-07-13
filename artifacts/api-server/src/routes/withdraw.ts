@@ -86,16 +86,11 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!user || user.isBanned) { res.status(403).json({ error: "User not found or banned" }); return; }
 
-  // Withdrawals draw down the AVAILABLE balance = claimedPoints - withdrawnPoints.
-  // claimedPoints (state JSONB, server-authoritative — only POST /vault/claim can
-  // raise it) is never decremented here: the withdrawnPoints ledger makes
-  // withdrawals permanent regardless of client state. lifetimePoints is
-  // leaderboard-only and NOT withdrawable — tapping/games feed the Mined buffer,
-  // which becomes withdrawable only through the manual Claim conversion.
-  const state = (user.state ?? {}) as Record<string, unknown>;
-  const claimedPoints = typeof state.claimedPoints === "number" && Number.isFinite(state.claimedPoints) ? state.claimedPoints : 0;
-  const withdrawnPoints = typeof user.withdrawnPoints === "number" ? user.withdrawnPoints : 0;
-  const availablePoints = claimedPoints - withdrawnPoints;
+  // Withdrawals draw down the SKX balance — the ONLY withdrawable currency.
+  // skx_balance is a server-authoritative column (ads/tasks/referrals/conversion
+  // credit it; the client never writes it). lifetimePoints is leaderboard-only
+  // and NOT withdrawable; SKP (tempMiningPoints) must be converted to SKX first.
+  const availablePoints = user.skxBalance;
 
   if (availablePoints < pointsAmount) {
     res.status(400).json({ error: `Insufficient balance. You have ${Math.max(0, Math.floor(availablePoints)).toLocaleString()} pts available.` });
@@ -125,15 +120,19 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   let result: { request: typeof withdrawalRequestsTable.$inferSelect; lifetimePoints: number; withdrawnPoints: number };
   try {
     result = await db.transaction(async (tx) => {
+      // Deduct SKX + bump the historical withdrawnPoints ledger in one guarded
+      // UPDATE — the WHERE re-checks the live balance, so concurrent requests
+      // can never overdraw.
       const [updated] = await tx
         .update(vaultUsersTable)
         .set({
+          skxBalance: sql`${vaultUsersTable.skxBalance} - ${pointsAmount}::bigint`,
           withdrawnPoints: sql`${vaultUsersTable.withdrawnPoints} + ${pointsAmount}`,
         })
         .where(
           and(
             eq(vaultUsersTable.telegramId, telegramId),
-            sql`GREATEST(COALESCE((${vaultUsersTable.state}->>'claimedPoints')::numeric, 0), 0) - ${vaultUsersTable.withdrawnPoints} >= ${pointsAmount}`,
+            sql`${vaultUsersTable.skxBalance} >= ${pointsAmount}::bigint`,
           ),
         )
         .returning({ lifetimePoints: vaultUsersTable.lifetimePoints, withdrawnPoints: vaultUsersTable.withdrawnPoints });
@@ -272,11 +271,13 @@ router.post("/admin/withdrawals/:id/reject", async (req, res): Promise<void> => 
     return;
   }
 
-  // Unlock the points by reducing the withdrawnPoints ledger (never below 0) —
-  // available balance = lifetimePoints - withdrawnPoints goes back up automatically.
+  // Refund: return the locked SKX to the balance and roll back the historical
+  // withdrawnPoints ledger (never below 0). Safe to run only after winning the
+  // pending→rejected gate above — racing admins can never double-refund.
   await db
     .update(vaultUsersTable)
     .set({
+      skxBalance: sql`${vaultUsersTable.skxBalance} + ${updated.pointsAmount}::bigint`,
       withdrawnPoints: sql`GREATEST(${vaultUsersTable.withdrawnPoints} - ${updated.pointsAmount}, 0)`,
     })
     .where(eq(vaultUsersTable.telegramId, updated.telegramId));

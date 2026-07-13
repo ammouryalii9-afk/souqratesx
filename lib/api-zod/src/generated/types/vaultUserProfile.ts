@@ -17,6 +17,8 @@ export interface VaultUserProfile {
   /** @nullable */
   photoUrl: string | null;
   lifetimePoints: number;
+  /** SKX hard-currency balance (server-authoritative, withdrawable) */
+  skxBalance: number;
   withdrawnPoints: number;
   referralCount: number;
   referralEarnings: number;

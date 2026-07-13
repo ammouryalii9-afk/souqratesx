@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { logUserActivity } from "../lib/activityLog";
 import { awardReferralBonus } from "../lib/referral";
+import { bumpCycleAdRevenue } from "../lib/skxCredit";
 import type { EarnProvider, RewardResult, RewardVerifyInput } from "./types";
 
 function todayStr(): string {
@@ -150,6 +151,9 @@ export async function processReward(
   }
 
   await bumpStats(provider.key, { totalRewards: 1, dailyRevenueCents: result.creditedPoints });
+
+  // Feed the active pixel cycle's ad-revenue pool (dividends are a % of this).
+  await bumpCycleAdRevenue(result.creditedPoints);
 
   try {
     await logUserActivity(input.telegramId, `${provider.key}_reward`, { creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints });

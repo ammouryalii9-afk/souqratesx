@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Save } from "lucide-react";
 
-type ToggleDef = { key: string; label: string; description: string };
+type ToggleDef = { key: string; label: string; description: string; defaultOn?: boolean };
 
 const FEATURE_TOGGLES: ToggleDef[] = [
   {
@@ -28,12 +28,18 @@ const FEATURE_TOGGLES: ToggleDef[] = [
     label: "🕐 أرباح وضع عدم الاتصال",
     description: "يعرض للاعب نافذة بأرباحه السلبية بعد غياب 10 دقائق أو أكثر (سقف 3 ساعات)",
   },
+  {
+    key: "pixelCycleAutoStart",
+    label: "🟩 بدء دورات البكسلات تلقائيًا",
+    description: "عند انتهاء دورة بكسلات وتوزيع أرباحها، تبدأ دورة جديدة تلقائيًا (مفعّل افتراضيًا)",
+    defaultOn: true,
+  },
 ];
 
 type FieldDef = {
   key: string;
   label: string;
-  type: "number" | "text" | "textarea";
+  type: "number" | "text" | "textarea" | "json";
   defaultValue: number | string;
 };
 
@@ -46,6 +52,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "farmingDurationHours", label: "مدة الفارمينج (ساعات)", type: "number", defaultValue: 8 },
       { key: "referralRatePercent", label: "نسبة عمولة الإحالة (%)", type: "number", defaultValue: 10 },
       { key: "gameToSpendablePercent", label: "نسبة الألعاب/الضغط للرصيد القابل للسحب (%) — 0 = لوحة ترتيب فقط، الإعلانات دائماً 100%", type: "number", defaultValue: 0 },
+      { key: "skpToSkxConversionRate", label: "نسبة تحويل SKP إلى SKX عند الضغط على Claim (%) — الباقي يُحرق", type: "number", defaultValue: 5 },
       { key: "adMinWatchSeconds", label: "الحد الأدنى لمشاهدة الإعلان قبل استلام المكافأة (ثانية) — لكل الإعلانات الحالية والمستقبلية", type: "number", defaultValue: 15 },
       { key: "pointsPerDollar", label: "عدد النقاط = 1 دولار (افتراضي: 2000000)", type: "number", defaultValue: 2000000 },
       { key: "dollarBonus", label: "مبلغ Bonus بالدولار يُعرض بجانب رصيد المستخدم (0 = مخفي)", type: "number", defaultValue: 0 },
@@ -219,6 +226,21 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },
     ],
   },
+  {
+    title: "البكسلات (استثمار وتوزيع أرباح الإعلانات)",
+    fields: [
+      { key: "pixelTotalSupply", label: "المعروض الكلي من البكسلات لكل دورة", type: "number", defaultValue: 10000 },
+      { key: "pixelDividendPercent", label: "نسبة أرباح الإعلانات الموزّعة على حاملي البكسلات (%)", type: "number", defaultValue: 35 },
+      { key: "pixelCycleDays", label: "مدة الدورة (أيام)", type: "number", defaultValue: 15 },
+      { key: "maxPixelsPerPurchase", label: "الحد الأقصى للبكسلات في عملية شراء واحدة", type: "number", defaultValue: 1000 },
+      {
+        key: "pixelPriceTiers",
+        label: 'شرائح الأسعار (JSON) — مثال: [{"upTo":2500,"price":500},{"upTo":5000,"price":750},{"upTo":7500,"price":1000},{"upTo":10000,"price":1500}]',
+        type: "json",
+        defaultValue: '[{"upTo":2500,"price":500},{"upTo":5000,"price":750},{"upTo":7500,"price":1000},{"upTo":10000,"price":1500}]',
+      },
+    ],
+  },
 ];
 
 export function AdminSettings() {
@@ -249,11 +271,57 @@ export function AdminSettings() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [jsonErrors, setJsonErrors] = useState<Record<string, boolean>>({});
+
   async function saveAll() {
     setSaving(true);
     setSaved(false);
     try {
-      const updated = await adminApi.updateSettings(values);
+      // JSON fields are edited as raw text but must be stored as real JSON
+      // (the settings table is jsonb and the server expects an array).
+      const payload: AdminSettingsMap = { ...values };
+      const errors: Record<string, boolean> = {};
+      for (const section of SECTIONS) {
+        for (const field of section.fields) {
+          if (field.type !== "json") continue;
+          const raw = payload[field.key];
+          if (typeof raw === "string" && raw.trim() !== "") {
+            try {
+              const parsed = JSON.parse(raw);
+              // pixelPriceTiers must be a non-empty array of {upTo, price}
+              // with positive numbers — the server silently ignores anything
+              // else (Array.isArray check), which would confuse admins.
+              if (field.key === "pixelPriceTiers") {
+                const valid =
+                  Array.isArray(parsed) &&
+                  parsed.length > 0 &&
+                  parsed.every(
+                    (t) =>
+                      t &&
+                      typeof t === "object" &&
+                      typeof t.upTo === "number" &&
+                      typeof t.price === "number" &&
+                      t.upTo > 0 &&
+                      t.price > 0,
+                  );
+                if (!valid) {
+                  errors[field.key] = true;
+                  continue;
+                }
+              }
+              payload[field.key] = parsed;
+            } catch {
+              errors[field.key] = true;
+            }
+          }
+        }
+      }
+      setJsonErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        setSaving(false);
+        return;
+      }
+      const updated = await adminApi.updateSettings(payload);
       setValues(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -279,7 +347,7 @@ export function AdminSettings() {
                 <span className="text-xs text-muted-foreground">{t.description}</span>
               </div>
               <Switch
-                checked={Boolean(values[t.key])}
+                checked={values[t.key] === undefined ? Boolean(t.defaultOn) : Boolean(values[t.key])}
                 onCheckedChange={(checked) =>
                   setValues((prev) => ({ ...prev, [t.key]: checked }))
                 }
@@ -307,17 +375,28 @@ export function AdminSettings() {
             {section.fields.map((field) => (
               <label key={field.key} className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">{field.label}</span>
-                {field.type === "textarea" ? (
-                  <textarea
-                    rows={4}
-                    data-testid={`input-setting-${field.key}`}
-                    value={(values[field.key] as string | undefined) ?? (field.defaultValue as string)}
-                    onChange={(e) =>
-                      setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
-                    className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-                    dir="auto"
-                  />
+                {field.type === "textarea" || field.type === "json" ? (
+                  <>
+                    <textarea
+                      rows={4}
+                      data-testid={`input-setting-${field.key}`}
+                      value={
+                        typeof values[field.key] === "string"
+                          ? (values[field.key] as string)
+                          : values[field.key] !== undefined && values[field.key] !== null
+                            ? JSON.stringify(values[field.key])
+                            : (field.defaultValue as string)
+                      }
+                      onChange={(e) =>
+                        setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                      dir={field.type === "json" ? "ltr" : "auto"}
+                    />
+                    {field.type === "json" && jsonErrors[field.key] && (
+                      <span className="text-[11px] text-red-400">صيغة JSON غير صحيحة — لم يتم الحفظ</span>
+                    )}
+                  </>
                 ) : (
                   <Input
                     type={field.type as "text" | "number"}

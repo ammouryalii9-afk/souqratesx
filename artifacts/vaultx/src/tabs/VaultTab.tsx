@@ -235,7 +235,12 @@ export const VaultTab = () => {
       if (currentStep >= steps) {
         clearInterval(timer);
         claimEarnings()
-          .then(() => toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred }))
+          .then((result) => toast({
+            title: tr.vault.successTitle,
+            description: result
+              ? tr.vault.converted(result.convertedSkp.toLocaleString(), result.receivedSkx.toLocaleString())
+              : tr.vault.earningsTransferred,
+          }))
           .catch(() => toast({ title: tr.vault.adNotCompleted, description: tr.vault.tryAgain, variant: "destructive" }))
           .finally(() => setIsClaiming(false));
       }
@@ -258,9 +263,14 @@ export const VaultTab = () => {
 
     try {
       await watchRewardedAdWithFallback(config);
-      await claimEarnings();
+      const result = await claimEarnings();
       setIsClaiming(false);
-      toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred });
+      toast({
+        title: tr.vault.successTitle,
+        description: result
+          ? tr.vault.converted(result.convertedSkp.toLocaleString(), result.receivedSkx.toLocaleString())
+          : tr.vault.earningsTransferred,
+      });
     } catch (err) {
       setIsClaiming(false);
       toast({ title: tr.vault.adNotCompleted, description: err instanceof Error ? err.message : tr.vault.tryAgain, variant: "destructive" });
@@ -282,9 +292,9 @@ export const VaultTab = () => {
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
-        <div className="flex items-end gap-3 mb-5 relative z-10">
+        <div className="flex items-end gap-3 mb-1 relative z-10">
           <div className="text-[40px] font-black text-white tracking-tighter drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
-            ${(availablePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
+            {availablePoints.toLocaleString()} <span className="text-xl text-primary">{tr.vault.skx}</span>
           </div>
           {(config?.dollarBonus ?? 0) > 0 && (
             <div className="mb-2 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
@@ -293,6 +303,9 @@ export const VaultTab = () => {
               <span className="text-[10px] font-semibold opacity-80">bonus</span>
             </div>
           )}
+        </div>
+        <div className="text-sm font-bold text-muted-foreground mb-5 relative z-10">
+          ≈ ${(availablePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
         </div>
         <div className="flex items-center gap-3 relative z-10 w-full">
           <button
@@ -396,7 +409,7 @@ export const VaultTab = () => {
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
             
-            <span className="text-[11px] text-primary/70 font-semibold mt-1 relative z-10">pts</span>
+            <span className="text-[11px] text-primary/70 font-semibold mt-1 relative z-10">{tr.vault.skp}</span>
             
             <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.12)' }}>
               <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
@@ -431,8 +444,8 @@ export const VaultTab = () => {
         </button>
 
         <div className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.15)' }}>
-          <span className="text-[10px] font-bold text-primary/60">📺</span>
-          <span className="text-[10px] font-semibold text-primary/70 tracking-wide">نقاط الإعلانات تُضاف مباشرةً للرصيد · نقاط الضغط تحتاج <span className="text-primary font-black">Claim</span></span>
+          <span className="text-[10px] font-bold text-primary/60">💱</span>
+          <span className="text-[10px] font-semibold text-primary/70 tracking-wide">{tr.vault.convertRateNote(config?.features?.skpToSkxConversionRate ?? 5)}</span>
         </div>
 
         <div className="mt-4 w-full max-w-[280px]">

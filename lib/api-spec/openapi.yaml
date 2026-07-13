@@ -106,18 +106,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /vault/claim:
+  /vault/convert:
     post:
-      operationId: claimVaultEarnings
+      operationId: convertSkpToSkx
       tags: [vault]
-      summary: Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+      summary: Convert SKP (soft mined points) into SKX (hard currency) at the admin-set rate; the remainder is burned
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertSkpBody"
       responses:
         "200":
-          description: Updated game state after the claim
+          description: Updated game state after the conversion
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VaultSession"
+                $ref: "#/components/schemas/ConvertSkpResponse"
+        "400":
+          description: Invalid or insufficient SKP amount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /pixels/market:
+    get:
+      operationId: getPixelMarket
+      tags: [pixels]
+      summary: Get the active pixel cycle market (supply, tiers, current price, estimated dividend pool, my holdings)
+      responses:
+        "200":
+          description: Market snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PixelMarket"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No active cycle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /pixels/buy:
+    post:
+      operationId: buyPixels
+      tags: [pixels]
+      summary: Buy pixels in the active cycle with SKX (blended tier pricing, atomic supply + balance checks)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PixelPurchaseRequest"
+      responses:
+        "200":
+          description: Purchase result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PixelPurchaseResult"
+        "400":
+          description: Invalid quantity, exceeds supply/limit, or insufficient SKX
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: No active cycle or cycle already ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /pixels/me:
+    get:
+      operationId: getMyPixels
+      tags: [pixels]
+      summary: Get my pixel holdings in the active cycle and my dividend payout history
+      responses:
+        "200":
+          description: Holdings and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyPixelsResponse"
         "401":
           description: Not authenticated
           content:
@@ -1046,6 +1136,9 @@ components:
           type: ["string", "null"]
         lifetimePoints:
           type: integer
+        skxBalance:
+          type: integer
+          description: "SKX hard-currency balance (server-authoritative, withdrawable)"
         withdrawnPoints:
           type: integer
         referralCount:
@@ -1059,6 +1152,7 @@ components:
         - lastName
         - photoUrl
         - lifetimePoints
+        - skxBalance
         - withdrawnPoints
         - referralCount
         - referralEarnings
@@ -1086,6 +1180,125 @@ components:
       required:
         - user
         - state
+    ConvertSkpBody:
+      type: object
+      properties:
+        skpAmount:
+          type: integer
+          minimum: 1
+          description: "SKP amount to convert. Omit to convert the entire SKP balance."
+    ConvertSkpResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/VaultUserProfile"
+        state:
+          $ref: "#/components/schemas/VaultStateData"
+        convertedSkp:
+          type: integer
+          description: "SKP deducted (burned + converted)"
+        receivedSkx:
+          type: integer
+          description: "SKX credited from the conversion"
+      required:
+        - user
+        - state
+        - convertedSkp
+        - receivedSkx
+    PixelPriceTier:
+      type: object
+      properties:
+        upTo:
+          type: integer
+          description: "Cumulative supply threshold this tier price applies up to"
+        price:
+          type: integer
+          description: "SKX price per pixel within this tier"
+      required: [upTo, price]
+    PixelMarket:
+      type: object
+      properties:
+        cycleId:
+          type: integer
+        endDate:
+          type: string
+          description: "ISO timestamp when the cycle closes and dividends distribute"
+        totalSupply:
+          type: integer
+        sold:
+          type: integer
+        remaining:
+          type: integer
+        tiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PixelPriceTier"
+        currentPrice:
+          type: integer
+          description: "SKX price of the NEXT pixel at the current sold count"
+        dividendPercent:
+          type: integer
+          description: "% of the cycle's ad revenue distributed to holders at close"
+        estimatedPoolSkx:
+          type: integer
+          description: "Current dividend pool estimate (ad revenue so far × dividendPercent)"
+        maxPerPurchase:
+          type: integer
+        myPixels:
+          type: integer
+          description: "Pixels the current user holds in this cycle"
+        skxBalance:
+          type: integer
+      required: [cycleId, endDate, totalSupply, sold, remaining, tiers, currentPrice, dividendPercent, estimatedPoolSkx, maxPerPurchase, myPixels, skxBalance]
+    PixelPurchaseRequest:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+      required: [quantity]
+    PixelPurchaseResult:
+      type: object
+      properties:
+        purchasedQuantity:
+          type: integer
+        pricePaidSkx:
+          type: integer
+        skxBalance:
+          type: integer
+          description: "Remaining SKX balance after the purchase"
+        myPixels:
+          type: integer
+          description: "Total pixels held in the cycle after the purchase"
+        remaining:
+          type: integer
+          description: "Remaining cycle supply after the purchase"
+      required: [purchasedQuantity, pricePaidSkx, skxBalance, myPixels, remaining]
+    PixelDividendEntry:
+      type: object
+      properties:
+        cycleId:
+          type: integer
+        pixelsHeld:
+          type: integer
+        dividendSkx:
+          type: integer
+        paidAt:
+          type: string
+      required: [cycleId, pixelsHeld, dividendSkx, paidAt]
+    MyPixelsResponse:
+      type: object
+      properties:
+        cycleId:
+          type: ["integer", "null"]
+          description: "Active cycle id, or null when no cycle is running"
+        myPixels:
+          type: integer
+        dividends:
+          type: array
+          items:
+            $ref: "#/components/schemas/PixelDividendEntry"
+      required: [cycleId, myPixels, dividends]
     LeaderboardEntry:
       type: object
       properties:
@@ -1504,11 +1717,14 @@ components:
               type: boolean
             gameToSpendablePercent:
               type: integer
-              description: "% of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%."
+              description: "Legacy field (pre-SKX). Kept for client compatibility; no longer drives conversion."
+            skpToSkxConversionRate:
+              type: integer
+              description: "% of converted SKP that becomes SKX (default 5; the rest is burned)"
             maintenanceMode:
               type: boolean
               description: "When true, all users see a maintenance screen instead of the game."
-          required: [weeklyPrizesEnabled, referralMilestonesEnabled, offlineEarningsEnabled, gameToSpendablePercent, maintenanceMode]
+          required: [weeklyPrizesEnabled, referralMilestonesEnabled, offlineEarningsEnabled, gameToSpendablePercent, skpToSkxConversionRate, maintenanceMode]
         pointsPerDollar:
           type: integer
           description: "How many points equal $1 (default 2000000)"

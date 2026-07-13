@@ -1,7 +1,7 @@
 import { and, eq, lt, isNull, or, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
-import { creditedStateSql } from "../lib/weeklyCredit";
+import { skxCreditFields } from "../lib/skxCredit";
 
 function todayStr(): string {
   return new Date().toISOString().split("T")[0]!;
@@ -40,11 +40,9 @@ export function createAdsgramProvider(): EarnProvider {
     return db
       .update(vaultUsersTable)
       .set({
-        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-        // Ads add to the Mined buffer (tempMiningPoints) AND to adMiningPoints
-        // (the ad-earned sub-counter). At Claim time the client converts adMiningPoints
-        // at 100% and game remainder at gameToSpendablePercent%.
-        state: sql`jsonb_set(${creditedStateSql(amount, {})}, '{adMiningPoints}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'adMiningPoints')::numeric, 0) + ${amount}::numeric))`,
+        // Ad rewards are SKX (the hard/withdrawable currency) — credited to the
+        // server-authoritative skx_balance column directly.
+        ...skxCreditFields(amount),
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,

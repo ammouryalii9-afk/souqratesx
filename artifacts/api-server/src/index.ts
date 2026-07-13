@@ -33,6 +33,13 @@ if (cluster.isPrimary) {
     setInterval(() => { void runWeeklyPrizes(); }, 60 * 60 * 1000);
   }, 2 * 60 * 1000);
 
+  // Pixel cycles — hourly check in the primary only. Atomic status claim +
+  // per-user dividend ledger make it idempotent across restarts/crashes.
+  setTimeout(() => {
+    void runPixelCyclesJob();
+    setInterval(() => { void runPixelCyclesJob(); }, 60 * 60 * 1000);
+  }, 3 * 60 * 1000);
+
 } else {
 
   // ─── Worker: serve HTTP ──────────────────────────────────────────────────────
@@ -55,6 +62,13 @@ if (cluster.isPrimary) {
     await bootstrapProviders();
     logger.info({ port, pid: process.pid }, "Worker listening");
   });
+}
+
+// ─── Pixel cycles (called from primary only) ──────────────────────────────────
+
+async function runPixelCyclesJob(): Promise<void> {
+  const { runPixelCycles } = await import("./lib/pixelCycle");
+  await runPixelCycles();
 }
 
 // ─── Daily reminders (called from primary only) ───────────────────────────────
@@ -183,15 +197,15 @@ async function runWeeklyPrizes(): Promise<void> {
       const prize = PRIZES[i] ?? 0;
       if (!winner?.telegramId || prize <= 0) continue;
 
-      // Credit lifetime + pending spendable. Deliberately NOT weeklyPoints (the
-      // prize must not seed the winner's NEXT week score), and deliberately NOT
-      // state.tempMiningPoints directly — an online winner's debounced client
-      // sync would erase it; pendingBonusPoints is folded in at next hydration.
+      // Credit lifetime + SKX (hard currency, server-authoritative column the
+      // client never syncs — safe to credit directly even for online winners).
+      // Deliberately NOT weeklyPoints (the prize must not seed the winner's
+      // NEXT week score).
       const res = await db
         .update(vaultUsersTable)
         .set({
           lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${prize}`,
-          pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${prize}`,
+          skxBalance: sql`${vaultUsersTable.skxBalance} + ${prize}`,
         })
         .where(and(eq(vaultUsersTable.telegramId, winner.telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning({ telegramId: vaultUsersTable.telegramId });

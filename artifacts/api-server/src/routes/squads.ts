@@ -5,6 +5,7 @@ import { db, vaultUsersTable, squadsTable } from "@workspace/db";
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
+import { skxCreditFields } from "../lib/skxCredit";
 
 const router: IRouter = Router();
 
@@ -206,7 +207,8 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
       .set({
         squadId,
         hasClaimedSquadBonus: true,
-        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${joinBonus}`,
+        // Squad join bonus is SKX (hard currency), credited server-side directly.
+        ...skxCreditFields(joinBonus),
       })
       .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.hasClaimedSquadBonus, false)))
       .returning();

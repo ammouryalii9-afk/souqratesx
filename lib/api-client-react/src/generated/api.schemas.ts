@@ -29,6 +29,8 @@ export interface VaultUserProfile {
   /** @nullable */
   photoUrl: string | null;
   lifetimePoints: number;
+  /** SKX hard-currency balance (server-authoritative, withdrawable) */
+  skxBalance: number;
   withdrawnPoints: number;
   referralCount: number;
   referralEarnings: number;
@@ -47,6 +49,83 @@ export interface VaultStateUpdate {
 export interface VaultSession {
   user: VaultUserProfile;
   state: VaultStateData;
+}
+
+export interface ConvertSkpBody {
+  /**
+     * SKP amount to convert. Omit to convert the entire SKP balance.
+     * @minimum 1
+     */
+  skpAmount?: number;
+}
+
+export interface ConvertSkpResponse {
+  user: VaultUserProfile;
+  state: VaultStateData;
+  /** SKP deducted (burned + converted) */
+  convertedSkp: number;
+  /** SKX credited from the conversion */
+  receivedSkx: number;
+}
+
+export interface PixelPriceTier {
+  /** Cumulative supply threshold this tier price applies up to */
+  upTo: number;
+  /** SKX price per pixel within this tier */
+  price: number;
+}
+
+export interface PixelMarket {
+  cycleId: number;
+  /** ISO timestamp when the cycle closes and dividends distribute */
+  endDate: string;
+  totalSupply: number;
+  sold: number;
+  remaining: number;
+  tiers: PixelPriceTier[];
+  /** SKX price of the NEXT pixel at the current sold count */
+  currentPrice: number;
+  /** % of the cycle's ad revenue distributed to holders at close */
+  dividendPercent: number;
+  /** Current dividend pool estimate (ad revenue so far × dividendPercent) */
+  estimatedPoolSkx: number;
+  maxPerPurchase: number;
+  /** Pixels the current user holds in this cycle */
+  myPixels: number;
+  skxBalance: number;
+}
+
+export interface PixelPurchaseRequest {
+  /** @minimum 1 */
+  quantity: number;
+}
+
+export interface PixelPurchaseResult {
+  purchasedQuantity: number;
+  pricePaidSkx: number;
+  /** Remaining SKX balance after the purchase */
+  skxBalance: number;
+  /** Total pixels held in the cycle after the purchase */
+  myPixels: number;
+  /** Remaining cycle supply after the purchase */
+  remaining: number;
+}
+
+export interface PixelDividendEntry {
+  cycleId: number;
+  pixelsHeld: number;
+  dividendSkx: number;
+  paidAt: string;
+}
+
+export interface MyPixelsResponse {
+  /**
+     * Active cycle id, or null when no cycle is running
+     * @nullable
+     */
+  cycleId: number | null;
+  myPixels: number;
+  dividends: PixelDividendEntry[];
 }
 
 export interface LeaderboardEntry {
@@ -296,8 +375,10 @@ export type PublicConfigFeatures = {
   weeklyPrizesEnabled: boolean;
   referralMilestonesEnabled: boolean;
   offlineEarningsEnabled: boolean;
-  /** % of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%. */
+  /** Legacy field (pre-SKX). Kept for client compatibility; no longer drives conversion. */
   gameToSpendablePercent: number;
+  /** % of converted SKP that becomes SKX (default 5; the rest is burned) */
+  skpToSkxConversionRate: number;
   /** When true, all users see a maintenance screen instead of the game. */
   maintenanceMode: boolean;
 };

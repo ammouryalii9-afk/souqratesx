@@ -15,6 +15,7 @@ import withdrawRouter from "./withdraw";
 import engageRouter from "./engage";
 import squadsRouter from "./squads";
 import competitionsRouter from "./competitions";
+import pixelsRouter from "./pixels";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(withdrawRouter);
 router.use(engageRouter);
 router.use(squadsRouter);
 router.use(competitionsRouter);
+router.use(pixelsRouter);
 
 export default router;

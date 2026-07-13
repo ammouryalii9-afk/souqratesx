@@ -33,6 +33,7 @@ export const AuthTelegramResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
@@ -52,6 +53,7 @@ export const GetVaultMeResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
@@ -76,6 +78,7 @@ export const UpdateVaultMeResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
@@ -85,9 +88,16 @@ export const UpdateVaultMeResponse = zod.object({
 
 
 /**
- * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ * @summary Convert SKP (soft mined points) into SKX (hard currency) at the admin-set rate; the remainder is burned
  */
-export const ClaimVaultEarningsResponse = zod.object({
+
+
+
+export const ConvertSkpToSkxBody = zod.object({
+  "skpAmount": zod.number().min(1).optional().describe('SKP amount to convert. Omit to convert the entire SKP balance.')
+})
+
+export const ConvertSkpToSkxResponse = zod.object({
   "user": zod.object({
   "telegramId": zod.string(),
   "username": zod.string().nullable(),
@@ -95,11 +105,70 @@ export const ClaimVaultEarningsResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
-  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "convertedSkp": zod.number().describe('SKP deducted (burned + converted)'),
+  "receivedSkx": zod.number().describe('SKX credited from the conversion')
+})
+
+
+/**
+ * @summary Get the active pixel cycle market (supply, tiers, current price, estimated dividend pool, my holdings)
+ */
+export const GetPixelMarketResponse = zod.object({
+  "cycleId": zod.number(),
+  "endDate": zod.string().describe('ISO timestamp when the cycle closes and dividends distribute'),
+  "totalSupply": zod.number(),
+  "sold": zod.number(),
+  "remaining": zod.number(),
+  "tiers": zod.array(zod.object({
+  "upTo": zod.number().describe('Cumulative supply threshold this tier price applies up to'),
+  "price": zod.number().describe('SKX price per pixel within this tier')
+})),
+  "currentPrice": zod.number().describe('SKX price of the NEXT pixel at the current sold count'),
+  "dividendPercent": zod.number().describe('% of the cycle\'s ad revenue distributed to holders at close'),
+  "estimatedPoolSkx": zod.number().describe('Current dividend pool estimate (ad revenue so far × dividendPercent)'),
+  "maxPerPurchase": zod.number(),
+  "myPixels": zod.number().describe('Pixels the current user holds in this cycle'),
+  "skxBalance": zod.number()
+})
+
+
+/**
+ * @summary Buy pixels in the active cycle with SKX (blended tier pricing, atomic supply + balance checks)
+ */
+
+
+
+export const BuyPixelsBody = zod.object({
+  "quantity": zod.number().min(1)
+})
+
+export const BuyPixelsResponse = zod.object({
+  "purchasedQuantity": zod.number(),
+  "pricePaidSkx": zod.number(),
+  "skxBalance": zod.number().describe('Remaining SKX balance after the purchase'),
+  "myPixels": zod.number().describe('Total pixels held in the cycle after the purchase'),
+  "remaining": zod.number().describe('Remaining cycle supply after the purchase')
+})
+
+
+/**
+ * @summary Get my pixel holdings in the active cycle and my dividend payout history
+ */
+export const GetMyPixelsResponse = zod.object({
+  "cycleId": zod.number().nullable().describe('Active cycle id, or null when no cycle is running'),
+  "myPixels": zod.number(),
+  "dividends": zod.array(zod.object({
+  "cycleId": zod.number(),
+  "pixelsHeld": zod.number(),
+  "dividendSkx": zod.number(),
+  "paidAt": zod.string()
+}))
 })
 
 
@@ -644,7 +713,8 @@ export const GetPublicConfigResponse = zod.object({
   "weeklyPrizesEnabled": zod.boolean(),
   "referralMilestonesEnabled": zod.boolean(),
   "offlineEarningsEnabled": zod.boolean(),
-  "gameToSpendablePercent": zod.number().describe('% of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads\/surveys always 100%.'),
+  "gameToSpendablePercent": zod.number().describe('Legacy field (pre-SKX). Kept for client compatibility; no longer drives conversion.'),
+  "skpToSkxConversionRate": zod.number().describe('% of converted SKP that becomes SKX (default 5; the rest is burned)'),
   "maintenanceMode": zod.boolean().describe('When true, all users see a maintenance screen instead of the game.')
 }).describe('Admin-controlled feature flags (all default false until enabled in admin panel)'),
   "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),

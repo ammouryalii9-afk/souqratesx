@@ -41,6 +41,7 @@ export type PublicConfig = {
     referralMilestonesEnabled: boolean;
     offlineEarningsEnabled: boolean;
     gameToSpendablePercent: number;
+    skpToSkxConversionRate: number;
     maintenanceMode: boolean;
   };
   botUsername: string | null;
@@ -62,6 +63,15 @@ export async function getBotUsername(): Promise<string> {
   return cachedBotUsername ?? FALLBACK_BOT_USERNAME;
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -76,7 +86,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // ignore
     }
-    throw new Error(message);
+    throw new ApiError(message, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -163,4 +173,48 @@ export function getPartnerTasks(): Promise<{ tasks: PartnerTask[] }> {
 
 export function verifyPartnerTask(id: number): Promise<{ ok: boolean; alreadyClaimed: boolean; creditedPoints: number; lifetimePoints: number }> {
   return apiFetch(`/partner-tasks/${id}/verify`, { method: "POST" });
+}
+
+// ── Pixels (SKX investment cycles) ───────────────────────────────────────────
+
+export type PixelTier = { upTo: number; price: number };
+
+export type PixelMarket = {
+  cycleId: number;
+  endDate: string;
+  totalSupply: number;
+  sold: number;
+  remaining: number;
+  tiers: PixelTier[];
+  currentPrice: number;
+  dividendPercent: number;
+  estimatedPoolSkx: number;
+  maxPerPurchase: number;
+  myPixels: number;
+  skxBalance: number;
+};
+
+export type PixelDividend = {
+  cycleId: number;
+  pixelsHeld: number;
+  dividendSkx: number;
+  paidAt: string;
+};
+
+export function getPixelMarket(): Promise<PixelMarket> {
+  return apiFetch<PixelMarket>("/pixels/market");
+}
+
+export function buyPixels(quantity: number): Promise<{
+  purchasedQuantity: number;
+  pricePaidSkx: number;
+  skxBalance: number;
+  myPixels: number;
+  remaining: number;
+}> {
+  return apiFetch("/pixels/buy", { method: "POST", body: JSON.stringify({ quantity }) });
+}
+
+export function getMyPixels(): Promise<{ cycleId: number | null; myPixels: number; dividends: PixelDividend[] }> {
+  return apiFetch("/pixels/me");
 }

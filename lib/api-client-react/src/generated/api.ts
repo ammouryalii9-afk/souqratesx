@@ -33,6 +33,8 @@ import type {
   BroadcastJob,
   BroadcastJobList,
   BroadcastRequest,
+  ConvertSkpBody,
+  ConvertSkpResponse,
   CreateSponsoredAdBody,
   CreateStarProductBody,
   EarnOffersResponse,
@@ -41,7 +43,11 @@ import type {
   GetAdminUsersParams,
   HealthStatus,
   LeaderboardEntryList,
+  MyPixelsResponse,
   OfferwallPostbackParams,
+  PixelMarket,
+  PixelPurchaseRequest,
+  PixelPurchaseResult,
   PublicAdList,
   PublicConfig,
   SponsoredAd,
@@ -386,25 +392,25 @@ export const useUpdateVaultMe = <TError = ErrorType<ErrorResponse>,
       return useMutation(getUpdateVaultMeMutationOptions(options));
     }
 
-export const getClaimVaultEarningsUrl = () => {
+export const getConvertSkpToSkxUrl = () => {
 
 
 
 
-  return `/api/vault/claim`
+  return `/api/vault/convert`
 }
 
 /**
- * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ * @summary Convert SKP (soft mined points) into SKX (hard currency) at the admin-set rate; the remainder is burned
  */
-export const claimVaultEarnings = async ( options?: RequestInit): Promise<VaultSession> => {
+export const convertSkpToSkx = async (convertSkpBody?: ConvertSkpBody, options?: RequestInit): Promise<ConvertSkpResponse> => {
 
-  return customFetch<VaultSession>(getClaimVaultEarningsUrl(),
+  return customFetch<ConvertSkpResponse>(getConvertSkpToSkxUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(convertSkpBody)
   }
 );}
 
@@ -412,11 +418,11 @@ export const claimVaultEarnings = async ( options?: RequestInit): Promise<VaultS
 
 
 
-export const getClaimVaultEarningsMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext> => {
+export const getConvertSkpToSkxMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertSkpToSkx>>, TError,{data?: BodyType<ConvertSkpBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof convertSkpToSkx>>, TError,{data?: BodyType<ConvertSkpBody>}, TContext> => {
 
-const mutationKey = ['claimVaultEarnings'];
+const mutationKey = ['convertSkpToSkx'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -426,10 +432,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimVaultEarnings>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof convertSkpToSkx>>, {data?: BodyType<ConvertSkpBody>}> = (props) => {
+          const {data} = props ?? {};
 
-
-          return  claimVaultEarnings(requestOptions)
+          return  convertSkpToSkx(data,requestOptions)
         }
 
 
@@ -439,23 +445,248 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ClaimVaultEarningsMutationResult = NonNullable<Awaited<ReturnType<typeof claimVaultEarnings>>>
-
-    export type ClaimVaultEarningsMutationError = ErrorType<ErrorResponse>
+    export type ConvertSkpToSkxMutationResult = NonNullable<Awaited<ReturnType<typeof convertSkpToSkx>>>
+    export type ConvertSkpToSkxMutationBody = BodyType<ConvertSkpBody> | undefined
+    export type ConvertSkpToSkxMutationError = ErrorType<ErrorResponse>
 
     /**
- * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ * @summary Convert SKP (soft mined points) into SKX (hard currency) at the admin-set rate; the remainder is burned
  */
-export const useClaimVaultEarnings = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useConvertSkpToSkx = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertSkpToSkx>>, TError,{data?: BodyType<ConvertSkpBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof claimVaultEarnings>>,
+        Awaited<ReturnType<typeof convertSkpToSkx>>,
         TError,
-        void,
+        {data?: BodyType<ConvertSkpBody>},
         TContext
       > => {
-      return useMutation(getClaimVaultEarningsMutationOptions(options));
+      return useMutation(getConvertSkpToSkxMutationOptions(options));
     }
+
+export const getGetPixelMarketUrl = () => {
+
+
+
+
+  return `/api/pixels/market`
+}
+
+/**
+ * @summary Get the active pixel cycle market (supply, tiers, current price, estimated dividend pool, my holdings)
+ */
+export const getPixelMarket = async ( options?: RequestInit): Promise<PixelMarket> => {
+
+  return customFetch<PixelMarket>(getGetPixelMarketUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPixelMarketQueryKey = () => {
+    return [
+    `/api/pixels/market`
+    ] as const;
+    }
+
+
+export const getGetPixelMarketQueryOptions = <TData = Awaited<ReturnType<typeof getPixelMarket>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPixelMarket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPixelMarketQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPixelMarket>>> = ({ signal }) => getPixelMarket({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPixelMarket>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPixelMarketQueryResult = NonNullable<Awaited<ReturnType<typeof getPixelMarket>>>
+export type GetPixelMarketQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the active pixel cycle market (supply, tiers, current price, estimated dividend pool, my holdings)
+ */
+
+export function useGetPixelMarket<TData = Awaited<ReturnType<typeof getPixelMarket>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPixelMarket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPixelMarketQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getBuyPixelsUrl = () => {
+
+
+
+
+  return `/api/pixels/buy`
+}
+
+/**
+ * @summary Buy pixels in the active cycle with SKX (blended tier pricing, atomic supply + balance checks)
+ */
+export const buyPixels = async (pixelPurchaseRequest: PixelPurchaseRequest, options?: RequestInit): Promise<PixelPurchaseResult> => {
+
+  return customFetch<PixelPurchaseResult>(getBuyPixelsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pixelPurchaseRequest)
+  }
+);}
+
+
+
+
+
+export const getBuyPixelsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buyPixels>>, TError,{data: BodyType<PixelPurchaseRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof buyPixels>>, TError,{data: BodyType<PixelPurchaseRequest>}, TContext> => {
+
+const mutationKey = ['buyPixels'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof buyPixels>>, {data: BodyType<PixelPurchaseRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  buyPixels(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BuyPixelsMutationResult = NonNullable<Awaited<ReturnType<typeof buyPixels>>>
+    export type BuyPixelsMutationBody = BodyType<PixelPurchaseRequest>
+    export type BuyPixelsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Buy pixels in the active cycle with SKX (blended tier pricing, atomic supply + balance checks)
+ */
+export const useBuyPixels = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buyPixels>>, TError,{data: BodyType<PixelPurchaseRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof buyPixels>>,
+        TError,
+        {data: BodyType<PixelPurchaseRequest>},
+        TContext
+      > => {
+      return useMutation(getBuyPixelsMutationOptions(options));
+    }
+
+export const getGetMyPixelsUrl = () => {
+
+
+
+
+  return `/api/pixels/me`
+}
+
+/**
+ * @summary Get my pixel holdings in the active cycle and my dividend payout history
+ */
+export const getMyPixels = async ( options?: RequestInit): Promise<MyPixelsResponse> => {
+
+  return customFetch<MyPixelsResponse>(getGetMyPixelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPixelsQueryKey = () => {
+    return [
+    `/api/pixels/me`
+    ] as const;
+    }
+
+
+export const getGetMyPixelsQueryOptions = <TData = Awaited<ReturnType<typeof getMyPixels>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPixels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPixelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPixels>>> = ({ signal }) => getMyPixels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPixels>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyPixelsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPixels>>>
+export type GetMyPixelsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get my pixel holdings in the active cycle and my dividend payout history
+ */
+
+export function useGetMyPixels<TData = Awaited<ReturnType<typeof getMyPixels>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPixels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyPixelsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetVaultLeaderboardUrl = () => {
 

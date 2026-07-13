@@ -13,8 +13,10 @@ export type PublicConfigFeatures = {
   weeklyPrizesEnabled: boolean;
   referralMilestonesEnabled: boolean;
   offlineEarningsEnabled: boolean;
-  /** % of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%. */
+  /** Legacy field (pre-SKX). Kept for client compatibility; no longer drives conversion. */
   gameToSpendablePercent: number;
+  /** % of converted SKP that becomes SKX (default 5; the rest is burned) */
+  skpToSkxConversionRate: number;
   /** When true, all users see a maintenance screen instead of the game. */
   maintenanceMode: boolean;
 };

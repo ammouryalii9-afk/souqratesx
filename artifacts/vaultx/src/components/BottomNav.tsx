@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Gamepad2, Target, Users, Shield } from 'lucide-react';
+import { Layers, Gamepad2, Target, Users, Shield, Grid3x3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '../lib/i18n';
 
@@ -16,6 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
     { id: 'games', label: tr.nav.games, icon: Gamepad2 },
     { id: 'tasks', label: tr.nav.tasks, icon: Target },
     { id: 'squad', label: tr.nav.squad, icon: Shield },
+    { id: 'pixels', label: tr.nav.pixels, icon: Grid3x3 },
     { id: 'friends', label: tr.nav.friends, icon: Users },
   ];
 
