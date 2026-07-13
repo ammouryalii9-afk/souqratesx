@@ -197,12 +197,12 @@ function useDailyGamePlays(gameId: string): DailyPlays {
 }
 
 const PASSIVE_CARDS = [
-  { id: 'mining-rig', name: 'Mining Rig', base: 50, levelCost: (lvl: number) => lvl * 2000, icon: Pickaxe },
-  { id: 'solar-farm', name: 'Solar Farm', base: 200, levelCost: (lvl: number) => lvl * 8000, icon: Sun },
-  { id: 'wind-turbine', name: 'Wind Turbine', base: 500, levelCost: (lvl: number) => lvl * 20000, icon: Wind },
-  { id: 'data-center', name: 'Data Center', base: 1500, levelCost: (lvl: number) => lvl * 60000, icon: Server },
-  { id: 'quantum-chip', name: 'Quantum Chip', base: 5000, levelCost: (lvl: number) => lvl * 200000, icon: Cpu },
-  { id: 'black-hole', name: 'Black Hole Miner', base: 20000, levelCost: (lvl: number) => lvl * 800000, icon: Zap },
+  { id: 'mining-rig', name: 'Mining Rig', base: 25, levelCost: (lvl: number) => lvl * 2000, icon: Pickaxe },
+  { id: 'solar-farm', name: 'Solar Farm', base: 100, levelCost: (lvl: number) => lvl * 8000, icon: Sun },
+  { id: 'wind-turbine', name: 'Wind Turbine', base: 250, levelCost: (lvl: number) => lvl * 20000, icon: Wind },
+  { id: 'data-center', name: 'Data Center', base: 750, levelCost: (lvl: number) => lvl * 60000, icon: Server },
+  { id: 'quantum-chip', name: 'Quantum Chip', base: 2500, levelCost: (lvl: number) => lvl * 200000, icon: Cpu },
+  { id: 'black-hole', name: 'Black Hole Miner', base: 10000, levelCost: (lvl: number) => lvl * 800000, icon: Zap },
 ];
 
 const GAME_LIST: { id: GameId; name: string; desc: string; icon: typeof Gamepad2; color: string }[] = [
@@ -458,7 +458,7 @@ const WatchAdButton = ({ plays }: { plays: DailyPlays }) => {
 // ---------------- Speed Tap ----------------
 
 const SPEED_TAP_DURATION = 10;
-const SPEED_TAP_PTS_PER_TAP = 15;
+const SPEED_TAP_PTS_PER_TAP = 8;
 const SPEED_TAP_MAX_TAPS = 200;
 const SPEED_TAP_MAX_PER_SECOND = 20;
 
@@ -590,7 +590,7 @@ const SpeedTapGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays
 
 const MEMORY_EMOJIS = ['⚡', '💎', '🔥', '🌙', '⭐', '🪙'];
 const MEMORY_TIME_LIMIT = 45;
-const MEMORY_REWARD_PER_PAIR = 200;
+const MEMORY_REWARD_PER_PAIR = 100;
 
 type MemoryCard = { id: number; symbol: string; flipped: boolean; matched: boolean };
 
@@ -773,7 +773,7 @@ const MemoryMatchGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPl
 
 // ---------------- Lucky Wheel ----------------
 
-const WHEEL_SEGMENTS = [50, 100, 250, 500, 100, 1000, 50, 5000];
+const WHEEL_SEGMENTS = [25, 50, 125, 250, 50, 500, 25, 2500];
 const LuckyWheelGame = ({ onBack, plays }: { onBack: () => void; plays: DailyPlays }) => {
   const { setTempMiningPoints, addLifetimePoints } = useVault();
   const [isSpinning, setIsSpinning] = useState(false);

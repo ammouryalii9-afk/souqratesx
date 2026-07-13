@@ -25,7 +25,7 @@ const MORSE_CODE: Record<string, string> = {
 };
 const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SAFE', 'COIN', 'MOON'];
 
-const SPIN_SEGMENTS = [500, 1000, 2000, 5000, 500, 10000, 1500, 3000];
+const SPIN_SEGMENTS = [250, 500, 1000, 2500, 250, 5000, 750, 1500];
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-center gap-3">
@@ -274,12 +274,12 @@ export const TasksTab = () => {
 
   const handleCipherSubmit = () => {
     if (cipherGuess.toUpperCase() === dailyWord) {
-      setTempMiningPoints(prev => prev + 30000);
-      addLifetimePoints(30000);
+      setTempMiningPoints(prev => prev + 15000);
+      addLifetimePoints(15000);
       setCipherSolved(true);
       localStorage.setItem('dailyCipherDate', todayStr);
       localStorage.setItem('dailyCipherSolved', 'true');
-      toast({ title: "Cipher Solved!", description: "+30,000 pts" });
+      toast({ title: "Cipher Solved!", description: "+15,000 pts" });
       setCipherError(false);
     } else {
       setCipherError(true);
@@ -427,7 +427,7 @@ export const TasksTab = () => {
   };
 
   const completeFakeSurvey = () => {
-    const pts = Math.floor(Math.random() * 1500) + 500;
+    const pts = Math.floor(Math.random() * 750) + 250;
     setTempMiningPoints(prev => prev + pts);
     addLifetimePoints(pts);
     setClaimedTasks(prev => [...prev, 't3']);
@@ -449,9 +449,9 @@ export const TasksTab = () => {
     const isCorrect = selectedCombo.every(id => targetCombo.includes(id));
     if (isCorrect) {
       setComboResult('success');
-      setTempMiningPoints(p => p + 50000);
-      addLifetimePoints(50000);
-      toast({ title: "Combo Correct!", description: "+50,000 points added!" });
+      setTempMiningPoints(p => p + 25000);
+      addLifetimePoints(25000);
+      toast({ title: "Combo Correct!", description: "+25,000 points added!" });
     } else {
       setComboResult('failed');
       toast({ title: "Wrong Combo", description: "Try again tomorrow.", variant: "destructive" });
@@ -461,9 +461,9 @@ export const TasksTab = () => {
   };
 
   const dailyGames = [
-    { label: tr.tasks.dailyCipher, done: cipherSolved, reward: 30000 },
-    { label: tr.tasks.dailyCombo, done: comboResult !== 'none', reward: 50000 },
-    { label: tr.tasks.dailySpin, done: spinHasSpun, reward: 10000 },
+    { label: tr.tasks.dailyCipher, done: cipherSolved, reward: 15000 },
+    { label: tr.tasks.dailyCombo, done: comboResult !== 'none', reward: 25000 },
+    { label: tr.tasks.dailySpin, done: spinHasSpun, reward: 5000 },
   ];
   const dailyDone = dailyGames.filter(g => g.done).length;
   const dailyRemaining = dailyGames.reduce((sum, g) => sum + (g.done ? 0 : g.reward), 0);
@@ -502,7 +502,7 @@ export const TasksTab = () => {
             <Radio className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-bold text-white">{tr.tasks.dailyCipher}</h2>
           </div>
-          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+30,000 pts</span>
+          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+15,000 pts</span>
         </div>
         <div className={`bg-card border ${cipherError ? 'border-red-500/50 translate-x-1' : 'border-white/5'} rounded-xl p-4 transition-all duration-100`}>
           {cipherSolved ? (
@@ -552,7 +552,7 @@ export const TasksTab = () => {
       <section>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-white">{tr.tasks.dailyCombo}</h2>
-          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+50,000 pts</span>
+          <span className="text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full border border-primary/20">+25,000 pts</span>
         </div>
         <div className="bg-card border border-white/5 rounded-xl p-4">
           {comboResult === 'success' ? (
@@ -658,7 +658,7 @@ export const TasksTab = () => {
                 })}
                 {SPIN_SEGMENTS.map((reward, i) => {
                   const rotation = (i * 360) / SPIN_SEGMENTS.length + (180 / SPIN_SEGMENTS.length);
-                  const isJackpot = reward === 10000;
+                  const isJackpot = reward === 5000;
                   return (
                     <div
                       key={i}

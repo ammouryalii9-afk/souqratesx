@@ -10,7 +10,7 @@ const LOG_CY = CH / 2 - 30;
 const LOG_R = 68;
 const KNIFE_LEN = 58;
 const MIN_GAP = 0.20;
-const PTS_PER_KNIFE = 60;
+const PTS_PER_KNIFE = 30;
 const KNIFE_SPEED = 11;
 const KNIFE_START_Y = CH - 50;
 

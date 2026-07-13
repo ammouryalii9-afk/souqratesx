@@ -164,7 +164,7 @@ export const VaultTab = () => {
 
   const idleCap = miningLevel === 1 ? 10800 : miningLevel === 2 ? 54000 : miningLevel === 3 ? 216000 : 1080000;
   const isCapped = tempMiningPoints >= idleCap;
-  const pointsPerTap = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+  const pointsPerTap = miningLevel === 1 ? 1 : miningLevel === 2 ? 3 : miningLevel === 3 ? 10 : 50;
 
   const [showWithdraw, setShowWithdraw] = useState(false);
 

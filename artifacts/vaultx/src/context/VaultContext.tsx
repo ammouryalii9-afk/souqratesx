@@ -415,7 +415,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const interval = setInterval(() => {
       setEnergy((prevEnergy) => {
         if (prevEnergy <= 0) return prevEnergy;
-        const idlePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
+        const idlePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 3 : miningLevel === 3 ? 10 : 50;
         setTempMiningPoints((prevPoints) => prevPoints + idlePts);
         setLifetimePoints((prevLifetime) => prevLifetime + idlePts);
         return prevEnergy - 1;
@@ -689,7 +689,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTempMiningPoints(p => p + n);
   };
 
-  const WELCOME_REWARD = 5000;
+  const WELCOME_REWARD = 2500;
   const claimWelcomeReward = () => {
     if (isHydrationPending() || hasClaimedWelcome) return;
     setHasClaimedWelcome(true);

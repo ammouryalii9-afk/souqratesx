@@ -10,8 +10,8 @@ const BASE_X = 40;
 const BASE_W = CW - 80;
 const BASE_Y = CH - 40;
 const INITIAL_SPEED = 2.8;
-const PTS_PER_BLOCK = 80;
-const PERFECT_BONUS = 120;
+const PTS_PER_BLOCK = 40;
+const PERFECT_BONUS = 60;
 const PERFECT_THRESHOLD = 6;
 
 const COLORS = ['#34D399','#60A5FA','#F472B6','#FBBF24','#A78BFA','#FB923C','#4ADE80','#38BDF8'];
