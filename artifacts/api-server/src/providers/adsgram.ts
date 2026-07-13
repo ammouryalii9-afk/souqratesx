@@ -41,11 +41,10 @@ export function createAdsgramProvider(): EarnProvider {
       .update(vaultUsersTable)
       .set({
         lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-        // Ads bypass the Mined buffer (tempMiningPoints) and credit totalBalanceUSD
-        // directly at 100% — the conversion rate (gameToSpendablePercent) only
-        // applies to tap-mined points at Claim time, not to ad rewards.
-        // Also updates weeklyPoints so ad watches count toward the weekly leaderboard.
-        state: sql`jsonb_set(${creditedStateSql(amount, {}, { toSpendable: false })}, '{totalBalanceUSD}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'totalBalanceUSD')::numeric, 0) + ${amount / 1_000_000}::numeric))`,
+        // Ads add to the Mined buffer (tempMiningPoints) AND to adMiningPoints
+        // (the ad-earned sub-counter). At Claim time the client converts adMiningPoints
+        // at 100% and game remainder at gameToSpendablePercent%.
+        state: sql`jsonb_set(${creditedStateSql(amount, {})}, '{adMiningPoints}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'adMiningPoints')::numeric, 0) + ${amount}::numeric))`,
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,

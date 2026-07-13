@@ -191,9 +191,7 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
 
   // Mined buffer (tempMiningPoints) cap: tap/game-sourced increases are allowed
   // up to the full creditedDelta. The conversion rate (gameToSpendablePercent)
-  // is applied client-side at Claim time, not here. Ads bypass tempMiningPoints
-  // entirely — they credit totalBalanceUSD directly on the server, so any
-  // increase beyond creditedDelta is cheating. Spending (decrease) is always allowed.
+  // is applied client-side at Claim time. Spending (decrease) is always allowed.
   const settings = await getSettingsMap();
   const creditedDelta = Math.max(0, finalLifetimePoints - existing.lifetimePoints);
   const existingTemp = num(existingState["tempMiningPoints"]);
@@ -202,6 +200,15 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     mergedState["tempMiningPoints"] = existingTemp + Math.min(requestedTemp - existingTemp, creditedDelta);
   }
   // (If requestedTemp <= existingTemp the user is spending points; allow.)
+
+  // adMiningPoints: only server ad-reward routes can increase this sub-counter.
+  // If the client tries to inflate it, clamp it back to the server value.
+  // Decreases (spending reducing the pool) are allowed.
+  const existingAdMining = num(existingState["adMiningPoints"]);
+  const requestedAdMining = num(mergedState["adMiningPoints"]);
+  if (requestedAdMining > existingAdMining) {
+    mergedState["adMiningPoints"] = existingAdMining;
+  }
 
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
   // On rollover, ARCHIVE last week's score first — the weekly-prize job pays

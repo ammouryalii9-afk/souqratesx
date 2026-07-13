@@ -72,9 +72,9 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
         .update(vaultUsersTable)
         .set({
           lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
-          // Offerwalls bypass the Mined buffer (tempMiningPoints) and credit
-          // totalBalanceUSD directly at 100%. Also updates weeklyPoints.
-          state: sql`jsonb_set(${creditedStateSql(amount, {}, { toSpendable: false })}, '{totalBalanceUSD}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'totalBalanceUSD')::numeric, 0) + ${amount / 1_000_000}::numeric))`,
+          // Offerwalls add to tempMiningPoints AND adMiningPoints.
+          // At Claim time the client converts adMiningPoints at 100%.
+          state: sql`jsonb_set(${creditedStateSql(amount, {})}, '{adMiningPoints}', to_jsonb(COALESCE((${vaultUsersTable.state}->>'adMiningPoints')::numeric, 0) + ${amount}::numeric))`,
         })
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();
