@@ -18,6 +18,7 @@ import { Toaster } from "@/components/ui/toaster";
 import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
+import { MaintenancePage } from "./components/MaintenancePage";
 
 function Header() {
   const { tempMiningPoints, lifetimePoints, availablePoints, profitPerHour, equippedBadgeId } = useVault();
@@ -145,6 +146,18 @@ function MainLayout() {
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [termsAccepted, setTermsAccepted] = useState(checkTermsAccepted);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/config/maintenance')
+      .then((r) => r.json())
+      .then((d) => setMaintenanceMode(Boolean(d?.maintenanceMode)))
+      .catch(() => {});
+  }, []);
+
+  if (maintenanceMode) {
+    return <MaintenancePage />;
+  }
 
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;

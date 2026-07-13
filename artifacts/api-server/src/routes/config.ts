@@ -4,6 +4,13 @@ import { getSettingsMap, asString, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
 
+// Lightweight maintenance-mode check — intentionally NOT wrapped in the large
+// GetPublicConfigResponse Zod schema so it's immune to schema-version drift.
+router.get("/config/maintenance", async (_req, res): Promise<void> => {
+  const settings = await getSettingsMap();
+  res.json({ maintenanceMode: Boolean(settings.maintenanceMode) });
+});
+
 let cachedBotUsername: string | null = null;
 let botUsernamePromise: Promise<string | null> | null = null;
 
@@ -188,6 +195,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         referralMilestonesEnabled: Boolean(settings.referralMilestonesEnabled),
         offlineEarningsEnabled: Boolean(settings.offlineEarningsEnabled),
         gameToSpendablePercent: asNumber(settings.gameToSpendablePercent, 0),
+        maintenanceMode: Boolean(settings.maintenanceMode),
       },
       pointsPerDollar: asNumber(settings.pointsPerDollar, 2_000_000),
       dollarBonus: asNumber(settings.dollarBonus, 0),

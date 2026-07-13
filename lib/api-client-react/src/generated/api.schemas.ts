@@ -298,6 +298,8 @@ export type PublicConfigFeatures = {
   offlineEarningsEnabled: boolean;
   /** % of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%. */
   gameToSpendablePercent: number;
+  /** When true, all users see a maintenance screen instead of the game. */
+  maintenanceMode: boolean;
 };
 
 export interface PublicConfig {

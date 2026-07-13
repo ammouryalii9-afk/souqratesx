@@ -9,6 +9,11 @@ type ToggleDef = { key: string; label: string; description: string };
 
 const FEATURE_TOGGLES: ToggleDef[] = [
   {
+    key: "maintenanceMode",
+    label: "🔧 وضع الصيانة",
+    description: "إيقاف البوت مؤقتاً — يُظهر لجميع المستخدمين شاشة صيانة بدلاً من اللعبة",
+  },
+  {
     key: "weeklyPrizesEnabled",
     label: "🏆 الجوائز الأسبوعية التلقائية",
     description: "توزيع جوائز تلقائية على أفضل 10 لاعبين كل أسبوع (1M / 600k / ... / 100k نقطة)",

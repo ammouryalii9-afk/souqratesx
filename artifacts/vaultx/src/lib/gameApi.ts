@@ -41,6 +41,7 @@ export type PublicConfig = {
     referralMilestonesEnabled: boolean;
     offlineEarningsEnabled: boolean;
     gameToSpendablePercent: number;
+    maintenanceMode: boolean;
   };
   botUsername: string | null;
   pointsPerDollar: number;

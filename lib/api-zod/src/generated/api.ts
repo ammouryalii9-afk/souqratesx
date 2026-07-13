@@ -644,7 +644,8 @@ export const GetPublicConfigResponse = zod.object({
   "weeklyPrizesEnabled": zod.boolean(),
   "referralMilestonesEnabled": zod.boolean(),
   "offlineEarningsEnabled": zod.boolean(),
-  "gameToSpendablePercent": zod.number().describe('% of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads\/surveys always 100%.')
+  "gameToSpendablePercent": zod.number().describe('% of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads\/surveys always 100%.'),
+  "maintenanceMode": zod.boolean().describe('When true, all users see a maintenance screen instead of the game.')
 }).describe('Admin-controlled feature flags (all default false until enabled in admin panel)'),
   "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),
   "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)')
