@@ -1,6 +1,7 @@
 import { and, eq, lt, isNull, or, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
+import { creditedStateSql } from "../lib/weeklyCredit";
 
 function todayStr(): string {
   return new Date().toISOString().split("T")[0]!;
@@ -40,6 +41,10 @@ export function createAdsgramProvider(): EarnProvider {
       .update(vaultUsersTable)
       .set({
         lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
+        // Also write tempMiningPoints + weeklyPoints into the state JSONB so
+        // the cap in PUT /vault/me doesn't zero out the ad reward (creditedDelta
+        // is already 0 by the time the client syncs, since lifetime was bumped here).
+        state: creditedStateSql(amount, {}),
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,

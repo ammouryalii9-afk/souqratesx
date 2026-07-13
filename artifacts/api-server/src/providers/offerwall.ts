@@ -1,6 +1,7 @@
 import { eq, and } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { creditedStateSql } from "../lib/weeklyCredit";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
 // Upper bound per single postback — a sanity cap against buggy/malicious postbacks,
@@ -69,7 +70,12 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
     async rewardUser(telegramId: string, amount: number, _txId: string): Promise<RewardResult> {
       const [updated] = await db
         .update(vaultUsersTable)
-        .set({ lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}` })
+        .set({
+          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
+          // Also write tempMiningPoints + weeklyPoints into the state JSONB so
+          // the cap in PUT /vault/me doesn't zero out the offerwall reward.
+          state: creditedStateSql(amount, {}),
+        })
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();
 

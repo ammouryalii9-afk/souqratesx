@@ -645,7 +645,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const claimOfflineEarnings = () => {
     if (isHydrationPending() || !offlineEarnings) return;
-    setTempMiningPoints(p => p + offlineEarnings.amount);
+    const spendable = Math.floor(offlineEarnings.amount * gameToSpendablePct.current / 100);
+    if (spendable > 0) setTempMiningPoints(p => p + spendable);
     setLifetimePoints(p => p + offlineEarnings.amount);
     setOfflineEarnings(null);
     haptic('success');
