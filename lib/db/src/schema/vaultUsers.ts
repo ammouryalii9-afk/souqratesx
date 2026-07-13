@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, jsonb, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -44,7 +44,18 @@ export const vaultUsersTable = pgTable("vault_users", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  // Leaderboard: ORDER BY lifetime_points DESC WHERE is_banned = false
+  index("vu_lifetime_pts_idx").on(t.lifetimePoints),
+  // Every auth/sync/earn route filters on is_banned
+  index("vu_is_banned_idx").on(t.isBanned),
+  // Referral attribution lookup (linkReferrer reads referrerId IS NULL)
+  index("vu_referrer_id_idx").on(t.referrerId),
+  // Squad membership queries + squad leaderboard GROUP BY
+  index("vu_squad_id_idx").on(t.squadId),
+  // Daily reminders: WHERE updated_at < cutoff
+  index("vu_updated_at_idx").on(t.updatedAt),
+]);
 
 export const insertVaultUserSchema = createInsertSchema(vaultUsersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertVaultUser = z.infer<typeof insertVaultUserSchema>;
