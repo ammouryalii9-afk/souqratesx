@@ -189,6 +189,23 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     mergedState["passiveCards"] = [...byId.values()];
   }
 
+  // Spendable balance (tempMiningPoints) cap: game-sourced point increases
+  // (tapping, mini-games, farming, passive idle) credit only a configurable
+  // fraction to the spendable balance. Ads/surveys credit 100% via separate
+  // server routes and are not affected here. This prevents a cheating client
+  // from claiming full spendable balance regardless of the admin setting.
+  const settings = await getSettingsMap();
+  const gameToSpendablePct = asNumber(settings.gameToSpendablePercent, 0);
+  const creditedDelta = Math.max(0, finalLifetimePoints - existing.lifetimePoints);
+  const maxTempIncrease = Math.floor(creditedDelta * gameToSpendablePct / 100);
+  const existingTemp = num(existingState["tempMiningPoints"]);
+  const requestedTemp = num(mergedState["tempMiningPoints"]);
+  if (requestedTemp > existingTemp) {
+    // Client tried to increase spendable balance from game sources — cap it.
+    mergedState["tempMiningPoints"] = existingTemp + Math.min(requestedTemp - existingTemp, maxTempIncrease);
+  }
+  // (If requestedTemp <= existingTemp the user is spending points; allow.)
+
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
   // On rollover, ARCHIVE last week's score first — the weekly-prize job pays
   // winners from prevWeekKey/prevWeekPoints, so a score lazily reset by an
@@ -199,7 +216,6 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
     mergedState["prevWeekPoints"] = num(existingState["weeklyPoints"]);
   }
   const prevWeekly = existingState["weekKey"] === wk ? num(existingState["weeklyPoints"]) : 0;
-  const creditedDelta = Math.max(0, finalLifetimePoints - existing.lifetimePoints);
   mergedState["weeklyPoints"] = prevWeekly + creditedDelta;
   mergedState["weekKey"] = wk;
   finalState = mergedState;

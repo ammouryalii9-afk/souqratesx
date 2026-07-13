@@ -1484,7 +1484,10 @@ components:
               type: boolean
             offlineEarningsEnabled:
               type: boolean
-          required: [weeklyPrizesEnabled, referralMilestonesEnabled, offlineEarningsEnabled]
+            gameToSpendablePercent:
+              type: integer
+              description: "% of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%."
+          required: [weeklyPrizesEnabled, referralMilestonesEnabled, offlineEarningsEnabled, gameToSpendablePercent]
         pointsPerDollar:
           type: integer
           description: "How many points equal $1 (default 2000000)"

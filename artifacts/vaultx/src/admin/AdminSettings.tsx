@@ -40,6 +40,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "energyMax", label: "الحد الأقصى للطاقة", type: "number", defaultValue: 1000 },
       { key: "farmingDurationHours", label: "مدة الفارمينج (ساعات)", type: "number", defaultValue: 8 },
       { key: "referralRatePercent", label: "نسبة عمولة الإحالة (%)", type: "number", defaultValue: 10 },
+      { key: "gameToSpendablePercent", label: "نسبة الألعاب/الضغط للرصيد القابل للسحب (%) — 0 = لوحة ترتيب فقط، الإعلانات دائماً 100%", type: "number", defaultValue: 0 },
       { key: "adMinWatchSeconds", label: "الحد الأدنى لمشاهدة الإعلان قبل استلام المكافأة (ثانية) — لكل الإعلانات الحالية والمستقبلية", type: "number", defaultValue: 15 },
       { key: "pointsPerDollar", label: "عدد النقاط = 1 دولار (افتراضي: 2000000)", type: "number", defaultValue: 2000000 },
       { key: "dollarBonus", label: "مبلغ Bonus بالدولار يُعرض بجانب رصيد المستخدم (0 = مخفي)", type: "number", defaultValue: 0 },

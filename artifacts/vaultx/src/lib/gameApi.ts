@@ -40,6 +40,7 @@ export type PublicConfig = {
     weeklyPrizesEnabled: boolean;
     referralMilestonesEnabled: boolean;
     offlineEarningsEnabled: boolean;
+    gameToSpendablePercent: number;
   };
   botUsername: string | null;
   pointsPerDollar: number;

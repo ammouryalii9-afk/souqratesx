@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { initTelegramWebApp, getTelegramInitData, haptic } from '../lib/telegram';
+import { getPublicConfig } from '../lib/gameApi';
 
 export type PassiveCard = {
   id: string;
@@ -207,6 +208,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const hasHydratedFromServer = useRef(false);
   const isHydrating = useRef(false);
+  // % of game points (tap, farming, mini-games) credited to spendable balance.
+  // Fetched from /config/public once after mount; ads/surveys are always 100%.
+  const gameToSpendablePct = useRef(0);
+  useEffect(() => {
+    getPublicConfig().then(cfg => {
+      gameToSpendablePct.current = cfg.features.gameToSpendablePercent;
+    }).catch(() => { /* keep 0 on error */ });
+  }, []);
 
   const basePassiveProfitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
   const multiplierFactor = 1 + permanentMultiplierPercent / 100;
@@ -378,7 +387,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setEnergy((prevEnergy) => {
         if (prevEnergy <= 0) return prevEnergy;
         const idlePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
-        setTempMiningPoints((prevPoints) => prevPoints + idlePts);
+        const spendable = Math.floor(idlePts * gameToSpendablePct.current / 100);
+        if (spendable > 0) setTempMiningPoints((prevPoints) => prevPoints + spendable);
         setLifetimePoints((prevLifetime) => prevLifetime + idlePts);
         return prevEnergy - 1;
       });
@@ -419,7 +429,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const interval = setInterval(() => {
       if (profitPerHour > 0) {
-        setTempMiningPoints(p => p + profitPerHour);
+        const spendable = Math.floor(profitPerHour * gameToSpendablePct.current / 100);
+        if (spendable > 0) setTempMiningPoints(p => p + spendable);
         setLifetimePoints(p => p + profitPerHour);
       }
     }, 3600000);
@@ -536,7 +547,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const basePts = miningLevel === 1 ? 1 : miningLevel === 2 ? 5 : miningLevel === 3 ? 20 : 100;
       const boostedPts = activeTurbo ? basePts * 5 : basePts;
       earned = Math.round(boostedPts * multiplierFactor);
-      setTempMiningPoints(p => p + earned);
+      // Tapping only adds to the leaderboard (lifetimePoints). The spendable
+      // balance (tempMiningPoints) gets gameToSpendablePercent% of tap points —
+      // configured by the admin; default 0 (ads/surveys are always 100%).
+      const spendable = Math.floor(earned * gameToSpendablePct.current / 100);
+      if (spendable > 0) setTempMiningPoints(p => p + spendable);
       setLifetimePoints(p => p + earned);
       return prev - 1;
     });
@@ -579,8 +594,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const claimFarming = () => {
     if (isHydrationPending()) return;
     if (farmState === 'ready') {
-      setTempMiningPoints(p => p + 4000);
-      setLifetimePoints(p => p + 4000);
+      const farmPts = 4000;
+      const spendable = Math.floor(farmPts * gameToSpendablePct.current / 100);
+      if (spendable > 0) setTempMiningPoints(p => p + spendable);
+      setLifetimePoints(p => p + farmPts);
       setFarmState('idle');
       setFarmStartTime(0);
     }
@@ -604,16 +621,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addLifetimePoints = (n: number) => {
     if (isHydrationPending()) return;
     setLifetimePoints(p => p + n);
-    setTempMiningPoints(p => p + n);
+    const spendable = Math.floor(n * gameToSpendablePct.current / 100);
+    if (spendable > 0) setTempMiningPoints(p => p + spendable);
   };
 
-  // Client-side bonus points (e.g. tap combo). Added to both the spendable
-  // balance and lifetime total; the server's maxPointsPerHourCap clamps abuse
-  // on the next debounced sync, same as normal tap-mining.
+  // Client-side bonus points (e.g. tap combo, mini-games). Only the configured
+  // spendable fraction goes to tempMiningPoints; full amount to lifetimePoints.
   const addBonusPoints = (n: number) => {
     if (isHydrationPending() || n <= 0) return;
     setLifetimePoints(p => p + n);
-    setTempMiningPoints(p => p + n);
+    const spendable = Math.floor(n * gameToSpendablePct.current / 100);
+    if (spendable > 0) setTempMiningPoints(p => p + spendable);
   };
 
   const WELCOME_REWARD = 5000;

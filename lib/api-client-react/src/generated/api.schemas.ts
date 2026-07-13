@@ -296,6 +296,8 @@ export type PublicConfigFeatures = {
   weeklyPrizesEnabled: boolean;
   referralMilestonesEnabled: boolean;
   offlineEarningsEnabled: boolean;
+  /** % of game-earned points (tap, mini-games, farming, passive) credited to spendable balance. 0 = leaderboard only. Ads/surveys always 100%. */
+  gameToSpendablePercent: number;
 };
 
 export interface PublicConfig {
