@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Check, Lock, Sparkles, ShoppingBag } from 'lucide-react';
 
-type Rarity = 'شائع' | 'نادر' | 'ملحمي' | 'أسطوري';
+type Rarity = 'Common' | 'Rare' | 'Epic' | 'Legendary';
 
 const SKIN_META: Record<number, {
   emoji: string;
@@ -16,39 +16,39 @@ const SKIN_META: Record<number, {
 }> = {
   1: {
     emoji: '⛏️',
-    rarity: 'شائع',
-    desc: 'الجلد الأصلي',
+    rarity: 'Common',
+    desc: 'The original skin',
     rarityColor: '#a3a3a3',
     rarityBg: 'rgba(163,163,163,0.15)',
     cardGradient: 'linear-gradient(135deg, rgba(245,197,24,0.12) 0%, rgba(20,20,24,0.95) 100%)',
   },
   2: {
     emoji: '⚡',
-    rarity: 'نادر',
-    desc: 'طاقة نيون مضيئة',
+    rarity: 'Rare',
+    desc: 'Glowing neon energy',
     rarityColor: '#22d3ee',
     rarityBg: 'rgba(34,211,238,0.12)',
     cardGradient: 'linear-gradient(135deg, rgba(34,211,238,0.14) 0%, rgba(12,20,30,0.97) 100%)',
   },
   3: {
     emoji: '💎',
-    rarity: 'ملحمي',
-    desc: 'جوهرة الزمرد النادرة',
+    rarity: 'Epic',
+    desc: 'Rare emerald gemstone',
     rarityColor: '#34d399',
     rarityBg: 'rgba(52,211,153,0.12)',
     cardGradient: 'linear-gradient(135deg, rgba(52,211,153,0.14) 0%, rgba(10,22,18,0.97) 100%)',
   },
   4: {
     emoji: '👑',
-    rarity: 'أسطوري',
-    desc: 'البنفسجي الملكي',
+    rarity: 'Legendary',
+    desc: 'Royal purple prestige',
     rarityColor: '#f59e0b',
     rarityBg: 'rgba(245,158,11,0.12)',
     cardGradient: 'linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(15,10,28,0.97) 100%)',
   },
 };
 
-const RARITY_ORDER: Rarity[] = ['شائع', 'نادر', 'ملحمي', 'أسطوري'];
+const RARITY_ORDER: Rarity[] = ['Common', 'Rare', 'Epic', 'Legendary'];
 
 function PulseRing({ color }: { color: string }) {
   return (
@@ -76,14 +76,14 @@ export function SkinsShop() {
 
     if (isOwned) {
       equipSkin(skinId);
-      toast({ title: '✅ تم التجهيز', description: SKINS[skinId]?.name });
+      toast({ title: '✅ Skin equipped', description: SKINS[skinId]?.name });
       return;
     }
     if (tempMiningPoints < price) {
       haptic('error');
       toast({
-        title: 'نقاط غير كافية',
-        description: `تحتاج ${price.toLocaleString()} نقطة`,
+        title: 'Not enough points',
+        description: `You need ${price.toLocaleString()} pts`,
         variant: 'destructive',
       });
       return;
@@ -91,7 +91,7 @@ export function SkinsShop() {
     const ok = buySkin(skinId);
     if (ok) {
       haptic('success');
-      toast({ title: '🎨 تم الشراء!', description: `${SKINS[skinId]?.name} تم تجهيزه` });
+      toast({ title: '🎨 Skin unlocked!', description: `${SKINS[skinId]?.name} equipped` });
     }
   }
 
@@ -106,7 +106,7 @@ export function SkinsShop() {
           <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
             <ShoppingBag className="w-4 h-4 text-primary" />
           </div>
-          <h2 className="text-lg font-bold text-white">متجر الجلود</h2>
+          <h2 className="text-lg font-bold text-white">Skins Shop</h2>
         </div>
         <div className="flex items-center gap-1.5 bg-white/5 border border-white/8 rounded-full px-3 py-1">
           <Sparkles className="w-3 h-3 text-primary" />
@@ -178,18 +178,15 @@ export function SkinsShop() {
               {/* Skin orb / preview */}
               <div className="flex items-center justify-center pt-8 pb-3 px-4">
                 <div className="relative flex items-center justify-center">
-                  {/* Outer glow ring */}
                   <div
                     className="absolute w-16 h-16 rounded-full opacity-20"
                     style={{ background: `radial-gradient(circle, ${skin.accent} 0%, transparent 70%)` }}
                   />
-                  {/* Pulse ring for equipped */}
                   {isEquipped && (
                     <div className="absolute w-16 h-16">
                       <PulseRing color={skin.accent} />
                     </div>
                   )}
-                  {/* Inner orb */}
                   <div
                     className="relative w-14 h-14 rounded-full flex items-center justify-center"
                     style={{
@@ -231,12 +228,12 @@ export function SkinsShop() {
                   }
                 >
                   {isEquipped
-                    ? '✓ مُجهَّز'
+                    ? '✓ Equipped'
                     : isOwned
-                    ? 'تجهيز'
+                    ? 'Equip'
                     : skin.price === 0
-                    ? 'احصل مجاناً'
-                    : `${skin.price.toLocaleString()} نقطة`}
+                    ? 'Get Free'
+                    : `${skin.price.toLocaleString()} pts`}
                 </div>
               </div>
             </button>

@@ -882,14 +882,14 @@ export const TasksTab = () => {
       {/* Telegram Stars Store */}
       {(() => {
         const STAR_META: Record<string, { emoji: string; label: string; color: string; glow: string; gradient: string }> = {
-          premium_days:         { emoji: '👑', label: 'VIP',   color: '#f59e0b', glow: 'rgba(245,158,11,0.28)',  gradient: 'linear-gradient(145deg, rgba(245,158,11,0.14) 0%, rgba(14,11,4,0.97) 100%)' },
-          turbo_boost:          { emoji: '🔥', label: 'بوست', color: '#f97316', glow: 'rgba(249,115,22,0.28)',  gradient: 'linear-gradient(145deg, rgba(249,115,22,0.14) 0%, rgba(14,7,3,0.97) 100%)' },
-          energy_refill:        { emoji: '⚡', label: 'طاقة', color: '#38bdf8', glow: 'rgba(56,189,248,0.28)',  gradient: 'linear-gradient(145deg, rgba(56,189,248,0.14) 0%, rgba(3,11,17,0.97) 100%)' },
-          permanent_multiplier: { emoji: '✨', label: 'قوة',  color: '#a78bfa', glow: 'rgba(167,139,250,0.28)', gradient: 'linear-gradient(145deg, rgba(167,139,250,0.14) 0%, rgba(9,7,17,0.97) 100%)' },
-          badge:                { emoji: '🏅', label: 'شارة', color: '#2dd4bf', glow: 'rgba(45,212,191,0.28)',  gradient: 'linear-gradient(145deg, rgba(45,212,191,0.14) 0%, rgba(3,13,13,0.97) 100%)' },
-          skin:                 { emoji: '🎨', label: 'سكن',  color: '#f472b6', glow: 'rgba(244,114,182,0.28)', gradient: 'linear-gradient(145deg, rgba(244,114,182,0.14) 0%, rgba(14,4,11,0.97) 100%)' },
+          premium_days:         { emoji: '👑', label: 'VIP',    color: '#f59e0b', glow: 'rgba(245,158,11,0.28)',  gradient: 'linear-gradient(145deg, rgba(245,158,11,0.14) 0%, rgba(14,11,4,0.97) 100%)' },
+          turbo_boost:          { emoji: '🔥', label: 'BOOST',  color: '#f97316', glow: 'rgba(249,115,22,0.28)',  gradient: 'linear-gradient(145deg, rgba(249,115,22,0.14) 0%, rgba(14,7,3,0.97) 100%)' },
+          energy_refill:        { emoji: '⚡', label: 'ENERGY', color: '#38bdf8', glow: 'rgba(56,189,248,0.28)',  gradient: 'linear-gradient(145deg, rgba(56,189,248,0.14) 0%, rgba(3,11,17,0.97) 100%)' },
+          permanent_multiplier: { emoji: '✨', label: 'POWER',  color: '#a78bfa', glow: 'rgba(167,139,250,0.28)', gradient: 'linear-gradient(145deg, rgba(167,139,250,0.14) 0%, rgba(9,7,17,0.97) 100%)' },
+          badge:                { emoji: '🏅', label: 'BADGE',  color: '#2dd4bf', glow: 'rgba(45,212,191,0.28)',  gradient: 'linear-gradient(145deg, rgba(45,212,191,0.14) 0%, rgba(3,13,13,0.97) 100%)' },
+          skin:                 { emoji: '🎨', label: 'SKIN',   color: '#f472b6', glow: 'rgba(244,114,182,0.28)', gradient: 'linear-gradient(145deg, rgba(244,114,182,0.14) 0%, rgba(14,4,11,0.97) 100%)' },
         };
-        const getMeta = (type: string) => STAR_META[type] ?? { emoji: '💎', label: 'آيتم', color: '#34d399', glow: 'rgba(52,211,153,0.28)', gradient: 'linear-gradient(145deg, rgba(52,211,153,0.14) 0%, rgba(4,13,8,0.97) 100%)' };
+        const getMeta = (type: string) => STAR_META[type] ?? { emoji: '💎', label: 'ITEM', color: '#34d399', glow: 'rgba(52,211,153,0.28)', gradient: 'linear-gradient(145deg, rgba(52,211,153,0.14) 0%, rgba(4,13,8,0.97) 100%)' };
 
         return (
           <section>
@@ -904,24 +904,24 @@ export const TasksTab = () => {
                   <span className="text-base leading-none">⭐</span>
                 </div>
                 <div className="flex flex-col">
-                  <h2 className="text-lg font-bold text-white leading-none">متجر النجوم</h2>
+                  <h2 className="text-lg font-bold text-white leading-none">Stars Store</h2>
                   <span className="text-[10px] text-amber-400/60 font-semibold uppercase tracking-wider mt-0.5">Telegram Stars</span>
                 </div>
               </div>
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
-                ⭐ حصري
+                ⭐ Exclusive
               </span>
             </div>
 
             {!config?.stars.enabled ? (
               <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="text-2xl mb-2 block">🔒</span>
-                <p className="text-xs text-muted-foreground">لم يتم التفعيل بعد</p>
+                <p className="text-xs text-muted-foreground">Not activated yet</p>
               </div>
             ) : starProducts.length === 0 ? (
               <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="text-2xl mb-2 block">📭</span>
-                <p className="text-xs text-muted-foreground">لا توجد منتجات متاحة حالياً</p>
+                <p className="text-xs text-muted-foreground">No items available right now</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -985,7 +985,7 @@ export const TasksTab = () => {
                         <div className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-bold gap-1"
                           style={{ background: `linear-gradient(135deg, ${meta.color} 0%, ${meta.color}bb 100%)`, color: '#000', boxShadow: `0 2px 10px ${meta.glow}` }}
                         >
-                          {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>شراء ⭐</>}
+                          {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>Buy ⭐</>}
                         </div>
                       </div>
                     </button>
@@ -1108,7 +1108,7 @@ export const TasksTab = () => {
               {/* Benefits */}
               {confirmProduct.benefitsBullets && (
                 <div className="mx-5 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: cm.color }}>ما ستحصل عليه</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: cm.color }}>What you get</p>
                   <ul className="flex flex-col gap-1.5">
                     {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-white/85 leading-snug">
@@ -1134,14 +1134,14 @@ export const TasksTab = () => {
                 >
                   {purchasingProduct
                     ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <>تأكيد الدفع ⭐ {confirmProduct.priceStars.toLocaleString()}</>
+                    : <>Confirm &amp; Pay ⭐ {confirmProduct.priceStars.toLocaleString()}</>
                   }
                 </button>
                 <button
                   onClick={() => setConfirmProduct(null)}
                   className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground active:text-white transition-colors"
                 >
-                  إلغاء
+                  Cancel
                 </button>
               </div>
             </div>
