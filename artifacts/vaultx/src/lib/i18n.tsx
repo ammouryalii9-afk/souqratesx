@@ -171,6 +171,15 @@ const en = {
     pending: 'Pending',
     approved: 'Approved',
     rejected: 'Rejected',
+    milestonesTitle: 'Referral Milestones',
+    milestoneProgress: (cur: number, target: number) => `${cur} / ${target} friends`,
+    milestoneReward: (n: string) => `Next reward: ${n} pts`,
+    allMilestonesDone: 'All milestones completed — legend!',
+  },
+  offline: {
+    title: 'Welcome Back!',
+    desc: (time: string) => `Your miners kept working while you were away (${time}).`,
+    claim: (n: string) => `Collect ${n} points`,
   },
   squad: {
     title: 'Squads',
@@ -407,6 +416,15 @@ const ar: typeof en = {
     pending: 'قيد الانتظار',
     approved: 'مقبول',
     rejected: 'مرفوض',
+    milestonesTitle: 'إنجازات الإحالة',
+    milestoneProgress: (cur: number, target: number) => `${cur} / ${target} صديق`,
+    milestoneReward: (n: string) => `المكافأة القادمة: ${n} نقطة`,
+    allMilestonesDone: 'أكملت كل الإنجازات — أنت أسطورة!',
+  },
+  offline: {
+    title: 'أهلاً بعودتك!',
+    desc: (time: string) => `عمّالك واصلوا التعدين أثناء غيابك (${time}).`,
+    claim: (n: string) => `اجمع ${n} نقطة`,
   },
   squad: {
     title: 'الفرق',

@@ -1,11 +1,48 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable } from "@workspace/db";
+import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable, competitionsTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, sendStartMessage, answerCallbackQuery, sendCallbackReply, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 import { getSettingsMap, asString } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
 
 const router: IRouter = Router();
+
+// Insert a competition entry, re-checking status + maxEntries at PAYMENT time —
+// the invoice-time check alone races: the competition can fill up (or be closed)
+// between invoice creation and the successful_payment webhook. If entry is not
+// possible the paid Stars still land in starsBalance (compensation), we just skip
+// the entry. The (competitionId, telegramId) unique index makes the
+// onConflictDoNothing an actual dedupe against webhook retries/double-buys.
+async function tryEnterCompetition(telegramId: string, competitionId: number): Promise<boolean> {
+  const [comp] = await db.select().from(competitionsTable).where(eq(competitionsTable.id, competitionId)).limit(1);
+  if (!comp || comp.status !== "active" || comp.endAt.getTime() < Date.now()) {
+    return false;
+  }
+  if (typeof comp.maxEntries === "number" && comp.maxEntries > 0) {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(competitionEntriesTable)
+      .where(eq(competitionEntriesTable.competitionId, competitionId));
+    if ((row?.n ?? 0) >= comp.maxEntries) {
+      return false;
+    }
+  }
+  const [userRow] = await db
+    .select({ lifetimePoints: vaultUsersTable.lifetimePoints })
+    .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .limit(1);
+  const inserted = await db
+    .insert(competitionEntriesTable)
+    .values({
+      competitionId,
+      telegramId,
+      pointsAtEntry: userRow?.lifetimePoints ?? 0,
+    })
+    .onConflictDoNothing()
+    .returning({ id: competitionEntriesTable.id });
+  return inserted.length > 0;
+}
 
 // All effect writes below are ATOMIC single-statement SQL (jsonb_set / column
 // expressions). The previous read-modify-write pattern raced with the frequent
@@ -154,17 +191,7 @@ async function applyStarProductEffect(
     }
     case "competition_entry": {
       const compId = product.effectValue ?? 0;
-      const userRow = await db
-        .select({ lifetimePoints: vaultUsersTable.lifetimePoints })
-        .from(vaultUsersTable)
-        .where(eq(vaultUsersTable.telegramId, telegramId))
-        .limit(1);
-      const pts = userRow[0]?.lifetimePoints ?? 0;
-      await db.insert(competitionEntriesTable).values({
-        competitionId: compId,
-        telegramId,
-        pointsAtEntry: pts,
-      }).onConflictDoNothing();
+      await tryEnterCompetition(telegramId, compId);
       await db
         .update(vaultUsersTable)
         .set({ starsBalance: creditStars })
@@ -255,18 +282,7 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
         if (product) {
           await applyStarProductEffect(telegramId, product, payment.total_amount);
         } else if (payload.effect === "competition_entry" && typeof payload.competitionId === "number") {
-          const { competitionEntriesTable: cet } = await import("@workspace/db");
-          const userRow = await db
-            .select({ lifetimePoints: vaultUsersTable.lifetimePoints })
-            .from(vaultUsersTable)
-            .where(eq(vaultUsersTable.telegramId, telegramId))
-            .limit(1);
-          const pts = userRow[0]?.lifetimePoints ?? 0;
-          await db.insert(cet).values({
-            competitionId: payload.competitionId,
-            telegramId,
-            pointsAtEntry: pts,
-          }).onConflictDoNothing();
+          await tryEnterCompetition(telegramId, payload.competitionId);
           await db
             .update(vaultUsersTable)
             .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })

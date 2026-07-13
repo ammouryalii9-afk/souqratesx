@@ -3,8 +3,21 @@ import { db, vaultUsersTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
+import { creditedStateSql } from "./weeklyCredit";
 
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
+
+// One-time bonuses when a referrer's TOTAL invite count crosses a milestone.
+// Fired exactly once per milestone: referralCount increments atomically by 1,
+// so exactly one concurrent linkReferrer call sees the returned count equal
+// to a milestone value.
+const REFERRAL_MILESTONES: Record<number, number> = {
+  5: 25_000,
+  10: 75_000,
+  25: 250_000,
+  50: 750_000,
+  100: 2_000_000,
+};
 
 /**
  * Links a user to their referrer, parsed from the Telegram `start_param`
@@ -32,12 +45,56 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
 
   if (linked.length === 0) return;
 
-  await db
+  const [bumped] = await db
     .update(vaultUsersTable)
     .set({ referralCount: sql`${vaultUsersTable.referralCount} + 1` })
-    .where(eq(vaultUsersTable.telegramId, referrerTelegramId));
+    .where(eq(vaultUsersTable.telegramId, referrerTelegramId))
+    .returning({ referralCount: vaultUsersTable.referralCount });
 
   await logUserActivity(referrerTelegramId, "referral_joined", { referredTelegramId: newTelegramId });
+
+  const newCount = bumped?.referralCount ?? 0;
+  const milestoneBonus = REFERRAL_MILESTONES[newCount];
+  if (milestoneBonus) {
+    await awardReferralMilestone(referrerTelegramId, newCount, milestoneBonus);
+  }
+}
+
+/**
+ * Credits a one-time referral milestone bonus (lifetime + weekly + pending
+ * spendable). The spendable share goes through pendingBonusPoints (redeemed at
+ * the referrer's next hydration) instead of state.tempMiningPoints directly —
+ * if the referrer is online right now, their debounced PUT /vault/me would
+ * silently erase a direct tempMiningPoints write.
+ */
+async function awardReferralMilestone(referrerTelegramId: string, milestone: number, bonus: number): Promise<void> {
+  const [credited] = await db
+    .update(vaultUsersTable)
+    .set({
+      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonus}`,
+      referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
+      pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonus}`,
+      state: creditedStateSql(bonus, {}, { toSpendable: false }),
+    })
+    .where(and(eq(vaultUsersTable.telegramId, referrerTelegramId), eq(vaultUsersTable.isBanned, false)))
+    .returning({ telegramId: vaultUsersTable.telegramId });
+
+  if (!credited) return;
+
+  await logUserActivity(referrerTelegramId, "referral_milestone", { milestone, bonus });
+  logger.info({ referrerTelegramId, milestone, bonus }, "Awarded referral milestone bonus");
+
+  try {
+    const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("./telegramBot");
+    if (isTelegramBotConfigured()) {
+      await sendPlainTelegramMessage(
+        referrerTelegramId,
+        `🎉 مبروك! وصلت إلى ${milestone} إحالة وحصلت على مكافأة ${bonus.toLocaleString("en-US")} نقطة!`,
+      );
+    }
+  } catch {
+    // DM failure must never block the credit itself.
+  }
 }
 
 /**

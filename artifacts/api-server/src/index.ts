@@ -26,6 +26,13 @@ if (cluster.isPrimary) {
     setInterval(() => { void runDailyReminders(); }, 24 * 60 * 60 * 1000);
   }, 5 * 60 * 1000);
 
+  // Weekly leaderboard prizes — checked hourly in the primary only; the
+  // admin_settings claim-in-WHERE makes it idempotent across restarts.
+  setTimeout(() => {
+    void runWeeklyPrizes();
+    setInterval(() => { void runWeeklyPrizes(); }, 60 * 60 * 1000);
+  }, 2 * 60 * 1000);
+
 } else {
 
   // ─── Worker: serve HTTP ──────────────────────────────────────────────────────
@@ -101,4 +108,105 @@ async function runDailyReminders(): Promise<void> {
   }
 
   logger.info({ total: users.length, sent, failed, inactiveDays: INACTIVE_DAYS }, "Daily reminders sent");
+}
+
+// ─── Weekly leaderboard prizes (called from primary only) ─────────────────────
+//
+// Once the week rolls over (Monday UTC), the top-10 of the PREVIOUS week get
+// automatic point prizes. Idempotent: an admin_settings row records the last
+// awarded week and is claimed atomically (INSERT ... ON CONFLICT ... WHERE the
+// stored value differs, RETURNING) — a restart or a second timer tick can never
+// double-award the same week. (Accepted tradeoff: a crash AFTER the claim but
+// BEFORE the award loop finishes skips that week rather than risking a double
+// payout on retry.)
+//
+// weeklyPoints reset LAZILY on a user's first credit of the new week, which
+// would destroy prev-week scores before this hourly job reads them — so every
+// rollover path (PUT /vault/me merge + creditedStateSql) first ARCHIVES the old
+// score into state.prevWeekKey/prevWeekPoints, and the winners query below reads
+// whichever of the two holds prevWeek's score.
+
+async function runWeeklyPrizes(): Promise<void> {
+  const { logger } = await import("./lib/logger");
+  try {
+    const { db, vaultUsersTable } = await import("@workspace/db");
+    const { and, eq, sql } = await import("drizzle-orm");
+    const { weekKey } = await import("./lib/weeklyCredit");
+
+    // Monday-of-(now - 7d) is always the PREVIOUS, fully-completed week.
+    const prevWeek = weekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+    const claimed = await db.execute(sql`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('lastWeeklyPrizeWeekKey', to_jsonb(${prevWeek}::text))
+      ON CONFLICT (key) DO UPDATE SET value = to_jsonb(${prevWeek}::text), updated_at = now()
+      WHERE admin_settings.value != to_jsonb(${prevWeek}::text)
+      RETURNING key
+    `);
+    if (claimed.rows.length === 0) return; // this week already awarded
+
+    // A user's prevWeek score lives in weeklyPoints if they haven't earned yet
+    // this week (no rollover happened), or in the prevWeekPoints archive if a
+    // new-week credit already rolled them over.
+    const S = vaultUsersTable.state;
+    const scoreSql = sql<string>`CASE
+      WHEN ${S}->>'weekKey' = ${prevWeek}::text THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0)
+      WHEN ${S}->>'prevWeekKey' = ${prevWeek}::text THEN COALESCE((${S}->>'prevWeekPoints')::numeric, 0)
+      ELSE 0 END`;
+    const winners = await db
+      .select({ telegramId: vaultUsersTable.telegramId, points: scoreSql })
+      .from(vaultUsersTable)
+      .where(and(eq(vaultUsersTable.isBanned, false), sql`${scoreSql} > 0`))
+      .orderBy(sql`${scoreSql} DESC`)
+      .limit(10);
+
+    if (winners.length === 0) {
+      logger.info({ prevWeek }, "Weekly prizes: no eligible players");
+      return;
+    }
+
+    const PRIZES = [1_000_000, 600_000, 400_000, 250_000, 150_000, 100_000, 100_000, 100_000, 100_000, 100_000];
+
+    const { logUserActivity } = await import("./lib/activityLog");
+    const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("./lib/telegramBot");
+
+    let awarded = 0;
+    for (let i = 0; i < winners.length; i++) {
+      const winner = winners[i];
+      const prize = PRIZES[i] ?? 0;
+      if (!winner?.telegramId || prize <= 0) continue;
+
+      // Credit lifetime + pending spendable. Deliberately NOT weeklyPoints (the
+      // prize must not seed the winner's NEXT week score), and deliberately NOT
+      // state.tempMiningPoints directly — an online winner's debounced client
+      // sync would erase it; pendingBonusPoints is folded in at next hydration.
+      const res = await db
+        .update(vaultUsersTable)
+        .set({
+          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${prize}`,
+          pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${prize}`,
+        })
+        .where(and(eq(vaultUsersTable.telegramId, winner.telegramId), eq(vaultUsersTable.isBanned, false)))
+        .returning({ telegramId: vaultUsersTable.telegramId });
+      if (res.length === 0) continue;
+      awarded++;
+
+      await logUserActivity(winner.telegramId, "weekly_prize", { week: prevWeek, rank: i + 1, prize });
+
+      if (isTelegramBotConfigured()) {
+        try {
+          await sendPlainTelegramMessage(
+            winner.telegramId,
+            `🏆 مبروك! حصلت على المركز #${i + 1} في سباق الأسبوع الماضي وفزت بجائزة ${prize.toLocaleString("en-US")} نقطة! افتح التطبيق لاستلامها 🎉`,
+          );
+        } catch {
+          // DM failure must never block the remaining prizes.
+        }
+      }
+    }
+
+    logger.info({ prevWeek, awarded }, "Weekly prizes awarded");
+  } catch (err) {
+    logger.error({ err }, "Weekly prizes run failed");
+  }
 }

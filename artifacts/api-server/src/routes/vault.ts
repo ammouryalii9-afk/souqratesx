@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { rateLimit } from "../lib/rateLimit";
 import { db, vaultUsersTable } from "@workspace/db";
 import {
@@ -11,6 +11,7 @@ import {
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
 import { weekKey } from "../lib/weeklyCredit";
+import { redeemPendingBonus } from "../lib/pendingBonus";
 
 const router: IRouter = Router();
 
@@ -19,7 +20,6 @@ const router: IRouter = Router();
 // closing the "client just sends a huge lifetimePoints number" exploit while still letting
 // legitimate fast progression through (admin-tunable via admin_settings.maxPointsPerHourCap).
 const DEFAULT_MAX_POINTS_PER_HOUR = 3_000_000;
-const MIN_SYNC_WINDOW_SECONDS = 5; // first-ever sync / very fast repeats still get a small grace window
 
 // State keys that are credited/tracked server-side only (streak, mystery boxes, daily
 // missions, achievements, weekly ranking). The client must NEVER be trusted for these:
@@ -36,6 +36,8 @@ const PROTECTED_STATE_KEYS = [
   "claimedAchievements",
   "weeklyPoints",
   "weekKey",
+  "prevWeekKey",
+  "prevWeekPoints",
 ];
 
 function num(v: unknown): number {
@@ -46,10 +48,15 @@ async function computeMaxAllowedDelta(lastSyncAt: Date | null): Promise<number> 
   const settings = await getSettingsMap();
   const capPerHour = asNumber(settings.maxPointsPerHourCap, DEFAULT_MAX_POINTS_PER_HOUR);
   const capPerSecond = capPerHour / 3600;
+  // Real elapsed time only — no per-sync minimum grace. A minimum floor here is
+  // exploitable: 60 syncs/min × a 5s floor would grant 5× the hourly cap. With
+  // real elapsed time, rapid syncs get tiny budgets that sum to exactly the cap,
+  // and any legitimately clamped points are recovered on later syncs (the client
+  // always sends its running total, so the delta re-includes them).
   const elapsedSeconds = lastSyncAt
-    ? Math.max(MIN_SYNC_WINDOW_SECONDS, (Date.now() - lastSyncAt.getTime()) / 1000)
+    ? Math.max(0, (Date.now() - lastSyncAt.getTime()) / 1000)
     : 60 * 60; // no prior sync on record: allow up to one hour worth as a one-time grace amount
-  return Math.ceil(capPerSecond * elapsedSeconds);
+  return Math.floor(capPerSecond * elapsedSeconds);
 }
 
 router.get("/vault/me", async (req, res): Promise<void> => {
@@ -59,7 +66,12 @@ router.get("/vault/me", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+  // Hydration moment: fold any server-granted bonus (weekly prize, referral
+  // milestone) into the spendable balance NOW — the client is about to replace
+  // its local state with this response, so the credit can't be clobbered.
+  const user =
+    (await redeemPendingBonus(telegramId)) ??
+    (await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId)))[0];
   if (!user) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -74,6 +86,7 @@ router.get("/vault/me", async (req, res): Promise<void> => {
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
       },
@@ -177,7 +190,14 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
   }
 
   // Weekly leaderboard accumulator (server-authoritative, resets each ISO week).
+  // On rollover, ARCHIVE last week's score first — the weekly-prize job pays
+  // winners from prevWeekKey/prevWeekPoints, so a score lazily reset by an
+  // early-Monday sync is never lost before prizes go out.
   const wk = weekKey();
+  if (typeof existingState["weekKey"] === "string" && existingState["weekKey"] !== wk) {
+    mergedState["prevWeekKey"] = existingState["weekKey"];
+    mergedState["prevWeekPoints"] = num(existingState["weeklyPoints"]);
+  }
   const prevWeekly = existingState["weekKey"] === wk ? num(existingState["weeklyPoints"]) : 0;
   const creditedDelta = Math.max(0, finalLifetimePoints - existing.lifetimePoints);
   mergedState["weeklyPoints"] = prevWeekly + creditedDelta;
@@ -208,6 +228,7 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
       },
@@ -216,7 +237,18 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
   );
 });
 
+// 30s leaderboard caches — these endpoints are hit by every user opening the
+// Friends/leaderboard tabs; the underlying data doesn't need per-request freshness.
+// Per-cluster-worker caches (same tradeoff as the settings cache).
+const LEADERBOARD_CACHE_TTL_MS = 30_000;
+let leaderboardCache: { data: unknown; expiresAt: number } | null = null;
+let weeklyLeaderboardCache: { data: unknown; expiresAt: number; weekKey: string } | null = null;
+
 router.get("/vault/leaderboard", async (_req, res): Promise<void> => {
+  if (leaderboardCache && leaderboardCache.expiresAt > Date.now()) {
+    res.json(leaderboardCache.data);
+    return;
+  }
   const users = await db
     .select()
     .from(vaultUsersTable)
@@ -224,43 +256,62 @@ router.get("/vault/leaderboard", async (_req, res): Promise<void> => {
     .orderBy(desc(vaultUsersTable.lifetimePoints))
     .limit(50);
 
-  res.json(
-    GetVaultLeaderboardResponse.parse(
-      users.map((user) => ({
-        telegramId: user.telegramId,
-        username: user.username,
-        firstName: user.firstName,
-        photoUrl: user.photoUrl,
-        lifetimePoints: user.lifetimePoints,
-      })),
-    ),
+  const payload = GetVaultLeaderboardResponse.parse(
+    users.map((user) => ({
+      telegramId: user.telegramId,
+      username: user.username,
+      firstName: user.firstName,
+      photoUrl: user.photoUrl,
+      lifetimePoints: user.lifetimePoints,
+    })),
   );
+  leaderboardCache = { data: payload, expiresAt: Date.now() + LEADERBOARD_CACHE_TTL_MS };
+  res.json(payload);
 });
 
 router.get("/vault/leaderboard/weekly", async (_req, res): Promise<void> => {
   const wk = weekKey();
+  if (weeklyLeaderboardCache && weeklyLeaderboardCache.expiresAt > Date.now() && weeklyLeaderboardCache.weekKey === wk) {
+    res.json(weeklyLeaderboardCache.data);
+    return;
+  }
+
+  // Filter + sort + limit in SQL — the old implementation loaded EVERY user row
+  // (full JSONB blobs) into JS on each request, which does not scale past a few
+  // thousand users. weeklyPoints lives inside the state JSONB, so we extract it
+  // with ->> and cast (::numeric handles both int and float values safely).
+  const weeklyPointsSql = sql<number>`COALESCE((${vaultUsersTable.state}->>'weeklyPoints')::numeric, 0)`;
   const users = await db
-    .select()
-    .from(vaultUsersTable)
-    .where(eq(vaultUsersTable.isBanned, false));
-
-  const entries = users
-    .map((user) => {
-      const s = (user.state ?? {}) as Record<string, unknown>;
-      const points = s["weekKey"] === wk ? num(s["weeklyPoints"]) : 0;
-      return {
-        telegramId: user.telegramId,
-        username: user.username,
-        firstName: user.firstName,
-        photoUrl: user.photoUrl,
-        points,
-      };
+    .select({
+      telegramId: vaultUsersTable.telegramId,
+      username: vaultUsersTable.username,
+      firstName: vaultUsersTable.firstName,
+      photoUrl: vaultUsersTable.photoUrl,
+      points: weeklyPointsSql,
     })
-    .filter((e) => e.points > 0)
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 50);
+    .from(vaultUsersTable)
+    .where(
+      and(
+        eq(vaultUsersTable.isBanned, false),
+        sql`${vaultUsersTable.state}->>'weekKey' = ${wk}`,
+        sql`COALESCE((${vaultUsersTable.state}->>'weeklyPoints')::numeric, 0) > 0`,
+      ),
+    )
+    .orderBy(sql`COALESCE((${vaultUsersTable.state}->>'weeklyPoints')::numeric, 0) DESC`)
+    .limit(50);
 
-  res.json({ weekKey: wk, entries });
+  const payload = {
+    weekKey: wk,
+    entries: users.map((u) => ({
+      telegramId: u.telegramId,
+      username: u.username,
+      firstName: u.firstName,
+      photoUrl: u.photoUrl,
+      points: num(u.points),
+    })),
+  };
+  weeklyLeaderboardCache = { data: payload, expiresAt: Date.now() + LEADERBOARD_CACHE_TTL_MS, weekKey: wk };
+  res.json(payload);
 });
 
 export default router;

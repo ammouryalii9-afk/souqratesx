@@ -4,3 +4,4 @@
 - [Vault state-sync authority](vault-state-sync-authority.md) — one-time-reward flags in the state JSONB (e.g. hasClaimedWelcome) must be MONOTONIC (sticky-true) in PUT /vault/me merge, not in PROTECTED_STATE_KEYS, or clients re-claim.
 - [OpenAPI/Zod response stripping](openapi-zod-response-stripping.md) — generated Zod .parse() silently drops response fields missing from openapi.yaml; blank frontend detail views with 200 responses = stripped keys.
 - [Onclicka TMA SDK split](onclicka-sdk-split.md) — rewarded video uses js.onclckvd.com tma.js (initCdTma); inpage/interstitial uses onclicka.js + data-admpid. Wrong script = eternal "SDK unavailable".
+- [Background bonus credits](pending-bonus-credits.md) — background jobs credit a pending column redeemed at hydration, never state.tempMiningPoints; lazy weekly resets must archive prev-week scores before overwriting.

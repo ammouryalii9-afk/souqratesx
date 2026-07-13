@@ -10,6 +10,16 @@ export const vaultUsersTable = pgTable("vault_users", {
   lastName: text("last_name"),
   photoUrl: text("photo_url"),
   lifetimePoints: integer("lifetime_points").notNull().default(0),
+  // Sum of all points locked in pending/approved withdrawals. lifetimePoints is
+  // NEVER decremented by withdrawals (the client-authoritative sync would just
+  // re-mint the difference) — available balance = lifetimePoints - withdrawnPoints.
+  withdrawnPoints: integer("withdrawn_points").notNull().default(0),
+  // Server-granted spendable points (weekly prizes, referral milestones) waiting
+  // to be folded into state.tempMiningPoints at the next hydration (auth or
+  // GET /vault/me). Writing tempMiningPoints directly from background jobs is
+  // unsafe: an online client's debounced PUT /vault/me sends its own stale
+  // tempMiningPoints verbatim and would silently erase the credit.
+  pendingBonusPoints: integer("pending_bonus_points").notNull().default(0),
   state: jsonb("state").notNull().default({}),
   isBanned: boolean("is_banned").notNull().default(false),
   isPremium: boolean("is_premium").notNull().default(false),

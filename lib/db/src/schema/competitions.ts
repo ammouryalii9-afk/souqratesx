@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, bigint, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -15,14 +15,22 @@ export const competitionsTable = pgTable("competitions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const competitionEntriesTable = pgTable("competition_entries", {
-  id: serial("id").primaryKey(),
-  competitionId: integer("competition_id").notNull(),
-  telegramId: text("telegram_id").notNull(),
-  pointsAtEntry: bigint("points_at_entry", { mode: "number" }).notNull().default(0),
-  pointsAtEnd: bigint("points_at_end", { mode: "number" }),
-  enteredAt: timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const competitionEntriesTable = pgTable(
+  "competition_entries",
+  {
+    id: serial("id").primaryKey(),
+    competitionId: integer("competition_id").notNull(),
+    telegramId: text("telegram_id").notNull(),
+    pointsAtEntry: bigint("points_at_entry", { mode: "number" }).notNull().default(0),
+    pointsAtEnd: bigint("points_at_end", { mode: "number" }),
+    enteredAt: timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Without this unique index, the webhook's onConflictDoNothing() was a no-op —
+    // Telegram webhook retries could insert the same user into the same competition twice.
+    uniqueIndex("competition_entries_comp_user_unique").on(table.competitionId, table.telegramId),
+  ],
+);
 
 export const insertCompetitionSchema = createInsertSchema(competitionsTable).omit({ id: true, createdAt: true });
 export type InsertCompetition = z.infer<typeof insertCompetitionSchema>;

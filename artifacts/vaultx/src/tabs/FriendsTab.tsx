@@ -29,6 +29,15 @@ type Row = {
   isCurrentUser: boolean;
 };
 
+// Must match REFERRAL_MILESTONES on the server (referral.ts).
+const REFERRAL_MILESTONES = [
+  { count: 5, bonus: 25_000 },
+  { count: 10, bonus: 75_000 },
+  { count: 25, bonus: 250_000 },
+  { count: 50, bonus: 750_000 },
+  { count: 100, bonus: 2_000_000 },
+];
+
 export const FriendsTab = () => {
   const { userId, username, totalReferrals, referralEarnings, lifetimePoints, isTelegramUser } = useVault();
   const { toast } = useToast();
@@ -228,6 +237,40 @@ export const FriendsTab = () => {
             <span className="text-3xl font-black text-white tracking-tight tabular-nums">{Math.floor(referralEarnings).toLocaleString()}</span>
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">{tr.friends.referralEarnings}</span>
           </div>
+        </div>
+
+        {/* Referral milestones */}
+        <div className="mt-3 bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 relative overflow-hidden shadow-sm" data-testid="card-referral-milestones">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold text-white flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" /> {tr.friends.milestonesTitle}
+            </span>
+            {(() => {
+              const next = REFERRAL_MILESTONES.find((m) => totalReferrals < m.count);
+              return next ? (
+                <span className="text-xs text-muted-foreground font-medium tabular-nums">
+                  {tr.friends.milestoneProgress(totalReferrals, next.count)}
+                </span>
+              ) : null;
+            })()}
+          </div>
+          {(() => {
+            const next = REFERRAL_MILESTONES.find((m) => totalReferrals < m.count);
+            if (!next) {
+              return <span className="text-xs text-emerald-400 font-bold">{tr.friends.allMilestonesDone}</span>;
+            }
+            return (
+              <>
+                <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-primary transition-all"
+                    style={{ width: `${Math.min(100, (totalReferrals / next.count) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-amber-300 font-bold">{tr.friends.milestoneReward(next.bonus.toLocaleString())}</span>
+              </>
+            );
+          })()}
         </div>
       </section>
 

@@ -46,6 +46,9 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - `artifacts/api-server/src/routes/squads.ts` — squad CRUD + live leaderboard (GROUP BY sum(lifetimePoints), HAVING count>0)
 - `artifacts/api-server/src/lib/squadSignup.ts` — `joinSquadOnSignup` parses `startapp=squad_<id>` at signup, auto-joins + credits squad owner as referrer
 - `artifacts/vaultx/src/tabs/SquadTab.tsx` + `src/lib/squadsApi.ts` — player Squads tab; `artifacts/vaultx/src/admin/AdminSquads.tsx` — admin squad management
+- `artifacts/api-server/src/lib/weeklyCredit.ts` — `weekKey()` (Monday UTC) + `creditedStateSql()` — the single SQL builder every server-side point credit must use (bumps weeklyPoints, archives prevWeek on rollover; `{toSpendable:false}` skips the tempMiningPoints layer)
+- `artifacts/api-server/src/lib/pendingBonus.ts` — `redeemPendingBonus()` folds `vault_users.pending_bonus_points` into `state.tempMiningPoints` atomically at hydration moments (auth + GET /vault/me)
+- `artifacts/api-server/src/lib/settings.ts` — `getSettingsMap()` with 30s TTL cache; every admin settings write calls `bustSettingsCache()`
 
 ## Architecture decisions
 
@@ -58,6 +61,8 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Admin panel lives at the `/manager` client route inside the same `vaultx` artifact (root `main.tsx` checks `window.location.pathname` and renders `AdminApp` instead of the game `App`), rather than a separate artifact — avoids duplicating hosting/build setup.
 - Admin auth uses a separate signed httpOnly cookie (`souqratesx_admin_session`, distinct from the player session cookie) gated by the `ADMIN_PASSWORD` secret — not tied to any Telegram identity.
 - Platform-wide tunables (economy rates, and placeholder keys for Adsgram/CPA offerwalls/Monlix/Bitlabs/Telegram Stars/Premium) are stored in the freeform `admin_settings` key-value table so new integrations can add settings without schema migrations.
+- Background server-side credits to the SPENDABLE balance (weekly prizes, referral milestones — anything not triggered by the online client itself) must go to the `vault_users.pending_bonus_points` column, NEVER directly to `state.tempMiningPoints` — an online client's debounced `PUT /vault/me` sends stale tempMiningPoints verbatim and would erase the credit. Pending points are folded in exactly once (guard-in-WHERE) by `redeemPendingBonus()` at hydration (auth / GET /vault/me), when the client is about to replace its local state anyway.
+- Weekly leaderboard scores (`state.weeklyPoints` + `weekKey`) reset LAZILY on the first credit of a new week. Every rollover path (PUT /vault/me merge AND `creditedStateSql`) must first archive the old score into `state.prevWeekKey`/`prevWeekPoints` — the weekly prize job reads whichever of the two holds the previous week's score. All three fields are in `PROTECTED_STATE_KEYS`. Any NEW code path that resets weeklyPoints must archive the same way.
 
 ## Product
 
@@ -66,8 +71,9 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Games tab: 3 mini-games for extra points — Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins). (A 4th game, "Tappy Dodge", was removed — its physics/lifecycle bugs were too costly to keep debugging.)
 - Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel. The Tasks tab opens with a "Daily Rewards" progress summary card (X/3 of cipher/combo/spin done + progress bar + remaining points) for at-a-glance clarity, and is split into labeled sections (daily rewards → "Earn Points" → "Store & Partners") to reduce clutter.
 - Automatic daily reminder notifications: `runDailyReminders()` runs once/day in the api-server PRIMARY process only (not per worker — see `index.ts` cluster fork) and DMs (via `sendReminderToUser`) every non-banned user inactive >3 days a "your mining rewards are waiting" message with a web_app launch button. Requires `TELEGRAM_BOT_TOKEN` + `REPLIT_DOMAINS`. Separate from the admin manual "send reminders" tool.
-- Referral system with trickling referral earnings
-- Global leaderboard by lifetime points
+- Referral system with trickling referral earnings + referral milestones (1/5/10/25/50/100 invites → escalating bonuses, credited server-side via pending bonus, awarded once each via `claimedReferralMilestones` guard)
+- Global leaderboard by lifetime points + weekly leaderboard (Monday-UTC weeks, `state.weeklyPoints`, 60s server cache). Automatic weekly prizes: hourly job in the PRIMARY cluster process pays top-10 of the finished week (1M/600k/400k/250k/150k/100k×5) + DM, idempotent via atomically-claimed `admin_settings.lastWeeklyPrizeWeekKey` (first payout for week 2026-07-06 ran 2026-07-13; next runs each Monday)
+- Offline earnings: on reopening after ≥10 min away, a popup offers passive income earned while away (client-computed from `profitPerHour` after server hydration, capped at 3h; granted only on "collect" and flows through the normal sync, bounded server-side by `maxPointsPerHourCap`)
 - Real Telegram user identity and permanent server-side progress persistence (works across devices)
 - Withdraw button is currently a placeholder — no real cash withdrawal flow yet
 - Admin control panel at `/manager` (password-protected via `ADMIN_PASSWORD` secret): overview stats, user search/edit/ban/premium/stars/delete, platform settings (economy + placeholders for Adsgram/CPA/Monlix/Bitlabs/Stars/Premium keys), audit log. Overview tab has a "send reminders to inactive users" tool (POST `/admin/reminders/send`). Anti-cheat tab has a bulk-ban action ("حظر الكل") that bans all flagged suspicious users at once via `POST /admin/users/bulk-ban` (auth-gated, capped at 500 ids/call, audit-logged as `bulk_ban`/`bulk_unban`, uses Drizzle `inArray`).
@@ -102,6 +108,7 @@ SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, up
 - Client hydration is server-authoritative: on successful Telegram auth, ALL game fields are set from server state (defaults when empty) — stale localStorage never survives a server-side reset. Progress-mutating actions are no-op'd while the auth request is in flight so pre-hydration taps can't be lost/overwritten. The localStorage-only fallback outside Telegram is preserved.
 - DB pool uses keepAlive + warm-up query at boot — remote Supabase pooler TLS handshake cost ~1s/query before this; don't remove it or every request slows down.
 - DB is Supabase Postgres via `SUPABASE_DATABASE_URL` (pooler URL — the direct `db.*.supabase.co` host is IPv6-only and unreachable); falls back to `DATABASE_URL` if unset. All user balances were zeroed on 2026-07-09 to prepare for launch.
+- 2026-07-13 pre-launch audit: anti-cheat rate window has a 5s floor (sub-second syncs can't inflate the hourly cap); withdrawals deduct into a `withdrawnPoints` column so lifetime totals stay honest; minimum withdrawal is dynamic ($0.50 worth at the admin-set rate); `competition_entries` has a unique (user, competition) index + Stars webhook re-checks entry before crediting; offerwall per-postback cap raised to 2M.
 
 ## User preferences
 

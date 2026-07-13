@@ -33,6 +33,7 @@ export const AuthTelegramResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
@@ -51,6 +52,7 @@ export const GetVaultMeResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
@@ -74,6 +76,7 @@ export const UpdateVaultMeResponse = zod.object({
   "lastName": zod.string().nullable(),
   "photoUrl": zod.string().nullable(),
   "lifetimePoints": zod.number(),
+  "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),

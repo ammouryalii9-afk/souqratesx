@@ -68,6 +68,8 @@ type VaultContextType = {
   referralEarnings: number;
 
   lifetimePoints: number;
+  withdrawnPoints: number;
+  availablePoints: number;
   profitPerHour: number;
   activeTurbo: boolean;
   turboExpiresAt: number;
@@ -86,6 +88,8 @@ type VaultContextType = {
   claimedAchievements: string[];
   hasClaimedWelcome: boolean;
   claimWelcomeReward: () => void;
+  offlineEarnings: { amount: number; awayMs: number } | null;
+  claimOfflineEarnings: () => void;
   isPremium: boolean;
   equipBadge: (badgeId: number | null) => void;
   equipSkin: (skinId: number | null) => void;
@@ -148,6 +152,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 0);
 
   const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
+  // Points locked in pending/approved withdrawals (server-authoritative).
+  // Available (withdrawable/dollar) balance = lifetimePoints - withdrawnPoints.
+  const [withdrawnPoints, setWithdrawnPoints] = useState(0);
   const [turboUsesToday, setTurboUsesToday] = useState(() => Number(localStorage.getItem('turboUsesToday')) || 0);
   const [rechargeUsesToday, setRechargeUsesToday] = useState(() => Number(localStorage.getItem('rechargeUsesToday')) || 0);
   const [farmState, setFarmState] = useState<'idle' | 'farming' | 'ready'>(() => (localStorage.getItem('farmState') as any) || 'idle');
@@ -192,6 +199,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [hasClaimedWelcome, setHasClaimedWelcome] = useState<boolean>(() => localStorage.getItem('hasClaimedWelcome') === 'true');
   const [isPremium, setIsPremium] = useState(false);
+
+  // Offline passive earnings, computed once after hydration from the gap since
+  // the app was last open (capped). null = nothing to show.
+  const [offlineEarnings, setOfflineEarnings] = useState<{ amount: number; awayMs: number } | null>(null);
+  const offlineChecked = useRef(false);
 
   const hasHydratedFromServer = useRef(false);
   const isHydrating = useRef(false);
@@ -244,6 +256,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
         setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
         setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
+        setWithdrawnPoints(typeof data.user.withdrawnPoints === 'number' ? data.user.withdrawnPoints : 0);
         setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
         setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);
         setFarmState(state.farmState ?? 'idle');
@@ -413,6 +426,44 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, [profitPerHour]);
 
+  // Compute offline passive earnings ONCE, after hydration settles — for
+  // Telegram users the passive cards (and thus profitPerHour) arrive from the
+  // server, so this must not run before that. The amount is only granted when
+  // the player taps "collect" in the popup; it then flows through the normal
+  // debounced sync (bounded server-side by maxPointsPerHourCap).
+  useEffect(() => {
+    if (isSyncing || !hasHydratedFromServer.current || offlineChecked.current) return;
+    offlineChecked.current = true;
+
+    const last = Number(localStorage.getItem('lastOnlineAt')) || 0;
+    const now = Date.now();
+    if (last > 0 && now > last && profitPerHour > 0) {
+      const awayMs = now - last;
+      const MIN_AWAY_MS = 10 * 60 * 1000; // ignore short absences
+      const MAX_OFFLINE_HOURS = 3;        // classic idle-game cap
+      if (awayMs >= MIN_AWAY_MS) {
+        const cappedHours = Math.min(awayMs / 3_600_000, MAX_OFFLINE_HOURS);
+        const earned = Math.floor(profitPerHour * cappedHours);
+        if (earned >= 1) setOfflineEarnings({ amount: earned, awayMs });
+      }
+    }
+    localStorage.setItem('lastOnlineAt', now.toString());
+  }, [isSyncing, profitPerHour]);
+
+  // Heartbeat so the next session knows when this one ended. Declared AFTER the
+  // computation effect above so a mount-time run can't clobber lastOnlineAt first.
+  useEffect(() => {
+    const beat = () => localStorage.setItem('lastOnlineAt', Date.now().toString());
+    const interval = setInterval(beat, 30_000);
+    window.addEventListener('beforeunload', beat);
+    document.addEventListener('visibilitychange', beat);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', beat);
+      document.removeEventListener('visibilitychange', beat);
+    };
+  }, []);
+
   // While the server auth/hydration request is in flight inside Telegram,
   // block progress-mutating actions — otherwise taps made before hydration
   // completes would be overwritten (lost) when the server state arrives.
@@ -563,6 +614,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     haptic('success');
   };
 
+  const claimOfflineEarnings = () => {
+    if (isHydrationPending() || !offlineEarnings) return;
+    setTempMiningPoints(p => p + offlineEarnings.amount);
+    setLifetimePoints(p => p + offlineEarnings.amount);
+    setOfflineEarnings(null);
+    haptic('success');
+  };
+
   // Pulls the latest server state and overwrites local values. Used after a
   // Telegram Stars purchase (e.g. energy refill, boost) is applied server-side
   // by the webhook, so the effect shows up immediately instead of getting
@@ -585,6 +644,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
       setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
       setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
+      setWithdrawnPoints(typeof data.user.withdrawnPoints === 'number' ? data.user.withdrawnPoints : 0);
       setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
       setRechargeUsesToday(typeof state.rechargeUsesToday === 'number' ? state.rechargeUsesToday : 0);
       setFarmState(state.farmState ?? 'idle');
@@ -628,6 +688,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         totalReferrals,
         referralEarnings,
         lifetimePoints,
+        withdrawnPoints,
+        availablePoints: Math.max(0, lifetimePoints - withdrawnPoints),
         profitPerHour,
         activeTurbo,
         turboExpiresAt,
@@ -645,6 +707,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         claimedAchievements,
         hasClaimedWelcome,
         claimWelcomeReward,
+        offlineEarnings,
+        claimOfflineEarnings,
         isPremium,
         equipBadge,
         equipSkin,

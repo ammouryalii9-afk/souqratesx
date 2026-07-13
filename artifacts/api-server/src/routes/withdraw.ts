@@ -2,13 +2,20 @@ import { Router, type IRouter } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db, vaultUsersTable, withdrawalRequestsTable } from "@workspace/db";
 import { getSessionTelegramId, isAdminSession } from "../lib/session";
+import { getSettingsMap, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const POINTS_PER_USD = 1_000_000;    // 1M pts = $1
-const MIN_WITHDRAWAL_POINTS = 500_000; // 0.50 USD minimum
+const DEFAULT_POINTS_PER_USD = 2_000_000; // must match config/public default
+const MIN_WITHDRAWAL_USD = 0.5; // minimum withdrawal in dollars, points derived from the live rate
+
+async function getPointsPerUsd(): Promise<number> {
+  const settings = await getSettingsMap();
+  const v = asNumber(settings.pointsPerDollar, DEFAULT_POINTS_PER_USD);
+  return v > 0 ? v : DEFAULT_POINTS_PER_USD;
+}
 
 // ── TON price cache (5-minute TTL) ────────────────────────────────────────────
 
@@ -63,8 +70,11 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
 
   const { pointsAmount, walletAddress } = req.body as { pointsAmount?: unknown; walletAddress?: unknown };
 
-  if (typeof pointsAmount !== "number" || !Number.isInteger(pointsAmount) || pointsAmount < MIN_WITHDRAWAL_POINTS) {
-    res.status(400).json({ error: `Minimum withdrawal is ${MIN_WITHDRAWAL_POINTS.toLocaleString()} points` });
+  const pointsPerUsd = await getPointsPerUsd();
+  const minWithdrawalPoints = Math.round(MIN_WITHDRAWAL_USD * pointsPerUsd);
+
+  if (typeof pointsAmount !== "number" || !Number.isInteger(pointsAmount) || pointsAmount < minWithdrawalPoints) {
+    res.status(400).json({ error: `Minimum withdrawal is ${minWithdrawalPoints.toLocaleString()} points` });
     return;
   }
   if (typeof walletAddress !== "string" || !isValidTonWallet(walletAddress)) {
@@ -76,12 +86,17 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!user || user.isBanned) { res.status(403).json({ error: "User not found or banned" }); return; }
 
-  // Withdrawals are calculated from the player's Total (lifetimePoints), not the
-  // spendable "Mined" balance. Mined is left untouched by withdrawals.
+  // Withdrawals draw down the AVAILABLE balance = lifetimePoints - withdrawnPoints.
+  // lifetimePoints itself is never decremented: the client-authoritative PUT /vault/me
+  // sync treats any client value above the server's as new earnings, so decrementing
+  // here would let a stale/replayed sync re-mint the withdrawn points. The
+  // withdrawnPoints ledger makes withdrawals permanent regardless of client state.
   const lifetimePoints = typeof user.lifetimePoints === "number" ? user.lifetimePoints : 0;
+  const withdrawnPoints = typeof user.withdrawnPoints === "number" ? user.withdrawnPoints : 0;
+  const availablePoints = lifetimePoints - withdrawnPoints;
 
-  if (lifetimePoints < pointsAmount) {
-    res.status(400).json({ error: `Insufficient balance. You have ${Math.floor(lifetimePoints).toLocaleString()} pts.` });
+  if (availablePoints < pointsAmount) {
+    res.status(400).json({ error: `Insufficient balance. You have ${Math.max(0, Math.floor(availablePoints)).toLocaleString()} pts available.` });
     return;
   }
 
@@ -97,29 +112,29 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
 
   // Fetch live TON price
   const tonPriceUsd = await getTonPriceUsd();
-  const usdAmount = pointsAmount / POINTS_PER_USD;
+  const usdAmount = pointsAmount / pointsPerUsd;
   const tonAmount = usdAmount / tonPriceUsd;
 
-  // Deduct points + create the request in ONE transaction — either both happen
+  // Lock points + create the request in ONE transaction — either both happen
   // or neither does. The guard-in-WHERE prevents overdraw under concurrency, and
   // the partial unique index (one pending request per user) makes a concurrent
-  // duplicate request abort the whole transaction (deduction rolls back too —
+  // duplicate request abort the whole transaction (the lock rolls back too —
   // no manual refund needed, so a transient DB error can never mint points).
-  let result: { request: typeof withdrawalRequestsTable.$inferSelect; lifetimePoints: number };
+  let result: { request: typeof withdrawalRequestsTable.$inferSelect; lifetimePoints: number; withdrawnPoints: number };
   try {
     result = await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(vaultUsersTable)
         .set({
-          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} - ${pointsAmount}`,
+          withdrawnPoints: sql`${vaultUsersTable.withdrawnPoints} + ${pointsAmount}`,
         })
         .where(
           and(
             eq(vaultUsersTable.telegramId, telegramId),
-            sql`${vaultUsersTable.lifetimePoints} >= ${pointsAmount}`,
+            sql`${vaultUsersTable.lifetimePoints} - ${vaultUsersTable.withdrawnPoints} >= ${pointsAmount}`,
           ),
         )
-        .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
+        .returning({ lifetimePoints: vaultUsersTable.lifetimePoints, withdrawnPoints: vaultUsersTable.withdrawnPoints });
 
       if (!updated) {
         throw Object.assign(new Error("insufficient_points"), { appCode: "insufficient_points" });
@@ -137,7 +152,7 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
         })
         .returning();
 
-      return { request, lifetimePoints: updated.lifetimePoints };
+      return { request, lifetimePoints: updated.lifetimePoints, withdrawnPoints: updated.withdrawnPoints };
     });
   } catch (err) {
     const e = err as { appCode?: string; code?: string; cause?: { code?: string } };
@@ -157,7 +172,7 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({ ok: true, request: result.request, lifetimePoints: result.lifetimePoints });
+  res.json({ ok: true, request: result.request, lifetimePoints: result.lifetimePoints, withdrawnPoints: result.withdrawnPoints });
 });
 
 /** GET /api/withdraw/my-requests — user's withdrawal history */
@@ -255,12 +270,12 @@ router.post("/admin/withdrawals/:id/reject", async (req, res): Promise<void> => 
     return;
   }
 
-  // Restore deducted points to the Total (lifetimePoints) — withdrawals only draw down
-  // Total, so refunds only restore Total (Mined was never touched).
+  // Unlock the points by reducing the withdrawnPoints ledger (never below 0) —
+  // available balance = lifetimePoints - withdrawnPoints goes back up automatically.
   await db
     .update(vaultUsersTable)
     .set({
-      lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${updated.pointsAmount}`,
+      withdrawnPoints: sql`GREATEST(${vaultUsersTable.withdrawnPoints} - ${updated.pointsAmount}, 0)`,
     })
     .where(eq(vaultUsersTable.telegramId, updated.telegramId));
 

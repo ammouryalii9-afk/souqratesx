@@ -1028,6 +1028,8 @@ components:
           type: ["string", "null"]
         lifetimePoints:
           type: integer
+        withdrawnPoints:
+          type: integer
         referralCount:
           type: integer
         referralEarnings:
@@ -1039,6 +1041,7 @@ components:
         - lastName
         - photoUrl
         - lifetimePoints
+        - withdrawnPoints
         - referralCount
         - referralEarnings
     VaultStateData:

@@ -20,7 +20,7 @@ type WithdrawalRequest = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MIN_POINTS = 500_000;
+const MIN_WITHDRAWAL_USD = 0.5; // must match the server's minimum (withdraw.ts)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ function StatusBadge({ status }: { status: WithdrawalRequest['status'] }) {
 type Props = { onClose: () => void };
 
 export function WithdrawModal({ onClose }: Props) {
-  const { tempMiningPoints, lifetimePoints, isTelegramUser, refreshFromServer } = useVault();
+  const { tempMiningPoints, availablePoints, isTelegramUser, refreshFromServer } = useVault();
 
   const [pointsPerDollar, setPointsPerDollar] = useState(2_000_000);
   useEffect(() => {
@@ -120,10 +120,11 @@ export function WithdrawModal({ onClose }: Props) {
   // Derived values
   const points = parseInt(pointsInput.replace(/,/g, ''), 10) || 0;
   const usdValue = points / pointsPerDollar;
+  const minPoints = Math.round(MIN_WITHDRAWAL_USD * pointsPerDollar);
   const tonValue = tonPrice ? usdValue / tonPrice : null;
   const walletValid = isValidTonWallet(wallet);
-  const hasEnough = points <= lifetimePoints;
-  const meetsMinimum = points >= MIN_POINTS;
+  const hasEnough = points <= availablePoints;
+  const meetsMinimum = points >= minPoints;
   const canSubmit = points > 0 && meetsMinimum && hasEnough && walletValid && !submitting && isTelegramUser && tonPrice !== null;
 
   async function handleSubmit() {
@@ -192,7 +193,7 @@ export function WithdrawModal({ onClose }: Props) {
             style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.15)' }}
           >
             <span className="text-xs text-muted-foreground">Available Balance (Total)</span>
-            <span className="text-sm font-bold text-primary">{Math.floor(lifetimePoints).toLocaleString()} pts</span>
+            <span className="text-sm font-bold text-primary">{Math.floor(availablePoints).toLocaleString()} pts</span>
           </div>
 
           {submitted ? (
@@ -224,13 +225,13 @@ export function WithdrawModal({ onClose }: Props) {
                   <input
                     type="number"
                     inputMode="numeric"
-                    placeholder={`Min ${(MIN_POINTS).toLocaleString()}`}
+                    placeholder={`Min ${minPoints.toLocaleString()}`}
                     value={pointsInput}
                     onChange={(e) => setPointsInput(e.target.value)}
                     className="w-full h-12 rounded-xl px-4 pr-20 text-white font-semibold bg-white/5 border border-white/10 focus:border-primary/50 focus:outline-none transition-colors"
                   />
                   <button
-                    onClick={() => setPointsInput(String(Math.floor(lifetimePoints)))}
+                    onClick={() => setPointsInput(String(Math.floor(availablePoints)))}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-primary hover:text-primary/80 transition-colors"
                   >
                     MAX
@@ -252,7 +253,7 @@ export function WithdrawModal({ onClose }: Props) {
                 {points > 0 && !meetsMinimum && (
                   <p className="text-xs text-amber-400 mt-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    Minimum is {MIN_POINTS.toLocaleString()} points ($0.50)
+                    Minimum is {minPoints.toLocaleString()} points (${MIN_WITHDRAWAL_USD.toFixed(2)})
                   </p>
                 )}
                 {points > 0 && !hasEnough && (

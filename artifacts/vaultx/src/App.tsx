@@ -8,6 +8,7 @@ import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import { EventBanner } from "./components/EventBanner";
 import { CelebrationOverlay } from "./components/CelebrationOverlay";
 import { WelcomeReward } from "./components/WelcomeReward";
+import { OfflineEarningsModal } from "./components/OfflineEarningsModal";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -19,7 +20,7 @@ import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 
 function Header() {
-  const { tempMiningPoints, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
+  const { tempMiningPoints, lifetimePoints, availablePoints, profitPerHour, equippedBadgeId } = useVault();
   const { lang, toggleLang, tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
@@ -78,7 +79,7 @@ function Header() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{tr.header.balance}</span>
-            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(lifetimePoints / pointsPerDollar).toFixed(2)}</span>
+            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(availablePoints / pointsPerDollar).toFixed(2)}</span>
             {dollarBonus > 0 && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
                 style={{ background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
@@ -123,6 +124,7 @@ function MainLayout() {
       <EventBanner />
       <CelebrationOverlay />
       <WelcomeReward />
+      <OfflineEarningsModal />
 
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0 transition-opacity duration-300">

@@ -3,7 +3,10 @@ import { db, vaultUsersTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
-const MAX_OFFERWALL_CREDIT = 1_000_000;
+// Upper bound per single postback — a sanity cap against buggy/malicious postbacks,
+// not a business limit. 2M pts = $1.00 at the default rate; high-payout CPA offers
+// (surveys, deposits) legitimately exceed the old 1M cap.
+const MAX_OFFERWALL_CREDIT = 2_000_000;
 
 interface OfferwallConfig {
   apiKey: string;

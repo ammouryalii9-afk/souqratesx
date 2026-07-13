@@ -36,7 +36,7 @@ export const VaultTab = () => {
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
     rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
-    lifetimePoints, profitPerHour, equippedSkinId, addBonusPoints
+    lifetimePoints, availablePoints, profitPerHour, equippedSkinId, addBonusPoints
   } = useVault();
 
   const { tr } = useLanguage();
@@ -283,7 +283,7 @@ export const VaultTab = () => {
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
         <div className="flex items-end gap-3 mb-5 relative z-10">
           <div className="text-[40px] font-black text-white tracking-tighter drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
-            ${(lifetimePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
+            ${(availablePoints / (config?.pointsPerDollar ?? 2_000_000)).toFixed(2)}
           </div>
           {(config?.dollarBonus ?? 0) > 0 && (
             <div className="mb-2 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"

@@ -23,19 +23,41 @@ export function weekKey(d = new Date()): string {
  * already-claimed / capped requests update 0 rows (Postgres re-evaluates the WHERE
  * against the committed row for the second concurrent writer, preventing double-credit).
  */
-export function creditedStateSql(reward: number, patches: Record<string, string | number | SQL>): SQL {
+export function creditedStateSql(
+  reward: number,
+  patches: Record<string, string | number | SQL>,
+  opts: { toSpendable?: boolean } = {},
+): SQL {
+  const { toSpendable = true } = opts;
   const S = vaultUsersTable.state;
   const wk = weekKey();
   let expr: SQL = sql`${S}`;
   // NOTE: node-postgres sends bound params as untyped, so a bare `to_jsonb($n)` throws
   // "could not determine polymorphic type because input has type unknown". Every param
   // fed to to_jsonb (or compared/added) MUST carry an explicit cast.
+  //
+  // When the week rolls over, ARCHIVE the old score into prevWeekKey/prevWeekPoints
+  // before resetting — the weekly-prize job pays winners from the archive, so a
+  // player whose score was lazily reset early Monday is never dropped from the
+  // prize cohort. All CASE reads reference the original column (S), not expr,
+  // so layer order doesn't matter. jsonb_set with a NULL value would null the
+  // whole result, hence the COALESCE fallbacks.
+  const rolled = sql`(${S}->>'weekKey' IS NOT NULL AND ${S}->>'weekKey' != ${wk}::text)`;
+  expr = sql`jsonb_set(${expr}, '{prevWeekKey}', CASE WHEN ${rolled} THEN to_jsonb(${S}->>'weekKey') ELSE COALESCE(${S}->'prevWeekKey', to_jsonb(''::text)) END)`;
+  expr = sql`jsonb_set(${expr}, '{prevWeekPoints}', CASE WHEN ${rolled} THEN to_jsonb(COALESCE((${S}->>'weeklyPoints')::numeric, 0)) ELSE COALESCE(${S}->'prevWeekPoints', to_jsonb(0::numeric)) END)`;
   expr = sql`jsonb_set(${expr}, '{weeklyPoints}', to_jsonb((CASE WHEN ${S}->>'weekKey' = ${wk}::text THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0) ELSE 0 END) + ${reward}::numeric))`;
   expr = sql`jsonb_set(${expr}, '{weekKey}', to_jsonb(${wk}::text))`;
   // Reward points must also land in the spendable "Mined" balance (state.tempMiningPoints),
   // not just lifetimePoints/Total — otherwise refreshFromServer() shows the reward only in the
   // Total counter and the player can't spend it on upgrades.
-  expr = sql`jsonb_set(${expr}, '{tempMiningPoints}', to_jsonb(COALESCE((${S}->>'tempMiningPoints')::numeric, 0) + ${reward}::numeric))`;
+  //
+  // toSpendable:false is for BACKGROUND credits (referral milestones, weekly prizes):
+  // an online client's debounced PUT /vault/me sends its own stale tempMiningPoints
+  // verbatim and would erase the credit — those callers use pendingBonusPoints
+  // (redeemed at hydration) instead.
+  if (toSpendable) {
+    expr = sql`jsonb_set(${expr}, '{tempMiningPoints}', to_jsonb(COALESCE((${S}->>'tempMiningPoints')::numeric, 0) + ${reward}::numeric))`;
+  }
   for (const [key, value] of Object.entries(patches)) {
     const arg: SQL =
       typeof value === "string" ? sql`${value}::text`

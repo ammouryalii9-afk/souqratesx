@@ -7,6 +7,7 @@ import { verifyTelegramInitData } from "../lib/telegramAuth";
 import { setSessionCookie } from "../lib/session";
 import { linkReferrer } from "../lib/referral";
 import { joinSquadOnSignup } from "../lib/squadSignup";
+import { redeemPendingBonus } from "../lib/pendingBonus";
 
 const router: IRouter = Router();
 
@@ -76,6 +77,13 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
     await linkReferrer(telegramId, startParam);
   }
 
+  // Hydration moment: fold any server-granted bonus (weekly prize, referral
+  // milestone) into the spendable balance NOW — the client is about to replace
+  // its local state with this response, so the credit can't be clobbered by a
+  // stale debounced sync.
+  const withBonus = await redeemPendingBonus(telegramId);
+  if (withBonus) user = withBonus;
+
   setSessionCookie(res, telegramId);
 
   res.json(
@@ -87,6 +95,7 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         lastName: user.lastName,
         photoUrl: user.photoUrl,
         lifetimePoints: user.lifetimePoints,
+        withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
       },

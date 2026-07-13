@@ -35,6 +35,7 @@ import {
 } from "@workspace/api-zod";
 import { setAdminSessionCookie, clearAdminSessionCookie, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
+import { bustSettingsCache } from "../lib/settings";
 import {
   setTelegramWebhook,
   setTelegramMenuButton,
@@ -351,6 +352,8 @@ router.put("/admin/settings", async (req, res): Promise<void> => {
       .values({ key, value })
       .onConflictDoUpdate({ target: adminSettingsTable.key, set: { value } });
   }
+
+  bustSettingsCache();
 
   await logAdminAction("update_settings", null, { keys: entries.map(([key]) => key) });
 
