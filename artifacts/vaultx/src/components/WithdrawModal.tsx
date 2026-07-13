@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Wallet, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { getPublicConfig } from '../lib/gameApi';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,6 @@ type WithdrawalRequest = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const POINTS_PER_USD = 1_000_000;
 const MIN_POINTS = 500_000;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,6 +69,11 @@ type Props = { onClose: () => void };
 export function WithdrawModal({ onClose }: Props) {
   const { tempMiningPoints, lifetimePoints, isTelegramUser, refreshFromServer } = useVault();
 
+  const [pointsPerDollar, setPointsPerDollar] = useState(2_000_000);
+  useEffect(() => {
+    getPublicConfig().then(c => setPointsPerDollar(c.pointsPerDollar)).catch(() => {});
+  }, []);
+
   const [tonPrice, setTonPrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(true);
 
@@ -114,7 +119,7 @@ export function WithdrawModal({ onClose }: Props) {
 
   // Derived values
   const points = parseInt(pointsInput.replace(/,/g, ''), 10) || 0;
-  const usdValue = points / POINTS_PER_USD;
+  const usdValue = points / pointsPerDollar;
   const tonValue = tonPrice ? usdValue / tonPrice : null;
   const walletValid = isValidTonWallet(wallet);
   const hasEnough = points <= lifetimePoints;

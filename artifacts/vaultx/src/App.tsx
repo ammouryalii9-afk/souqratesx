@@ -23,6 +23,10 @@ function Header() {
   const { lang, toggleLang, tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
+  const [pointsPerDollar, setPointsPerDollar] = useState(2_000_000);
+  useEffect(() => {
+    getPublicConfig().then(c => setPointsPerDollar(c.pointsPerDollar)).catch(() => {});
+  }, []);
   
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
@@ -70,7 +74,7 @@ function Header() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{tr.header.balance}</span>
-            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(lifetimePoints / 1_000_000).toFixed(2)}</span>
+            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">${(lifetimePoints / pointsPerDollar).toFixed(2)}</span>
           </div>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
