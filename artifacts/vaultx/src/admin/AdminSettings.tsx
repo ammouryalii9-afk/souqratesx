@@ -20,7 +20,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
       { key: "farmingDurationHours", label: "مدة الفارمينج (ساعات)", type: "number", defaultValue: 8 },
       { key: "referralRatePercent", label: "نسبة عمولة الإحالة (%)", type: "number", defaultValue: 10 },
       { key: "adMinWatchSeconds", label: "الحد الأدنى لمشاهدة الإعلان قبل استلام المكافأة (ثانية) — لكل الإعلانات الحالية والمستقبلية", type: "number", defaultValue: 15 },
-      { key: "pointsPerDollar", label: "عدد النقاط = 1 دولار (افتراضي: 2000000)", type: "number", defaultValue: 2000000 },
+      { key: "pointsPerDollar", label: "عدد النقاط = 1 دولار (افتراضي: 1000000)", type: "number", defaultValue: 1000000 },
       { key: "dollarBonus", label: "مبلغ Bonus بالدولار يُعرض بجانب رصيد المستخدم (0 = مخفي)", type: "number", defaultValue: 0 },
     ],
   },
