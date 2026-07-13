@@ -32,3 +32,4 @@ export * from "./withdrawalRequests";
 export * from "./squads";
 export * from "./competitions";
 export * from "./pixels";
+export * from "./pixelUsdWithdrawals";

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, pixelCyclesTable, pixelsTable, pixelDividendsTable } from "@workspace/db";
+import { db, vaultUsersTable, pixelCyclesTable, pixelsTable, pixelDividendsTable, pixelUsdWithdrawalsTable } from "@workspace/db";
 import { GetPixelMarketResponse, BuyPixelsBody, BuyPixelsResponse, GetMyPixelsResponse } from "@workspace/api-zod";
 import { getSessionTelegramId, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
@@ -184,7 +184,7 @@ router.post("/pixels/buy", rateLimit("pixels-buy", 20, 60_000), async (req, res)
   }
 });
 
-// ── GET /pixels/me — my holdings + dividend history ──────────────────────────
+// ── GET /pixels/me — my holdings + dividend history + USD balance ─────────────
 router.get("/pixels/me", async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
   if (!telegramId) {
@@ -193,7 +193,7 @@ router.get("/pixels/me", async (req, res): Promise<void> => {
   }
 
   const cycle = await getActiveCycle();
-  const [myPixels, dividends] = await Promise.all([
+  const [myPixels, dividends, [me]] = await Promise.all([
     cycle ? userPixelsInCycle(telegramId, cycle.id) : Promise.resolve(0),
     db
       .select()
@@ -201,12 +201,17 @@ router.get("/pixels/me", async (req, res): Promise<void> => {
       .where(eq(pixelDividendsTable.telegramId, telegramId))
       .orderBy(desc(pixelDividendsTable.paidAt))
       .limit(24),
+    db
+      .select({ pixelUsdCents: vaultUsersTable.pixelUsdCents })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, telegramId)),
   ]);
 
   res.json(
     GetMyPixelsResponse.parse({
       cycleId: cycle?.id ?? null,
       myPixels,
+      pixelUsdCents: me?.pixelUsdCents ?? 0,
       dividends: dividends.map((d) => ({
         cycleId: d.cycleId,
         pixelsHeld: d.pixelsHeld,
@@ -215,6 +220,113 @@ router.get("/pixels/me", async (req, res): Promise<void> => {
       })),
     }),
   );
+});
+
+// ── POST /pixels/withdraw-usd — request withdrawal of USD pixel balance ───────
+// Min withdrawal: $50 (5000 cents). Balance is zeroed immediately on submit;
+// refunded to pixelUsdCents if admin rejects via POST /admin/pixels/usd-withdrawals/:id/reject.
+const MIN_WITHDRAWAL_CENTS = 5000;
+router.post("/pixels/withdraw-usd", rateLimit("pixels-withdraw-usd", 5, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  try {
+    const { id: withdrawalId, usdCents } = await db.transaction(async (tx) => {
+      // Lock the row — reads the exact balance before zeroing it out.
+      const [row] = await tx
+        .select({ pixelUsdCents: vaultUsersTable.pixelUsdCents })
+        .from(vaultUsersTable)
+        .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
+        .for("update");
+
+      if (!row || row.pixelUsdCents < MIN_WITHDRAWAL_CENTS) {
+        throw Object.assign(new Error("insufficient"), { appCode: "insufficient", balance: row?.pixelUsdCents ?? 0 });
+      }
+      const amount = row.pixelUsdCents;
+
+      // Zero out the balance atomically inside the same transaction.
+      await tx
+        .update(vaultUsersTable)
+        .set({ pixelUsdCents: sql`0` })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+
+      // Insert the withdrawal request. The unique partial index on (telegram_id)
+      // WHERE status='pending' prevents a second concurrent pending request.
+      const [w] = await tx
+        .insert(pixelUsdWithdrawalsTable)
+        .values({ telegramId, usdCents: amount })
+        .onConflictDoNothing()
+        .returning({ id: pixelUsdWithdrawalsTable.id, usdCents: pixelUsdWithdrawalsTable.usdCents });
+
+      if (!w) throw Object.assign(new Error("already_pending"), { appCode: "already_pending" });
+      return w;
+    });
+
+    await logUserActivity(telegramId, "pixel_usd_withdraw_request", { withdrawalId, usdCents });
+    req.log.info({ telegramId, withdrawalId, usdCents }, "pixel USD withdrawal requested");
+    res.json({ ok: true, id: withdrawalId, usdCents });
+  } catch (err) {
+    const e = err as { appCode?: string; balance?: number };
+    if (e.appCode === "insufficient") {
+      res.status(400).json({
+        error: `Minimum withdrawal is $${(MIN_WITHDRAWAL_CENTS / 100).toFixed(2)}. Your balance: $${((e.balance ?? 0) / 100).toFixed(2)}`,
+      });
+      return;
+    }
+    if (e.appCode === "already_pending") {
+      res.status(409).json({ error: "You already have a pending withdrawal request." });
+      return;
+    }
+    req.log.error({ err, telegramId }, "pixel USD withdrawal failed");
+    res.status(500).json({ error: "Withdrawal failed. Please try again." });
+  }
+});
+
+// ── POST /admin/pixels/usd-withdrawals/:id/approve — admin approve ────────────
+router.post("/admin/pixels/usd-withdrawals/:id/approve", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "Not admin" }); return; }
+  const id = parseInt(req.params.id, 10);
+  const [updated] = await db
+    .update(pixelUsdWithdrawalsTable)
+    .set({ status: "approved", processedAt: new Date(), adminNote: req.body?.note ?? null })
+    .where(and(eq(pixelUsdWithdrawalsTable.id, id), eq(pixelUsdWithdrawalsTable.status, "pending")))
+    .returning({ id: pixelUsdWithdrawalsTable.id });
+  if (!updated) { res.status(404).json({ error: "Request not found or already processed" }); return; }
+  req.log.info({ id }, "pixel USD withdrawal approved");
+  res.json({ ok: true });
+});
+
+// ── POST /admin/pixels/usd-withdrawals/:id/reject — admin reject + refund ─────
+router.post("/admin/pixels/usd-withdrawals/:id/reject", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "Not admin" }); return; }
+  const id = parseInt(req.params.id, 10);
+  const [w] = await db
+    .update(pixelUsdWithdrawalsTable)
+    .set({ status: "rejected", processedAt: new Date(), adminNote: req.body?.note ?? null })
+    .where(and(eq(pixelUsdWithdrawalsTable.id, id), eq(pixelUsdWithdrawalsTable.status, "pending")))
+    .returning({ telegramId: pixelUsdWithdrawalsTable.telegramId, usdCents: pixelUsdWithdrawalsTable.usdCents });
+  if (!w) { res.status(404).json({ error: "Request not found or already processed" }); return; }
+  // Refund the balance back to the user
+  await db
+    .update(vaultUsersTable)
+    .set({ pixelUsdCents: sql`${vaultUsersTable.pixelUsdCents} + ${w.usdCents}::bigint` })
+    .where(eq(vaultUsersTable.telegramId, w.telegramId));
+  req.log.info({ id, refundCents: w.usdCents }, "pixel USD withdrawal rejected + refunded");
+  res.json({ ok: true });
+});
+
+// ── GET /admin/pixels/usd-withdrawals — list all requests ────────────────────
+router.get("/admin/pixels/usd-withdrawals", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "Not admin" }); return; }
+  const rows = await db
+    .select()
+    .from(pixelUsdWithdrawalsTable)
+    .orderBy(desc(pixelUsdWithdrawalsTable.createdAt))
+    .limit(200);
+  res.json(rows);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

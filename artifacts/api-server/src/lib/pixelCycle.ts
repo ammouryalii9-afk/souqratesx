@@ -142,8 +142,11 @@ export async function runPixelCycles(): Promise<void> {
 }
 
 async function distributeCycle(cycleId: number, totalAdRevenueSkx: number): Promise<void> {
+  const allSettings = await getSettingsMap();
   const settings = await getPixelSettings();
   const pool = Math.max(0, Math.floor((totalAdRevenueSkx * settings.dividendPercent) / 100));
+  // Admin-set price per pixel in USD → cents (stored as integer). Default 0 (no USD credit).
+  const pixelPriceUSD = asNumber(allSettings.pixelPriceUSD, 0);
 
   // Holder totals for this cycle.
   const holders = await db
@@ -158,28 +161,37 @@ async function distributeCycle(cycleId: number, totalAdRevenueSkx: number): Prom
   const totalSold = holders.reduce((acc, h) => acc + Number(h.held), 0);
 
   let distributed = 0;
-  if (pool > 0 && totalSold > 0) {
-    for (const holder of holders) {
-      const held = Number(holder.held);
-      const dividend = Math.floor((pool * held) / totalSold);
-      if (dividend <= 0) continue;
+  for (const holder of holders) {
+    const held = Number(holder.held);
+    const dividend = pool > 0 && totalSold > 0 ? Math.floor((pool * held) / totalSold) : 0;
+    const usdCents = Math.floor(held * pixelPriceUSD * 100);
 
-      // Idempotency ledger: the insert wins exactly once per (cycle, user) —
-      // resume-after-crash can never double-credit.
-      const inserted = await db
-        .insert(pixelDividendsTable)
-        .values({ cycleId, telegramId: holder.telegramId, pixelsHeld: held, dividendSkx: dividend })
-        .onConflictDoNothing()
-        .returning({ id: pixelDividendsTable.id });
-      if (inserted.length === 0) continue; // already paid in a previous (crashed) run
+    if (dividend <= 0 && usdCents <= 0) continue;
 
-      const res = await db
-        .update(vaultUsersTable)
-        .set(skxCreditFields(dividend))
-        .where(and(eq(vaultUsersTable.telegramId, holder.telegramId), eq(vaultUsersTable.isBanned, false)))
-        .returning({ telegramId: vaultUsersTable.telegramId });
-      if (res.length > 0) distributed += dividend;
-    }
+    // Idempotency ledger: the insert wins exactly once per (cycle, user) —
+    // resume-after-crash can never double-credit either SKX or USD cents.
+    const inserted = await db
+      .insert(pixelDividendsTable)
+      .values({ cycleId, telegramId: holder.telegramId, pixelsHeld: held, dividendSkx: Math.max(0, dividend) })
+      .onConflictDoNothing()
+      .returning({ id: pixelDividendsTable.id });
+    if (inserted.length === 0) continue; // already paid in a previous (crashed) run
+
+    // Build combined update — SKX credit + USD cents credit in one statement so
+    // a crash mid-loop can't partially apply one without the other.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setFields: Record<string, any> = {
+      ...(dividend > 0 ? skxCreditFields(dividend) : {}),
+      ...(usdCents > 0 ? { pixelUsdCents: sql`${vaultUsersTable.pixelUsdCents} + ${usdCents}::bigint` } : {}),
+    };
+
+    const res = await db
+      .update(vaultUsersTable)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .set(setFields as any)
+      .where(and(eq(vaultUsersTable.telegramId, holder.telegramId), eq(vaultUsersTable.isBanned, false)))
+      .returning({ telegramId: vaultUsersTable.telegramId });
+    if (res.length > 0) distributed += dividend;
   }
 
   // Snapshot + complete. All pixels of this cycle are now expired (they simply

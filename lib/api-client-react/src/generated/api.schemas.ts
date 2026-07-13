@@ -125,6 +125,8 @@ export interface MyPixelsResponse {
      */
   cycleId: number | null;
   myPixels: number;
+  /** Accumulated pixel dividend USD balance in cents (100 = $1.00) */
+  pixelUsdCents: number;
   dividends: PixelDividendEntry[];
 }
 

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Grid3x3, Loader2, Minus, Plus, TrendingUp, Clock, Coins, Info } from 'lucide-react';
+import { Grid3x3, Loader2, Minus, Plus, TrendingUp, Clock, Coins, Info, DollarSign, ArrowDownToLine } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useLanguage } from '../lib/i18n';
 import { useToast } from '@/hooks/use-toast';
@@ -8,6 +8,7 @@ import {
   getPixelMarket,
   getMyPixels,
   buyPixels,
+  requestPixelUsdWithdrawal,
   ApiError,
   type PixelMarket,
   type PixelDividend,
@@ -35,8 +36,10 @@ function PixelsTabInner() {
   const [loading, setLoading] = useState(true);
   const [dividends, setDividends] = useState<PixelDividend[]>([]);
   const [myPixels, setMyPixels] = useState(0);
+  const [pixelUsdCents, setPixelUsdCents] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   // Tick every 60s so the countdown display updates without needing parent re-renders
   const [, setTick] = useState(0);
 
@@ -70,6 +73,7 @@ function PixelsTabInner() {
     if (meResult.status === 'fulfilled') {
       newDividends = meResult.value.dividends;
       if (meResult.value.myPixels > 0) newMyPixels = meResult.value.myPixels;
+      setPixelUsdCents(meResult.value.pixelUsdCents ?? 0);
     }
 
     // Single batch update — one render instead of many
@@ -110,6 +114,22 @@ function PixelsTabInner() {
   const maxQty = market ? Math.min(market.maxPerPurchase, market.remaining) : 1;
   const canAfford = totalCost <= skxBalance;
   const soldPct = market && market.totalSupply > 0 ? (market.sold / market.totalSupply) * 100 : 0;
+
+  const handleWithdraw = async () => {
+    if (withdrawing || pixelUsdCents < 5000) return;
+    setWithdrawing(true);
+    try {
+      await requestPixelUsdWithdrawal();
+      haptic('medium');
+      toast({ title: 'Withdrawal Requested ✅', description: 'Your request has been submitted. You will be notified once approved.' });
+      setPixelUsdCents(0);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast({ title: msg || 'Withdrawal failed', variant: 'destructive' });
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   const handleBuy = async () => {
     if (!market || buying || quantity < 1) return;
@@ -161,6 +181,65 @@ function PixelsTabInner() {
         </h1>
         {market && (
           <p className="text-xs text-muted-foreground mt-1 px-4">{tr.pixels.subtitle(market.dividendPercent)}</p>
+        )}
+      </div>
+
+      {/* Dollar balance — prominent card, always visible when > 0 or highlighted for awareness */}
+      <div
+        className="rounded-2xl p-4 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(245,158,11,0.08) 100%)',
+          border: '1px solid rgba(250,204,21,0.30)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(250,204,21,0.15)', border: '1px solid rgba(250,204,21,0.25)' }}>
+              <DollarSign className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-yellow-400/70 font-semibold uppercase tracking-wide">Pixel Dollar Balance</p>
+              <p className="text-2xl font-black text-yellow-300 leading-tight">
+                ${(pixelUsdCents / 100).toFixed(2)}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {pixelUsdCents >= 5000
+                  ? '✅ Ready to withdraw'
+                  : `$${((5000 - pixelUsdCents) / 100).toFixed(2)} more to reach $50 minimum`}
+              </p>
+            </div>
+          </div>
+          {pixelUsdCents >= 5000 && (
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, rgba(250,204,21,0.25), rgba(245,158,11,0.20))',
+                border: '1px solid rgba(250,204,21,0.40)',
+                color: '#fde68a',
+              }}
+            >
+              {withdrawing
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <ArrowDownToLine className="w-3.5 h-3.5" />}
+              {withdrawing ? 'Processing…' : 'Withdraw'}
+            </button>
+          )}
+        </div>
+        {pixelUsdCents > 0 && pixelUsdCents < 5000 && (
+          <div className="mt-3">
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, (pixelUsdCents / 5000) * 100)}%`,
+                  background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
 

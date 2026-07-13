@@ -27,6 +27,10 @@ export const vaultUsersTable = pgTable("vault_users", {
   // background jobs can credit it directly (no pendingBonus dance needed).
   // SKP (the soft currency) remains state.tempMiningPoints in the JSONB.
   skxBalance: bigint("skx_balance", { mode: "number" }).notNull().default(0),
+  // Accumulated pixel dividend earnings in USD cents (100 = $1.00). Credited
+  // server-side when a pixel cycle closes (held × pixelPriceUSD). Deducted
+  // when the user submits a withdrawal request (held until admin approval).
+  pixelUsdCents: bigint("pixel_usd_cents", { mode: "number" }).notNull().default(0),
   state: jsonb("state").notNull().default({}),
   isBanned: boolean("is_banned").notNull().default(false),
   isPremium: boolean("is_premium").notNull().default(false),

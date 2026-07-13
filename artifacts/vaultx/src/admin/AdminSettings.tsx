@@ -230,6 +230,7 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     title: "البكسلات (استثمار وتوزيع أرباح الإعلانات)",
     fields: [
       { key: "pixelTotalSupply", label: "المعروض الكلي من البكسلات لكل دورة", type: "number", defaultValue: 10000 },
+      { key: "pixelPriceUSD", label: "سعر البكسل الواحد بالدولار (مثال: 0.01 = سنت واحد) — يُضاف لرصيد المستخدم بالدولار عند إغلاق الدورة", type: "number", defaultValue: 0 },
       { key: "pixelDividendPercent", label: "نسبة أرباح الإعلانات الموزّعة على حاملي البكسلات (%)", type: "number", defaultValue: 35 },
       { key: "pixelCycleDays", label: "مدة الدورة (أيام)", type: "number", defaultValue: 15 },
       { key: "maxPixelsPerPurchase", label: "الحد الأقصى للبكسلات في عملية شراء واحدة", type: "number", defaultValue: 1000 },

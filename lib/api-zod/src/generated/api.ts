@@ -163,6 +163,7 @@ export const BuyPixelsResponse = zod.object({
 export const GetMyPixelsResponse = zod.object({
   "cycleId": zod.number().nullable().describe('Active cycle id, or null when no cycle is running'),
   "myPixels": zod.number(),
+  "pixelUsdCents": zod.number().describe('Accumulated pixel dividend USD balance in cents (100 = $1.00)'),
   "dividends": zod.array(zod.object({
   "cycleId": zod.number(),
   "pixelsHeld": zod.number(),

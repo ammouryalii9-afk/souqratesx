@@ -215,6 +215,10 @@ export function buyPixels(quantity: number): Promise<{
   return apiFetch("/pixels/buy", { method: "POST", body: JSON.stringify({ quantity }) });
 }
 
-export function getMyPixels(): Promise<{ cycleId: number | null; myPixels: number; dividends: PixelDividend[] }> {
+export function getMyPixels(): Promise<{ cycleId: number | null; myPixels: number; pixelUsdCents: number; dividends: PixelDividend[] }> {
   return apiFetch("/pixels/me");
+}
+
+export function requestPixelUsdWithdrawal(): Promise<{ ok: boolean; id: number; usdCents: number }> {
+  return apiFetch("/pixels/withdraw-usd", { method: "POST" });
 }

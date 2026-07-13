@@ -1294,11 +1294,14 @@ components:
           description: "Active cycle id, or null when no cycle is running"
         myPixels:
           type: integer
+        pixelUsdCents:
+          type: integer
+          description: "Accumulated pixel dividend USD balance in cents (100 = $1.00)"
         dividends:
           type: array
           items:
             $ref: "#/components/schemas/PixelDividendEntry"
-      required: [cycleId, myPixels, dividends]
+      required: [cycleId, myPixels, pixelUsdCents, dividends]
     LeaderboardEntry:
       type: object
       properties:
