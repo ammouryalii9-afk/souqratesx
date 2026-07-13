@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Grid3x3, Loader2, Minus, Plus, TrendingUp, Clock, Coins, Info } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useLanguage } from '../lib/i18n';
@@ -24,7 +24,7 @@ function formatCountdown(endDate: string, tr: ReturnType<typeof useLanguage>['tr
   return `${mins}${tr.pixels.mins}`;
 }
 
-export function PixelsTab() {
+function PixelsTabInner() {
   const { skxBalance, isTelegramUser, refreshFromServer } = useVault();
   const { tr } = useLanguage();
   const { toast } = useToast();
@@ -37,32 +37,47 @@ export function PixelsTab() {
   const [myPixels, setMyPixels] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [buying, setBuying] = useState(false);
+  // Tick every 60s so the countdown display updates without needing parent re-renders
+  const [, setTick] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
-    try {
-      const m = await getPixelMarket();
-      setMarket(m);
-      setMyPixels(m.myPixels);
-      setNoCycle(false);
-    } catch (err) {
-      setMarket(null);
+    // Fetch both in parallel — avoids two sequential renders mid-animation
+    const [marketResult, meResult] = await Promise.allSettled([
+      getPixelMarket(),
+      getMyPixels(),
+    ]);
+
+    let newMarket: PixelMarket | null = null;
+    let newNoCycle = false;
+    let newLoadError = false;
+    let newMyPixels = 0;
+    let newDividends: PixelDividend[] = [];
+
+    if (marketResult.status === 'fulfilled') {
+      newMarket = marketResult.value;
+      newMyPixels = marketResult.value.myPixels;
+    } else {
+      const err = marketResult.reason;
       if (err instanceof ApiError && err.status === 404) {
-        // 404 = no active cycle
-        setNoCycle(true);
+        newNoCycle = true;
       } else {
-        setNoCycle(false);
-        setLoadError(true);
+        newLoadError = true;
       }
     }
-    try {
-      const me = await getMyPixels();
-      setDividends(me.dividends);
-      if (me.myPixels > 0) setMyPixels(me.myPixels);
-    } catch {
-      // not authed (non-Telegram) — ignore
+
+    if (meResult.status === 'fulfilled') {
+      newDividends = meResult.value.dividends;
+      if (meResult.value.myPixels > 0) newMyPixels = meResult.value.myPixels;
     }
+
+    // Single batch update — one render instead of many
+    setMarket(newMarket);
+    setNoCycle(newNoCycle);
+    setLoadError(newLoadError);
+    setMyPixels(newMyPixels);
+    setDividends(newDividends);
     setLoading(false);
   }, []);
 
@@ -70,6 +85,12 @@ export function PixelsTab() {
     if (isTelegramUser) load();
     else setLoading(false);
   }, [isTelegramUser, load]);
+
+  // Update the countdown display independently every 60s
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Cost for the selected quantity, honoring tier boundaries (price steps up
   // as supply sells) — mirrors the server's tiered pricing so the preview
@@ -132,7 +153,7 @@ export function PixelsTab() {
   }
 
   return (
-    <div className="flex flex-col space-y-4 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-y-auto h-full">
+    <div className="flex flex-col space-y-4 pb-24 px-4 pt-4 animate-in fade-in duration-300 overflow-y-auto h-full">
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-black text-white flex items-center justify-center gap-2">
@@ -315,3 +336,5 @@ export function PixelsTab() {
     </div>
   );
 }
+
+export const PixelsTab = memo(PixelsTabInner);
