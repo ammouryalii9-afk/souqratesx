@@ -106,6 +106,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /vault/claim:
+    post:
+      operationId: claimVaultEarnings
+      tags: [vault]
+      summary: Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+      responses:
+        "200":
+          description: Updated game state after the claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultSession"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /vault/leaderboard:
     get:
       operationId: getVaultLeaderboard

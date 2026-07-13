@@ -234,9 +234,10 @@ export const VaultTab = () => {
       setClaimProgress((currentStep / steps) * 100);
       if (currentStep >= steps) {
         clearInterval(timer);
-        setIsClaiming(false);
-        claimEarnings();
-        toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred });
+        claimEarnings()
+          .then(() => toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred }))
+          .catch(() => toast({ title: tr.vault.adNotCompleted, description: tr.vault.tryAgain, variant: "destructive" }))
+          .finally(() => setIsClaiming(false));
       }
     }, interval);
   };
@@ -257,8 +258,8 @@ export const VaultTab = () => {
 
     try {
       await watchRewardedAdWithFallback(config);
+      await claimEarnings();
       setIsClaiming(false);
-      claimEarnings();
       toast({ title: tr.vault.successTitle, description: tr.vault.earningsTransferred });
     } catch (err) {
       setIsClaiming(false);

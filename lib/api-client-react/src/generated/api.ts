@@ -386,6 +386,77 @@ export const useUpdateVaultMe = <TError = ErrorType<ErrorResponse>,
       return useMutation(getUpdateVaultMeMutationOptions(options));
     }
 
+export const getClaimVaultEarningsUrl = () => {
+
+
+
+
+  return `/api/vault/claim`
+}
+
+/**
+ * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ */
+export const claimVaultEarnings = async ( options?: RequestInit): Promise<VaultSession> => {
+
+  return customFetch<VaultSession>(getClaimVaultEarningsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getClaimVaultEarningsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext> => {
+
+const mutationKey = ['claimVaultEarnings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimVaultEarnings>>, void> = () => {
+
+
+          return  claimVaultEarnings(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimVaultEarningsMutationResult = NonNullable<Awaited<ReturnType<typeof claimVaultEarnings>>>
+
+    export type ClaimVaultEarningsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ */
+export const useClaimVaultEarnings = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimVaultEarnings>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimVaultEarnings>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClaimVaultEarningsMutationOptions(options));
+    }
+
 export const getGetVaultLeaderboardUrl = () => {
 
 

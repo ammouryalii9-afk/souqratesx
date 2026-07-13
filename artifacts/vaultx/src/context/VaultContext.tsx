@@ -22,6 +22,7 @@ type SyncedState = {
   totalBalanceUSD: number;
   tempMiningPoints: number;
   adMiningPoints: number;
+  claimedPoints?: number;
   miningLevel: number;
   energy: number;
   maxEnergy: number;
@@ -64,6 +65,7 @@ type VaultContextType = {
   totalBalanceUSD: number;
   tempMiningPoints: number;
   adMiningPoints: number;
+  claimedPoints: number;
   miningLevel: number;
   energy: number;
   maxEnergy: number;
@@ -106,7 +108,7 @@ type VaultContextType = {
   setEnergy: (val: number | ((prev: number) => number)) => void;
   setMaxEnergy: (val: number | ((prev: number) => number)) => void;
 
-  claimEarnings: () => void;
+  claimEarnings: () => Promise<void>;
   upgradeMiningLevel: (cost: number, newLevel: number) => void;
   expandBattery: (cost: number) => void;
   tapMine: () => number;
@@ -152,6 +154,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Game/farm/reward points are the remainder (gameToSpendablePercent% conversion).
   // Only server ad-reward routes can increase this; client can only decrease (spend).
   const [adMiningPoints, setAdMiningPoints] = useState(() => Number(localStorage.getItem('adMiningPoints')) || 0);
+  // The withdrawable balance: only grows when the user manually Claims (converts)
+  // the Mined buffer. Server-authoritative for Telegram users (claim happens via
+  // POST /vault/claim; the PUT sync can never change it).
+  const [claimedPoints, setClaimedPoints] = useState(() => Number(localStorage.getItem('claimedPoints')) || 0);
   const [miningLevel, setMiningLevel] = useState(() => Number(localStorage.getItem('miningLevel')) || 1);
   const [energy, setEnergy] = useState(() => Number(localStorage.getItem('energy')) || 100);
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
@@ -266,6 +272,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTotalBalanceUSD(typeof state.totalBalanceUSD === 'number' ? state.totalBalanceUSD : 0);
         setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
         setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
+        setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
         setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
         setEnergy(typeof state.energy === 'number' ? state.energy : 100);
         setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
@@ -313,6 +320,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('totalBalanceUSD', totalBalanceUSD.toString());
     localStorage.setItem('tempMiningPoints', tempMiningPoints.toString());
     localStorage.setItem('adMiningPoints', adMiningPoints.toString());
+    localStorage.setItem('claimedPoints', claimedPoints.toString());
     localStorage.setItem('miningLevel', miningLevel.toString());
     localStorage.setItem('energy', energy.toString());
     localStorage.setItem('maxEnergy', maxEnergy.toString());
@@ -332,7 +340,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('selectedExchange', selectedExchange ?? '');
     localStorage.setItem('claimedAchievements', JSON.stringify(claimedAchievements));
     localStorage.setItem('hasClaimedWelcome', hasClaimedWelcome ? 'true' : 'false');
-  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
+  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, claimedPoints, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -536,17 +544,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  const claimEarnings = () => {
+  const claimEarnings = async (): Promise<void> => {
     if (isHydrationPending()) return;
-    // Two-rate conversion:
+    if (isTelegramUser) {
+      // Server-side conversion (authoritative, tamper-proof): the server applies
+      // the two-rate policy (ads 100%, game remainder at gameToSpendablePercent%)
+      // atomically, credits claimedPoints, and zeroes the Mined buffer.
+      // Throws on failure so the UI can show an error instead of a false success.
+      const res = await apiFetch('/vault/claim', { method: 'POST' });
+      if (!res.ok) throw new Error('Claim failed');
+      const data = await res.json();
+      const state = (data.state ?? {}) as Partial<SyncedState>;
+      setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
+      setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
+      setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
+      return;
+    }
+    // Local (non-Telegram) fallback: same two-rate conversion computed locally.
     //   adMiningPoints  → 100% (ads always fully convert)
     //   game remainder  → gameToSpendablePercent% (default 0, admin-tunable)
-    // adMiningPoints is capped to tempMiningPoints in case spending reduced the pool.
     const rate = gameToSpendablePct.current / 100;
     const adPts   = Math.min(adMiningPoints, tempMiningPoints);
     const gamePts = Math.max(0, tempMiningPoints - adPts);
-    const usdToAdd = (adPts + gamePts * rate) / 1_000_000;
-    setTotalBalanceUSD(prev => prev + usdToAdd);
+    setClaimedPoints(prev => prev + Math.floor(adPts + gamePts * rate));
     setTempMiningPoints(0);
     setAdMiningPoints(0);
   };
@@ -689,6 +709,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTotalBalanceUSD(typeof state.totalBalanceUSD === 'number' ? state.totalBalanceUSD : 0);
       setTempMiningPoints(typeof state.tempMiningPoints === 'number' ? state.tempMiningPoints : 0);
       setAdMiningPoints(typeof state.adMiningPoints === 'number' ? state.adMiningPoints : 0);
+      setClaimedPoints(typeof state.claimedPoints === 'number' ? state.claimedPoints : 0);
       setMiningLevel(typeof state.miningLevel === 'number' ? state.miningLevel : 1);
       setEnergy(typeof state.energy === 'number' ? state.energy : 100);
       setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
@@ -734,6 +755,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         totalBalanceUSD,
         tempMiningPoints,
         adMiningPoints,
+        claimedPoints,
         miningLevel,
         energy,
         maxEnergy,
@@ -741,7 +763,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         referralEarnings,
         lifetimePoints,
         withdrawnPoints,
-        availablePoints: Math.max(0, lifetimePoints - withdrawnPoints),
+        // Withdrawable balance = claimed (converted) points minus locked/withdrawn.
+        // lifetimePoints is leaderboard-only and NOT withdrawable.
+        availablePoints: Math.max(0, claimedPoints - withdrawnPoints),
         profitPerHour,
         activeTurbo,
         turboExpiresAt,

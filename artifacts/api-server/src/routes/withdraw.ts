@@ -86,14 +86,16 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
   const [user] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!user || user.isBanned) { res.status(403).json({ error: "User not found or banned" }); return; }
 
-  // Withdrawals draw down the AVAILABLE balance = lifetimePoints - withdrawnPoints.
-  // lifetimePoints itself is never decremented: the client-authoritative PUT /vault/me
-  // sync treats any client value above the server's as new earnings, so decrementing
-  // here would let a stale/replayed sync re-mint the withdrawn points. The
-  // withdrawnPoints ledger makes withdrawals permanent regardless of client state.
-  const lifetimePoints = typeof user.lifetimePoints === "number" ? user.lifetimePoints : 0;
+  // Withdrawals draw down the AVAILABLE balance = claimedPoints - withdrawnPoints.
+  // claimedPoints (state JSONB, server-authoritative — only POST /vault/claim can
+  // raise it) is never decremented here: the withdrawnPoints ledger makes
+  // withdrawals permanent regardless of client state. lifetimePoints is
+  // leaderboard-only and NOT withdrawable — tapping/games feed the Mined buffer,
+  // which becomes withdrawable only through the manual Claim conversion.
+  const state = (user.state ?? {}) as Record<string, unknown>;
+  const claimedPoints = typeof state.claimedPoints === "number" && Number.isFinite(state.claimedPoints) ? state.claimedPoints : 0;
   const withdrawnPoints = typeof user.withdrawnPoints === "number" ? user.withdrawnPoints : 0;
-  const availablePoints = lifetimePoints - withdrawnPoints;
+  const availablePoints = claimedPoints - withdrawnPoints;
 
   if (availablePoints < pointsAmount) {
     res.status(400).json({ error: `Insufficient balance. You have ${Math.max(0, Math.floor(availablePoints)).toLocaleString()} pts available.` });
@@ -131,7 +133,7 @@ router.post("/withdraw/request", async (req, res): Promise<void> => {
         .where(
           and(
             eq(vaultUsersTable.telegramId, telegramId),
-            sql`${vaultUsersTable.lifetimePoints} - ${vaultUsersTable.withdrawnPoints} >= ${pointsAmount}`,
+            sql`GREATEST(COALESCE((${vaultUsersTable.state}->>'claimedPoints')::numeric, 0), 0) - ${vaultUsersTable.withdrawnPoints} >= ${pointsAmount}`,
           ),
         )
         .returning({ lifetimePoints: vaultUsersTable.lifetimePoints, withdrawnPoints: vaultUsersTable.withdrawnPoints });

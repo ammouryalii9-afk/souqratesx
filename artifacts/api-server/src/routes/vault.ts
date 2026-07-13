@@ -38,6 +38,13 @@ const PROTECTED_STATE_KEYS = [
   "weekKey",
   "prevWeekKey",
   "prevWeekPoints",
+  // The withdrawable balance: only POST /vault/claim (server-side two-rate
+  // conversion) may change it — never the client-authoritative PUT sync.
+  "claimedPoints",
+  // Bumped by every /vault/claim; the PUT sync's UPDATE is guarded on it so a
+  // stale in-flight sync (read before a claim, written after) can never restore
+  // the pre-claim Mined buffer (which would allow double-claiming).
+  "claimSeq",
 ];
 
 function num(v: unknown): number {
@@ -74,6 +81,63 @@ router.get("/vault/me", async (req, res): Promise<void> => {
     (await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId)))[0];
   if (!user) {
     res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  res.json(
+    GetVaultMeResponse.parse({
+      user: {
+        telegramId: user.telegramId,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        photoUrl: user.photoUrl,
+        lifetimePoints: user.lifetimePoints,
+        withdrawnPoints: user.withdrawnPoints,
+        referralCount: user.referralCount,
+        referralEarnings: user.referralEarnings,
+      },
+      state: user.state,
+    }),
+  );
+});
+
+// Manual Claim: converts the Mined buffer (tempMiningPoints) into the withdrawable
+// claimedPoints balance, atomically, entirely server-side (tamper-proof):
+//   ad-earned portion (adMiningPoints, capped to the buffer) → 100%
+//   game/tap remainder → gameToSpendablePercent% (admin-tunable, default 0; rest burned)
+// Then zeroes both buffer counters. claimedPoints is a PROTECTED state key, so the
+// debounced PUT sync can never fake or clobber it.
+router.post("/vault/claim", rateLimit("vault-claim", 30, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const settings = await getSettingsMap();
+  const ratePct = Math.min(100, Math.max(0, asNumber(settings.gameToSpendablePercent, 0)));
+
+  const st = sql`COALESCE(${vaultUsersTable.state}, '{}'::jsonb)`;
+  const temp = sql`GREATEST(COALESCE((${st}->>'tempMiningPoints')::numeric, 0), 0)`;
+  const adPts = sql`LEAST(GREATEST(COALESCE((${st}->>'adMiningPoints')::numeric, 0), 0), ${temp})`;
+  const credit = sql`FLOOR(${adPts} + (${temp} - ${adPts}) * ${ratePct}::numeric / 100)`;
+
+  const [user] = await db
+    .update(vaultUsersTable)
+    .set({
+      state: sql`jsonb_set(jsonb_set(jsonb_set(jsonb_set(
+        ${st},
+        '{claimedPoints}',
+        to_jsonb(GREATEST(COALESCE((${st}->>'claimedPoints')::numeric, 0), 0) + ${credit})
+      ), '{tempMiningPoints}', '0'::jsonb), '{adMiningPoints}', '0'::jsonb),
+      '{claimSeq}', to_jsonb(COALESCE((${st}->>'claimSeq')::numeric, 0) + 1))`,
+    })
+    .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
+    .returning();
+
+  if (!user) {
+    res.status(403).json({ error: "User not found or banned" });
     return;
   }
 
@@ -224,19 +288,37 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
   mergedState["weekKey"] = wk;
   finalState = mergedState;
 
-  const [user] = await db
+  // Optimistic-concurrency guard against /vault/claim: this UPDATE only lands if
+  // no claim happened between our pre-read and this write (claimSeq unchanged).
+  // Otherwise the stale merged state would resurrect the pre-claim Mined buffer
+  // and revert claimedPoints — enabling double-claims.
+  const preReadClaimSeq = num(existingState["claimSeq"]);
+  let [user] = await db
     .update(vaultUsersTable)
     .set({
       state: finalState,
       lifetimePoints: finalLifetimePoints,
       lastPointsSyncAt: new Date(),
     })
-    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, telegramId),
+        sql`COALESCE((${vaultUsersTable.state}->>'claimSeq')::numeric, 0) = ${preReadClaimSeq}::numeric`,
+      ),
+    )
     .returning();
 
   if (!user) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
+    // A claim raced this sync — drop the stale write and return the current
+    // server row. The client keeps its running totals, so nothing is lost:
+    // the next debounced sync re-applies against the fresh state.
+    const [current] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+    if (!current) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+    req.log.info({ telegramId }, "vault sync skipped: claim raced the sync (claimSeq changed)");
+    user = current;
   }
 
   res.json(

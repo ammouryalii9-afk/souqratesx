@@ -85,6 +85,25 @@ export const UpdateVaultMeResponse = zod.object({
 
 
 /**
+ * @summary Convert the Mined buffer into the withdrawable claimed balance (server-side, two-rate policy)
+ */
+export const ClaimVaultEarningsResponse = zod.object({
+  "user": zod.object({
+  "telegramId": zod.string(),
+  "username": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "photoUrl": zod.string().nullable(),
+  "lifetimePoints": zod.number(),
+  "withdrawnPoints": zod.number(),
+  "referralCount": zod.number(),
+  "referralEarnings": zod.number()
+}),
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
+})
+
+
+/**
  * @summary Get the global leaderboard sorted by lifetime points
  */
 export const GetVaultLeaderboardResponseItem = zod.object({
