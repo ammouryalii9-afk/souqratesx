@@ -30,3 +30,4 @@ export * from "./partnerTasks";
 export * from "./announcements";
 export * from "./withdrawalRequests";
 export * from "./squads";
+export * from "./competitions";

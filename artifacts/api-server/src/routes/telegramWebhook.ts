@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, processedTransactionsTable, starProductsTable } from "@workspace/db";
+import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, sendStartMessage, answerCallbackQuery, sendCallbackReply, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 import { getSettingsMap, asString } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
@@ -122,6 +122,55 @@ async function applyStarProductEffect(
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
     }
+    case "mining_level_up": {
+      const targetLevel = product.effectValue ?? 1;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: sql`jsonb_set(${baseState}, '{miningLevel}', to_jsonb(GREATEST(coalesce((${vaultUsersTable.state}->>'miningLevel')::int, 1), ${targetLevel}::int)))`,
+          starsBalance: creditStars,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "squad_gold": {
+      const userRow = await db
+        .select({ squadId: vaultUsersTable.squadId })
+        .from(vaultUsersTable)
+        .where(eq(vaultUsersTable.telegramId, telegramId))
+        .limit(1);
+      const squadId = userRow[0]?.squadId;
+      if (squadId) {
+        await db
+          .update(squadsTable)
+          .set({ isGold: true })
+          .where(eq(squadsTable.id, squadId));
+      }
+      await db
+        .update(vaultUsersTable)
+        .set({ starsBalance: creditStars })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "competition_entry": {
+      const compId = product.effectValue ?? 0;
+      const userRow = await db
+        .select({ lifetimePoints: vaultUsersTable.lifetimePoints })
+        .from(vaultUsersTable)
+        .where(eq(vaultUsersTable.telegramId, telegramId))
+        .limit(1);
+      const pts = userRow[0]?.lifetimePoints ?? 0;
+      await db.insert(competitionEntriesTable).values({
+        competitionId: compId,
+        telegramId,
+        pointsAtEntry: pts,
+      }).onConflictDoNothing();
+      await db
+        .update(vaultUsersTable)
+        .set({ starsBalance: creditStars })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
     default: {
       await db
         .update(vaultUsersTable)
@@ -175,7 +224,7 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
     } else if (update.message?.successful_payment) {
       const payment = update.message.successful_payment;
       const fromId = update.message.from?.id;
-      let payload: { telegramId?: string; productId?: number } = {};
+      let payload: { telegramId?: string; productId?: number; competitionId?: number; effect?: string } = {};
       try {
         payload = JSON.parse(payment.invoice_payload);
       } catch {
@@ -205,6 +254,23 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
 
         if (product) {
           await applyStarProductEffect(telegramId, product, payment.total_amount);
+        } else if (payload.effect === "competition_entry" && typeof payload.competitionId === "number") {
+          const { competitionEntriesTable: cet } = await import("@workspace/db");
+          const userRow = await db
+            .select({ lifetimePoints: vaultUsersTable.lifetimePoints })
+            .from(vaultUsersTable)
+            .where(eq(vaultUsersTable.telegramId, telegramId))
+            .limit(1);
+          const pts = userRow[0]?.lifetimePoints ?? 0;
+          await db.insert(cet).values({
+            competitionId: payload.competitionId,
+            telegramId,
+            pointsAtEntry: pts,
+          }).onConflictDoNothing();
+          await db
+            .update(vaultUsersTable)
+            .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
+            .where(eq(vaultUsersTable.telegramId, telegramId));
         } else {
           await db
             .update(vaultUsersTable)

@@ -1,0 +1,30 @@
+import { pgTable, serial, text, integer, timestamp, bigint } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const competitionsTable = pgTable("competitions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  prizePoints: bigint("prize_points", { mode: "number" }).notNull().default(0),
+  entryFeeStars: integer("entry_fee_stars").notNull().default(5),
+  maxEntries: integer("max_entries"),
+  status: text("status").notNull().default("active"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull().defaultNow(),
+  endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const competitionEntriesTable = pgTable("competition_entries", {
+  id: serial("id").primaryKey(),
+  competitionId: integer("competition_id").notNull(),
+  telegramId: text("telegram_id").notNull(),
+  pointsAtEntry: bigint("points_at_entry", { mode: "number" }).notNull().default(0),
+  pointsAtEnd: bigint("points_at_end", { mode: "number" }),
+  enteredAt: timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertCompetitionSchema = createInsertSchema(competitionsTable).omit({ id: true, createdAt: true });
+export type InsertCompetition = z.infer<typeof insertCompetitionSchema>;
+export type Competition = typeof competitionsTable.$inferSelect;
+export type CompetitionEntry = typeof competitionEntriesTable.$inferSelect;

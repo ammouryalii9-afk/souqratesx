@@ -208,7 +208,8 @@ export const SquadTab = () => {
                       </div>
                       <span className="text-2xl shrink-0">{s.emoji}</span>
                       <div className="flex flex-col min-w-0">
-                        <span className={`text-sm font-bold tracking-tight truncate ${mine ? 'text-primary' : 'text-white'}`}>
+                        <span className={`text-sm font-bold tracking-tight truncate flex items-center gap-1 ${mine ? 'text-primary' : s.isGold ? 'text-[#FFD700]' : 'text-white'}`}>
+                          {s.isGold && <span className="text-[#FFD700] text-xs">✦</span>}
                           {s.name}{mine ? ` ${tr.squad.yours}` : ''}
                         </span>
                         <span className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
@@ -255,12 +256,13 @@ function MySquadCard({
   const { tr } = useLanguage();
   return (
     <section>
-      <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-[50px] pointer-events-none" />
+      <div className={`bg-card/60 backdrop-blur-xl border rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden ${squad.isGold ? 'border-[#FFD700]/40 shadow-[0_0_30px_rgba(255,215,0,0.1)]' : 'border-white/10'}`}>
+        <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] pointer-events-none ${squad.isGold ? 'bg-[#FFD700]/10' : 'bg-primary/10'}`} />
         <div className="flex items-center gap-4 mb-5 relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-4xl shadow-inner">
+          <div className={`w-16 h-16 rounded-2xl bg-black/40 border flex items-center justify-center text-4xl shadow-inner ${squad.isGold ? 'border-[#FFD700]/30' : 'border-white/10'}`}>
             {squad.emoji}
           </div>
+          {squad.isGold && <div className="absolute -top-2 right-4 text-[#FFD700] text-xs font-bold bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-full px-2 py-0.5 flex items-center gap-1">✦ Gold</div>}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xl font-black text-white tracking-tight truncate">{squad.name}</span>

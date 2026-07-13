@@ -3,7 +3,7 @@ import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers, PlayCircle, Tv } from 'lucide-react';
+import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers, PlayCircle, Tv, Trophy, Clock, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
@@ -11,6 +11,124 @@ import { StackTowerGame } from '../games/StackTowerGame';
 import { SkinsShop } from '../components/SkinsShop';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
+
+// ─── Competitions ────────────────────────────────────────────────────────────
+
+type CompetitionEntry = {
+  id: number;
+  title: string;
+  description: string | null;
+  prizePoints: number;
+  entryFeeStars: number;
+  maxEntries: number | null;
+  status: string;
+  endAt: string;
+  entered: boolean;
+  myPointsGained: number;
+};
+
+function formatTimeLeft(endAt: string): string {
+  const ms = new Date(endAt).getTime() - Date.now();
+  if (ms <= 0) return 'Ended';
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+  return `${h}h ${m}m`;
+}
+
+function CompetitionsSection() {
+  const { isTelegramUser } = useVault();
+  const [comps, setComps] = useState<CompetitionEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [entering, setEntering] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  async function load() {
+    try {
+      const r = await fetch('/api/competitions', { credentials: 'include' });
+      if (!r.ok) return;
+      const data = await r.json() as { competitions: CompetitionEntry[] };
+      setComps(data.competitions.filter(c => c.status === 'active'));
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function handleEnter(comp: CompetitionEntry) {
+    if (!isTelegramUser) {
+      toast({ title: 'Telegram Only', description: 'Open this app inside Telegram to enter competitions.', variant: 'destructive' });
+      return;
+    }
+    setEntering(comp.id);
+    try {
+      const r = await fetch(`/api/competitions/${comp.id}/invoice`, { method: 'POST', credentials: 'include' });
+      const data = await r.json() as { invoiceUrl?: string; error?: string };
+      if (!r.ok) {
+        toast({ title: 'Error', description: data.error ?? 'Failed to create invoice', variant: 'destructive' });
+        return;
+      }
+      const webApp = (window as { Telegram?: { WebApp?: { openInvoice?: (url: string, cb: (s: string) => void) => void } } }).Telegram?.WebApp;
+      if (webApp?.openInvoice && data.invoiceUrl) {
+        webApp.openInvoice(data.invoiceUrl, (status) => {
+          if (status === 'paid') {
+            toast({ title: '🏆 Entered!', description: 'You\'re now competing. Good luck!' });
+            setTimeout(() => void load(), 1500);
+          }
+        });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to open payment', variant: 'destructive' });
+    } finally {
+      setEntering(null);
+    }
+  }
+
+  if (loading || comps.length === 0) return null;
+
+  return (
+    <div className="px-4 mt-6">
+      <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+        <Trophy className="w-5 h-5 text-yellow-400" /> Competitions
+      </h2>
+      <div className="space-y-3">
+        {comps.map(c => (
+          <div key={c.id} className="bg-card/40 backdrop-blur-md border border-yellow-400/20 rounded-[20px] p-5 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full blur-[40px] pointer-events-none" />
+            <div className="flex items-start justify-between gap-3 relative z-10">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-white text-sm tracking-tight">{c.title}</h3>
+                {c.description && <p className="text-[11px] text-muted-foreground mt-1">{c.description}</p>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-yellow-400" /> {c.prizePoints.toLocaleString()} pts prize</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatTimeLeft(c.endAt)}</span>
+                  {c.maxEntries && <span className="flex items-center gap-1"><Users className="w-3 h-3" /> max {c.maxEntries}</span>}
+                </div>
+                {c.entered && (
+                  <div className="mt-2 text-[11px] bg-primary/10 text-primary px-2 py-1 rounded-lg inline-block border border-primary/20 font-bold">
+                    ✓ Entered · +{c.myPointsGained.toLocaleString()} pts gained
+                  </div>
+                )}
+              </div>
+              {!c.entered ? (
+                <button
+                  onClick={() => void handleEnter(c)}
+                  disabled={entering === c.id}
+                  className="shrink-0 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-300 border border-yellow-400/30 text-xs font-bold px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50 whitespace-nowrap"
+                >
+                  {entering === c.id ? '...' : `${c.entryFeeStars} ⭐`}
+                </button>
+              ) : (
+                <span className="shrink-0 text-primary text-xs font-bold">✓ In</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type GameState = 'idle' | 'playing' | 'gameover';
 type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
@@ -280,6 +398,8 @@ export const GamesTab = () => {
       <div className="px-4 mt-6">
         <SkinsShop />
       </div>
+
+      <CompetitionsSection />
     </div>
   );
 };

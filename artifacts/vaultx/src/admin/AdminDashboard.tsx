@@ -14,10 +14,11 @@ import { AdminPartnerTasks } from "./AdminPartnerTasks";
 import { AdminAnnouncements } from "./AdminAnnouncements";
 import { AdminWithdrawals } from "./AdminWithdrawals";
 import { AdminSquads } from "./AdminSquads";
+import { AdminCompetitions } from "./AdminCompetitions";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "squads" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "squads" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -33,7 +34,8 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
     label: "الإدارة",
     tabs: [
       { id: "users",      label: "المستخدمون",   icon: <UsersIcon className="w-4 h-4" /> },
-      { id: "squads",     label: "الفِرَق",        icon: <Shield className="w-4 h-4" />,       badge: "جديد" },
+      { id: "squads",       label: "الفِرَق",         icon: <Shield className="w-4 h-4" />,      badge: "جديد" },
+      { id: "competitions", label: "المسابقات",      icon: <Star className="w-4 h-4 text-yellow-400" />, badge: "جديد" },
       { id: "broadcast",  label: "رسائل جماعية", icon: <Send className="w-4 h-4" /> },
       { id: "ads",        label: "الإعلانات",    icon: <Megaphone className="w-4 h-4" /> },
       { id: "star-store",     label: "متجر النجوم",    icon: <Star className="w-4 h-4" /> },
@@ -110,7 +112,8 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "anticheat"  && <AdminAntiCheat />}
         {tab === "providers"  && <AdminProviderReports />}
         {tab === "users"      && <AdminUsers />}
-        {tab === "squads"     && <AdminSquads />}
+        {tab === "squads"        && <AdminSquads />}
+        {tab === "competitions"  && <AdminCompetitions />}
         {tab === "broadcast"  && <AdminBroadcast />}
         {tab === "ads"        && <AdminAds />}
         {tab === "star-store"    && <AdminStarStore />}

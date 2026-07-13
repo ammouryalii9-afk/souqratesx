@@ -198,7 +198,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const basePassiveProfitPerHour = passiveCards.reduce((acc, card) => acc + card.ptsPerHour, 0);
   const multiplierFactor = 1 + permanentMultiplierPercent / 100;
-  const profitPerHour = Math.round(basePassiveProfitPerHour * multiplierFactor);
+  const premiumMultiplier = isPremium ? 2 : 1;
+  const profitPerHour = Math.round(basePassiveProfitPerHour * multiplierFactor * premiumMultiplier);
 
   // Authenticate with Telegram (if running inside Telegram) and hydrate state from the server.
   useEffect(() => {

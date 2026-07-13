@@ -133,6 +133,11 @@ export function AdminBroadcast() {
         </Button>
       </div>
 
+      {/* ── T005: Sponsored Push Campaigns ────────────────────── */}
+      <SponsoredCampaignForm onCreated={() => {
+        adminApi.broadcasts().then(setJobs).catch(() => null);
+      }} />
+
       {/* ── Broadcast Section ─────────────────────────────────── */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <h3 className="font-bold text-white text-sm">إرسال رسالة جماعية عبر تيليجرام</h3>
@@ -189,9 +194,81 @@ export function AdminBroadcast() {
               تم الإرسال إلى {job.sentCount}/{job.totalUsers} {job.failedCount > 0 && `(فشل: ${job.failedCount})`}
             </div>
             <div className="text-muted-foreground">{new Date(job.createdAt).toLocaleString("ar-EG")}</div>
+          {job.isSponsored === 1 && (
+            <div className="text-[10px] bg-yellow-400/10 text-yellow-300 border border-yellow-400/20 px-2 py-0.5 rounded-full inline-block mt-1">
+              📢 حملة إعلانية مدفوعة{job.sponsorName ? ` — ${job.sponsorName}` : ''}
+            </div>
+          )}
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Sponsored Campaign Form ───────────────────────────────────────────────────
+function SponsoredCampaignForm({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [sponsorName, setSponsorName] = useState("");
+  const [sponsorUrl, setSponsorUrl] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true); setErr(null);
+    try {
+      await adminApi.post("/admin/broadcast", { message: msg, audience: "all", sponsorName, sponsorUrl, isSponsored: 1 });
+      setMsg(""); setSponsorName(""); setSponsorUrl(""); setOpen(false);
+      onCreated();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "فشل الإرسال");
+    } finally { setSending(false); }
+  }
+
+  if (!open) {
+    return (
+      <div className="bg-yellow-400/5 border border-yellow-400/20 rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-yellow-300 text-sm">📢 حملات إعلانية مدفوعة</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">أرسل إشعار دعائي لجميع المستخدمين بسم المعلن</p>
+          </div>
+          <button onClick={() => setOpen(true)} className="text-xs bg-yellow-400/10 border border-yellow-400/30 text-yellow-300 px-3 py-1.5 rounded-lg font-bold hover:bg-yellow-400/20 transition-all">
+            + إنشاء حملة
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-yellow-400/5 border border-yellow-400/20 rounded-xl p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-yellow-300 text-sm">📢 حملة إعلانية جديدة</h3>
+        <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground text-xs hover:text-white">إلغاء</button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2">
+          <label className="text-xs text-muted-foreground mb-1 block">نص الرسالة الإعلانية *</label>
+          <textarea value={msg} onChange={e => setMsg(e.target.value)} required rows={3}
+            placeholder="اكتب نص الإعلان هنا..."
+            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-yellow-400" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">اسم المعلن</label>
+          <input value={sponsorName} onChange={e => setSponsorName(e.target.value)} placeholder="مثال: شركة X" className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-400" />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">رابط المعلن</label>
+          <input value={sponsorUrl} onChange={e => setSponsorUrl(e.target.value)} placeholder="https://..." className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-400" />
+        </div>
+      </div>
+      {err && <p className="text-red-400 text-xs">{err}</p>}
+      <button type="submit" disabled={sending || !msg.trim()} className="bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 border border-yellow-400/30 text-sm font-bold py-2 rounded-lg disabled:opacity-50 transition-all">
+        {sending ? "جارٍ الإرسال..." : "📢 إرسال الحملة الإعلانية"}
+      </button>
+    </form>
   );
 }

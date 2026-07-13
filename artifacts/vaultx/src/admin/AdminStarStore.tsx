@@ -12,6 +12,9 @@ const EFFECT_LABELS: Record<StarProductEffectType, string> = {
   permanent_multiplier: "مضاعف نقاط دائم (%)",
   badge: "شارة مميزة",
   skin: "سكن (شكل) مخصص",
+  mining_level_up: "🚀 رفع مستوى التعدين",
+  squad_gold: "✦ اسم فِرقة ذهبي",
+  competition_entry: "🏆 تذكرة مسابقة",
 };
 
 const EFFECT_VALUE_LABEL: Record<StarProductEffectType, string | null> = {
@@ -22,6 +25,9 @@ const EFFECT_VALUE_LABEL: Record<StarProductEffectType, string | null> = {
   permanent_multiplier: "نسبة الزيادة الدائمة % (مثال: 10)",
   badge: "رقم تعريف الشارة (Badge ID)",
   skin: "رقم تعريف السكن (Skin ID)",
+  mining_level_up: "مستوى التعدين المستهدف (مثال: 5)",
+  squad_gold: null,
+  competition_entry: "رقم المسابقة (Competition ID)",
 };
 
 type FormState = {

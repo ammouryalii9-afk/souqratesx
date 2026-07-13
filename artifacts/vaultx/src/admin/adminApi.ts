@@ -113,6 +113,9 @@ export type BroadcastJob = {
   totalUsers: number;
   sentCount: number;
   failedCount: number;
+  sponsorName: string | null;
+  sponsorUrl: string | null;
+  isSponsored: number;
   createdAt: string;
   completedAt: string | null;
 };
@@ -153,7 +156,10 @@ export type StarProductEffectType =
   | "premium_days"
   | "permanent_multiplier"
   | "badge"
-  | "skin";
+  | "skin"
+  | "mining_level_up"
+  | "squad_gold"
+  | "competition_entry";
 
 export type StarProduct = {
   id: number;

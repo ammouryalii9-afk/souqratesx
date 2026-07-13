@@ -14,6 +14,7 @@ import announcementsRouter from "./announcements";
 import withdrawRouter from "./withdraw";
 import engageRouter from "./engage";
 import squadsRouter from "./squads";
+import competitionsRouter from "./competitions";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(announcementsRouter);
 router.use(withdrawRouter);
 router.use(engageRouter);
 router.use(squadsRouter);
+router.use(competitionsRouter);
 
 export default router;

@@ -20,6 +20,9 @@ export const starProductEffectTypes = [
   "permanent_multiplier",
   "badge",
   "skin",
+  "mining_level_up",
+  "squad_gold",
+  "competition_entry",
 ] as const;
 
 export const starProductsTable = pgTable("star_products", {

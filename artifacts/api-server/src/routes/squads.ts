@@ -52,7 +52,10 @@ async function loadSquadBoard(limit = 100): Promise<SquadLeaderRow[]> {
 // GET /squads — top squads leaderboard (viral competition surface)
 router.get("/squads", async (_req, res): Promise<void> => {
   const board = await loadSquadBoard(100);
-  res.json(board.map((s, i) => ({ rank: i + 1, ...s })));
+  const goldIds = new Set(
+    (await db.select({ id: squadsTable.id }).from(squadsTable).where(eq(squadsTable.isGold, true))).map(r => r.id)
+  );
+  res.json(board.map((s, i) => ({ rank: i + 1, ...s, isGold: goldIds.has(s.id) })));
 });
 
 // GET /squads/me — the caller's squad, its members, and its rank (or null)
@@ -99,6 +102,7 @@ router.get("/squads/me", async (req, res): Promise<void> => {
       name: squad.name,
       emoji: squad.emoji,
       ownerId: squad.ownerId,
+      isGold: squad.isGold,
       isOwner: squad.ownerId === telegramId,
       rank: idx >= 0 ? idx + 1 : null,
       memberCount: entry?.memberCount ?? members.length,

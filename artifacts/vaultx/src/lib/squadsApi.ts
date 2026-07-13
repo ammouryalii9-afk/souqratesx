@@ -19,6 +19,7 @@ export type SquadBoardEntry = {
   name: string;
   emoji: string;
   ownerId: string;
+  isGold: boolean;
   memberCount: number;
   totalPoints: number;
 };
@@ -35,6 +36,7 @@ export type MySquad = {
   name: string;
   emoji: string;
   ownerId: string;
+  isGold: boolean;
   isOwner: boolean;
   rank: number | null;
   memberCount: number;
