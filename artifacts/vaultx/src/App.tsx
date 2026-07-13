@@ -22,7 +22,7 @@ import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard"
 import { MaintenancePage } from "./components/MaintenancePage";
 
 function Header() {
-  const { tempMiningPoints, lifetimePoints, availablePoints, profitPerHour, equippedBadgeId } = useVault();
+  const { tempMiningPoints, skxBalance, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
   const { lang, toggleLang, tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
@@ -72,27 +72,31 @@ function Header() {
         >
           {tr.header.langToggle}
         </button>
-        <div className="px-4 py-2 rounded-2xl flex flex-col items-end justify-center relative overflow-hidden group" style={{
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 24px rgba(0,0,0,0.3)',
-        }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">SKX</span>
-            <span className="text-base font-black text-white tabular-nums tracking-tight leading-none">{availablePoints.toLocaleString()}</span>
-            <span className="text-[10px] text-muted-foreground font-bold tabular-nums">≈${(availablePoints / pointsPerDollar).toFixed(2)}</span>
+        <div className="flex flex-col items-end gap-1">
+          {/* SKP row */}
+          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 relative overflow-hidden group" style={{
+            background: 'linear-gradient(135deg, rgba(52,211,153,0.08) 0%, rgba(52,211,153,0.03) 100%)',
+            border: '1px solid rgba(52,211,153,0.15)',
+          }}>
+            <span className="text-[9px] text-primary/70 font-bold uppercase tracking-wider">SKP</span>
+            <span className="text-sm font-black text-white tabular-nums tracking-tight leading-none">{Math.floor(tempMiningPoints).toLocaleString()}</span>
+            <div className="w-1 h-1 rounded-full bg-primary animate-pulse"></div>
+            <span className="text-[9px] text-primary/70 font-semibold tabular-nums">+{profitPerHour}/hr</span>
+          </div>
+          {/* SKX row */}
+          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5" style={{
+            background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(251,191,36,0.03) 100%)',
+            border: '1px solid rgba(251,191,36,0.15)',
+          }}>
+            <span className="text-[9px] text-amber-400/70 font-bold uppercase tracking-wider">SKX</span>
+            <span className="text-sm font-black text-amber-300 tabular-nums tracking-tight leading-none">{skxBalance.toLocaleString()}</span>
+            <span className="text-[9px] text-amber-400/60 font-semibold tabular-nums">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
             {dollarBonus > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums"
                 style={{ background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
-                +${dollarBonus.toFixed(2)} bonus
+                +${dollarBonus.toFixed(2)}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-1 mt-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-            <span className="text-[11px] text-primary font-bold tabular-nums tracking-wide">+{profitPerHour}/hr</span>
           </div>
         </div>
       </div>
