@@ -88,7 +88,7 @@ router.post("/partner-tasks/:id/verify", rateLimit("partner-verify", 10, 60_000)
 
   // Verify Telegram membership if bot is configured
   if (isTelegramBotConfigured()) {
-    const { status, error } = await getChatMemberStatus(task.channelUsername, telegramId);
+    const { status, error } = await getChatMemberStatus(task.channelUsername.trim(), telegramId);
     if (status === null) {
       // API error (bot not in channel, wrong username, misconfigured task, etc.).
       // Fail CLOSED — never credit unverified claims. Granting "benefit of doubt"
