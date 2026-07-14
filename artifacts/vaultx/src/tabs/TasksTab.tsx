@@ -156,9 +156,10 @@ export const TasksTab = () => {
     if (!config?.adsgram.enabled || !config.adsgram.bannerBlockId || bannerAdLoading) return;
     setBannerAdLoading(true);
     try {
-      const { showAdsgramRewardedAd } = await import('../lib/adsgram');
-      await showAdsgramRewardedAd(config.adsgram.bannerBlockId);
-      const result = await claimAdsgramReward();
+      // Use bannerBlockId as the primary Adsgram block — same fallback chain as button 1
+      const bannerConfig = { ...config, adsgram: { ...config.adsgram, blockId: config.adsgram.bannerBlockId } };
+      const provider = await watchRewardedAdWithFallback(bannerConfig);
+      const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimOnclickaReward();
       addLifetimePoints(result.creditedPoints);
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
