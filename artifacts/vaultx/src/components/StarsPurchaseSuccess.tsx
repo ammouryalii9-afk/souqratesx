@@ -1,19 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { haptic } from '../lib/telegram';
+import { useLanguage } from '../lib/i18n';
 import type { StarProduct } from '../lib/gameApi';
-
-const EFFECT_MESSAGES: Record<string, string> = {
-  premium_days:         'Premium status activated! 👑',
-  turbo_boost:          'Turbo boost is now active! 🔥',
-  energy_refill:        'Energy fully restored! ⚡',
-  permanent_multiplier: 'Mining power permanently increased! ✨',
-  badge:                'New badge unlocked & equipped! 🏅',
-  skin:                 'New skin unlocked & applied! 🎨',
-  points:               'Points added to your balance! 💎',
-  mining_level_up:      'Mining level upgraded! 🚀',
-  squad_gold:           'Squad Gold status activated! 🏆',
-  competition_entry:    'Competition entry confirmed! 🎯',
-};
 
 const COLORS = [
   '#FFD700','#f59e0b','#34d399','#38bdf8','#a78bfa',
@@ -102,8 +90,22 @@ const getMeta = (t: string) => META[t] ?? { color: '#34d399', glow: 'rgba(52,211
 
 export function StarsPurchaseSuccess({ product, onClose }: Props) {
   const canvasRef = useConfetti(true);
+  const { tr } = useLanguage();
   const m = getMeta(product.effectType);
-  const msg = EFFECT_MESSAGES[product.effectType] ?? 'Purchase applied successfully! 🎉';
+
+  const EFFECT_MSG: Record<string, string> = {
+    premium_days:         tr.tasks.effectPremium,
+    turbo_boost:          tr.tasks.effectTurbo,
+    energy_refill:        tr.tasks.effectEnergy,
+    permanent_multiplier: tr.tasks.effectMultiplier,
+    badge:                tr.tasks.effectBadge,
+    skin:                 tr.tasks.effectSkin,
+    points:               tr.tasks.effectPoints,
+    mining_level_up:      tr.tasks.effectMiningLevel,
+    squad_gold:           tr.tasks.effectSquadGold,
+    competition_entry:    tr.tasks.effectCompetition,
+  };
+  const msg = EFFECT_MSG[product.effectType] ?? tr.tasks.effectDefault;
 
   useEffect(() => {
     haptic('heavy');
@@ -113,10 +115,8 @@ export function StarsPurchaseSuccess({ product, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.92)' }}>
-      {/* Confetti canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }} />
 
-      {/* Card */}
       <div
         className="relative w-full max-w-xs rounded-3xl overflow-hidden flex flex-col items-center text-center animate-in zoom-in-95 duration-300"
         style={{
@@ -126,11 +126,9 @@ export function StarsPurchaseSuccess({ product, onClose }: Props) {
           zIndex: 2,
         }}
       >
-        {/* Top strip */}
         <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, transparent, ${m.color}, transparent)` }} />
 
         <div className="px-6 pt-7 pb-6 flex flex-col items-center gap-4">
-          {/* Animated icon */}
           <div
             className="w-24 h-24 rounded-3xl flex items-center justify-center animate-in zoom-in-50 duration-500"
             style={{
@@ -145,21 +143,18 @@ export function StarsPurchaseSuccess({ product, onClose }: Props) {
             }
           </div>
 
-          {/* Success badge */}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
-            ✓ Purchase Successful
+            {tr.tasks.successTitle}
           </div>
 
-          {/* Title */}
           <div>
             <h2 className="text-xl font-black text-white leading-tight">{product.title}</h2>
             <p className="text-sm mt-1 font-semibold" style={{ color: m.color }}>{msg}</p>
           </div>
 
-          {/* Benefits */}
           {product.benefitsBullets && (
             <div className="w-full px-4 py-3 rounded-2xl text-left" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: m.color }}>What was applied</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: m.color }}>{tr.tasks.successWhatApplied}</p>
               <ul className="flex flex-col gap-1.5">
                 {product.benefitsBullets.split('\n').filter(Boolean).map((b, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs text-white/80">
@@ -171,14 +166,12 @@ export function StarsPurchaseSuccess({ product, onClose }: Props) {
             </div>
           )}
 
-          {/* Stars paid */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: `${m.color}12`, border: `1px solid ${m.color}25` }}>
             <span className="text-lg">⭐</span>
             <span className="text-base font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
-            <span className="text-xs text-white/50">Stars spent</span>
+            <span className="text-xs text-white/50">{tr.tasks.successStarsSpent}</span>
           </div>
 
-          {/* CTA */}
           <button
             onClick={() => { haptic('light'); onClose(); }}
             className="w-full h-12 rounded-2xl font-black text-sm transition-all active:scale-95"
@@ -188,7 +181,7 @@ export function StarsPurchaseSuccess({ product, onClose }: Props) {
               boxShadow: `0 4px 20px ${m.glow}`,
             }}
           >
-            Play Now 🚀
+            {tr.tasks.successPlayNow}
           </button>
         </div>
       </div>

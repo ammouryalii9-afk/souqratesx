@@ -888,10 +888,10 @@ export const TasksTab = () => {
         };
 
         const CATEGORIES = [
-          { id: 'all',       label: 'الكل',       emoji: '🛍️' },
-          { id: 'premium',   label: 'بريميوم',    emoji: '👑' },
-          { id: 'boosts',    label: 'تعزيزات',    emoji: '⚡' },
-          { id: 'cosmetics', label: 'مظهر',        emoji: '🎨' },
+          { id: 'all',       label: tr.tasks.storeCatAll,      emoji: '🛍️' },
+          { id: 'premium',   label: tr.tasks.storeCatPremium,  emoji: '👑' },
+          { id: 'boosts',    label: tr.tasks.storeCatBoosts,   emoji: '⚡' },
+          { id: 'cosmetics', label: tr.tasks.storeCatCosmetics,emoji: '🎨' },
         ];
 
         const filtered = storeCategory === 'all'
@@ -916,7 +916,7 @@ export const TasksTab = () => {
                 </div>
               </div>
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
-                ⭐ Exclusive
+                {tr.tasks.storeExclusive}
               </span>
             </div>
 
@@ -962,7 +962,7 @@ export const TasksTab = () => {
                 {/* Products grid */}
                 {filtered.length === 0 ? (
                   <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <p className="text-xs text-muted-foreground">لا توجد منتجات في هذه الفئة</p>
+                    <p className="text-xs text-muted-foreground">{tr.tasks.storeCatEmpty}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
@@ -1051,7 +1051,7 @@ export const TasksTab = () => {
                             <div className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-bold gap-1"
                               style={{ background: `linear-gradient(135deg, ${meta.color} 0%, ${meta.color}bb 100%)`, color: '#000', boxShadow: `0 2px 10px ${meta.glow}` }}
                             >
-                              {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>شراء ⭐</>}
+                              {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>{tr.tasks.storeBuyBtn}</>}
                             </div>
                           </div>
                         </button>
@@ -1198,7 +1198,7 @@ export const TasksTab = () => {
               {/* Benefits */}
               {confirmProduct.benefitsBullets && (
                 <div className="mx-5 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${cm.color}20` }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: cm.color }}>ما ستحصل عليه</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: cm.color }}>{tr.tasks.confirmWhatYouGet}</p>
                   <ul className="flex flex-col gap-2">
                     {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-white/80 leading-snug">
@@ -1227,14 +1227,14 @@ export const TasksTab = () => {
                     style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)' }} />
                   {purchasingProduct
                     ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <span className="relative z-10">تأكيد الدفع ⭐ {confirmProduct.priceStars.toLocaleString()}</span>
+                    : <span className="relative z-10">{tr.tasks.confirmPayBtn(confirmProduct.priceStars)}</span>
                   }
                 </button>
                 <button
                   onClick={() => { haptic('light'); setConfirmProduct(null); }}
                   className="w-full h-10 rounded-xl text-sm font-medium text-white/40 active:text-white transition-colors"
                 >
-                  إلغاء
+                  {tr.squad.cancel}
                 </button>
               </div>
             </div>
