@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Grid3x3, Users, Coins, StopCircle } from "lucide-react";
+import { Loader2, RefreshCw, Grid3x3, Users, Coins, StopCircle, PlayCircle } from "lucide-react";
 import { adminApi, type PixelCyclesData } from "./adminApi";
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -14,6 +14,7 @@ export function AdminPixels() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   function load() {
     setLoading(true);
@@ -28,6 +29,20 @@ export function AdminPixels() {
   useEffect(() => {
     load();
   }, []);
+
+  async function startCycle() {
+    if (!confirm("بدء دورة بكسلات جديدة الآن؟")) return;
+    setStarting(true);
+    setError(null);
+    try {
+      await adminApi.startPixelCycle();
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل بدء الدورة");
+    } finally {
+      setStarting(false);
+    }
+  }
 
   async function closeCycle() {
     if (!confirm("إغلاق الدورة النشطة الآن وتوزيع الأرباح على حاملي البكسلات؟ لا يمكن التراجع.")) return;
@@ -125,11 +140,20 @@ export function AdminPixels() {
               </Button>
             </div>
           ) : (
-            <div className="text-center py-6 text-muted-foreground rounded-2xl border border-white/6 bg-white/2">
-              <p className="text-3xl mb-2">🧊</p>
+            <div className="text-center py-6 text-muted-foreground rounded-2xl border border-white/6 bg-white/2 flex flex-col items-center gap-3">
+              <p className="text-3xl">🧊</p>
               <p className="text-sm">لا توجد دورة نشطة حاليًا</p>
+              <Button
+                size="sm"
+                onClick={startCycle}
+                disabled={starting}
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                {starting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5" />}
+                بدء دورة جديدة الآن
+              </Button>
               {data.settings.autoStart && (
-                <p className="text-[10px] mt-1 text-muted-foreground/60">سيبدأ النظام دورة جديدة تلقائيًا خلال الفحص الدوري القادم</p>
+                <p className="text-[10px] text-muted-foreground/60">أو سيبدأ النظام دورة تلقائيًا خلال الفحص الدوري القادم</p>
               )}
             </div>
           )}

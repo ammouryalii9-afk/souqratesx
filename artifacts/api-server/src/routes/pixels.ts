@@ -370,6 +370,28 @@ router.get("/admin/pixels/cycles", async (req, res): Promise<void> => {
   });
 });
 
+/** POST /api/admin/pixels/cycles/start — manually start a new cycle (fails if one is already active) */
+router.post("/admin/pixels/cycles/start", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) {
+    res.status(401).json({ error: "Not admin" });
+    return;
+  }
+  const [existing] = await db
+    .select({ id: pixelCyclesTable.id })
+    .from(pixelCyclesTable)
+    .where(eq(pixelCyclesTable.status, "active"))
+    .limit(1);
+  if (existing) {
+    res.status(409).json({ error: "There is already an active cycle" });
+    return;
+  }
+  const settings = await getPixelSettings();
+  const end = new Date(Date.now() + settings.cycleDays * 24 * 60 * 60 * 1000);
+  const [created] = await db.insert(pixelCyclesTable).values({ endDate: end }).returning();
+  req.log.info({ cycleId: created?.id, endDate: end.toISOString() }, "admin manually started a pixel cycle");
+  res.json({ ok: true, cycleId: created?.id });
+});
+
 /** POST /api/admin/pixels/cycles/close — force-close the active cycle and distribute now */
 router.post("/admin/pixels/cycles/close", async (req, res): Promise<void> => {
   if (!isAdminSession(req as never)) {

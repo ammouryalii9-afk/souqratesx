@@ -321,6 +321,7 @@ export const adminApi = {
   deleteStarProduct: (id: number) => adminFetch<AdminSessionStatus>(`/admin/star-products/${id}`, { method: "DELETE" }),
   pixelCycles: () => adminFetch<PixelCyclesData>("/admin/pixels/cycles"),
   closePixelCycle: () => adminFetch<{ ok: boolean }>("/admin/pixels/cycles/close", { method: "POST" }),
+  startPixelCycle: () => adminFetch<{ ok: boolean; cycleId: number }>("/admin/pixels/cycles/start", { method: "POST" }),
   sendReminders: (inactiveDays: number, message?: string) =>
     adminFetch<{ ok: boolean; total: number; sent: number; failed: number }>("/admin/reminders/send", {
       method: "POST",
