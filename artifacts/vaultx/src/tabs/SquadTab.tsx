@@ -56,7 +56,7 @@ export const SquadTab = () => {
     load();
   }, [load]);
 
-  const inviteLink = mySquad ? `https://t.me/${botUsername}?startapp=squad_${mySquad.id}` : '';
+  const inviteLink = mySquad ? `${window.location.origin}/squad/${mySquad.id}` : '';
 
   const share = () => {
     if (!inviteLink) return;

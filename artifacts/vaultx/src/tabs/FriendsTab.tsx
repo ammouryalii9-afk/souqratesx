@@ -54,7 +54,7 @@ export const FriendsTab = () => {
   }, []);
 
   const hasRealTelegramId = /^\d+$/.test(userId);
-  const referralLink = hasRealTelegramId ? `https://t.me/${botUsername}?startapp=ref_${userId}` : '';
+  const referralLink = hasRealTelegramId ? `${window.location.origin}/ref/${userId}` : '';
 
   const buildRows = useCallback(
     (entries: { telegramId: string; username: string | null; firstName: string | null; pts: number }[]): Row[] =>
