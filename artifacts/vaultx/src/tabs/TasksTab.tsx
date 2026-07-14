@@ -763,21 +763,21 @@ export const TasksTab = () => {
             {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
           </button>
         </div>
-        {config?.monetag.enabled && (
+        {config?.adsgram.enabled && config.adsgram.bannerBlockId && (
           <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
             <div className="flex-1 pr-4">
               <h3 className="font-semibold text-white text-sm mb-1">Watch another rewarded ad</h3>
               <p className="text-xs font-medium text-primary">
-                +{config.monetag.rewardPoints.toLocaleString()} pts per ad
+                +{config.adsgram.rewardPoints.toLocaleString()} pts per ad
               </p>
             </div>
             <button
-              data-testid="button-watch-monetag-ad"
-              onClick={handleWatchMonetagAd}
-              disabled={!config?.monetag.enabled || monetagLoading}
+              data-testid="button-watch-banner-ad"
+              onClick={handleWatchBannerAd}
+              disabled={bannerAdLoading}
               className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
             >
-              {monetagLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+              {bannerAdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
             </button>
           </div>
         )}
