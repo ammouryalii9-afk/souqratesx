@@ -1,5 +1,13 @@
 const API_BASE = '/api';
 
+class SquadApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -8,10 +16,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+    throw new SquadApiError((body as { error?: string }).error ?? `HTTP ${res.status}`, res.status);
   }
   return res.json() as Promise<T>;
 }
+
+export { SquadApiError };
 
 export type SquadBoardEntry = {
   rank: number;

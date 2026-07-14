@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { rateLimit } from "../lib/rateLimit";
 import { db, vaultUsersTable, squadsTable } from "@workspace/db";
-import { getSessionTelegramId } from "../lib/session";
+import { getSessionTelegramId, clearSessionCookie } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
 import { skxCreditFields } from "../lib/skxCredit";
@@ -135,7 +135,8 @@ router.post("/squads", rateLimit("squadCreate", 5, 60_000), async (req, res): Pr
 
   const [me] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!me) {
-    res.status(404).json({ error: "User not found" });
+    clearSessionCookie(res);
+    res.status(401).json({ error: "Session expired. Please close and reopen the app." });
     return;
   }
   if (me.isBanned) {
@@ -175,7 +176,8 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
 
   const [me] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
   if (!me) {
-    res.status(404).json({ error: "User not found" });
+    clearSessionCookie(res);
+    res.status(401).json({ error: "Session expired. Please close and reopen the app." });
     return;
   }
   if (me.isBanned) {

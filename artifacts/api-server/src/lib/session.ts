@@ -58,6 +58,10 @@ export function setAdminSessionCookie(res: Response): void {
   });
 }
 
+export function clearSessionCookie(res: Response): void {
+  res.clearCookie(SESSION_COOKIE, { path: "/" });
+}
+
 export function clearAdminSessionCookie(res: Response): void {
   res.clearCookie(ADMIN_SESSION_COOKIE, { path: "/" });
 }

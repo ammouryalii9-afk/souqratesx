@@ -10,6 +10,7 @@ import {
   createSquad,
   joinSquad,
   leaveSquad,
+  SquadApiError,
   type SquadBoardEntry,
   type MySquad,
 } from '../lib/squadsApi';
@@ -93,6 +94,11 @@ export const SquadTab = () => {
       setName('');
       await load();
     } catch (e) {
+      if (e instanceof SquadApiError && e.status === 401) {
+        toast({ title: 'Session expired', description: 'Reconnecting… please wait.', variant: 'destructive' });
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+      }
       toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed to create squad.', variant: 'destructive' });
     } finally {
       setBusy(false);
@@ -114,6 +120,11 @@ export const SquadTab = () => {
       });
       await Promise.all([load(), refreshFromServer()]);
     } catch (e) {
+      if (e instanceof SquadApiError && e.status === 401) {
+        toast({ title: 'Session expired', description: 'Reconnecting… please wait.', variant: 'destructive' });
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+      }
       toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed to join.', variant: 'destructive' });
     } finally {
       setBusy(false);
