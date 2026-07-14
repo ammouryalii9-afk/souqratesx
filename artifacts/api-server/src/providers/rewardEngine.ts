@@ -169,5 +169,63 @@ export async function processReward(
     logger.warn({ err }, "awardReferralBonus failed (non-critical)");
   }
 
+  // ── Squad rank bonus: top-squad members earn a % bonus on verified rewards ─
+  void awardSquadRankBonus(input.telegramId, result.creditedPoints);
+
   return result;
+}
+
+// 5-min cache of top squad IDs to avoid a leaderboard query on every ad reward.
+let _topSquadCache: { ids: number[]; expiry: number } | null = null;
+
+async function getTopSquadIds(): Promise<number[]> {
+  if (_topSquadCache && _topSquadCache.expiry > Date.now()) return _topSquadCache.ids;
+  try {
+    const { db, squadsTable, vaultUsersTable } = await import("@workspace/db");
+    const { desc, sql: drizzleSql, and, eq } = await import("drizzle-orm");
+    const rows = await db
+      .select({ id: squadsTable.id })
+      .from(squadsTable)
+      .leftJoin(vaultUsersTable, and(eq(vaultUsersTable.squadId, squadsTable.id), eq(vaultUsersTable.isBanned, false)))
+      .groupBy(squadsTable.id)
+      .having(drizzleSql`count(${vaultUsersTable.id}) > 0`)
+      .orderBy(desc(drizzleSql`coalesce(sum(${vaultUsersTable.lifetimePoints}), 0)`))
+      .limit(3);
+    const ids = rows.map((r) => r.id);
+    _topSquadCache = { ids, expiry: Date.now() + 5 * 60 * 1000 };
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+async function awardSquadRankBonus(telegramId: string, basePoints: number): Promise<void> {
+  try {
+    const { getSettingsMap, asNumber } = await import("../lib/settings");
+    const settings = await getSettingsMap();
+    const bonusPct = asNumber(settings.squadRankBonusPercent, 20);
+    if (bonusPct <= 0) return;
+
+    const { db, vaultUsersTable } = await import("@workspace/db");
+    const { eq } = await import("drizzle-orm");
+    const [user] = await db.select({ squadId: vaultUsersTable.squadId }).from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId));
+    if (!user?.squadId) return;
+
+    const topIds = await getTopSquadIds();
+    if (!topIds.includes(user.squadId)) return;
+
+    const bonus = Math.floor(basePoints * bonusPct / 100);
+    if (bonus <= 0) return;
+
+    const { sql } = await import("drizzle-orm");
+    await db.update(vaultUsersTable)
+      .set({
+        pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonus}`,
+        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonus}`,
+      })
+      .where(eq(vaultUsersTable.telegramId, telegramId));
+    logger.info({ telegramId, bonus, bonusPct }, "Squad rank bonus awarded");
+  } catch (err) {
+    logger.warn({ err }, "awardSquadRankBonus failed (non-critical)");
+  }
 }

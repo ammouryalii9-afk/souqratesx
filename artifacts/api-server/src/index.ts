@@ -31,6 +31,9 @@ if (cluster.isPrimary) {
   setTimeout(() => {
     void runWeeklyPrizes();
     setInterval(() => { void runWeeklyPrizes(); }, 60 * 60 * 1000);
+
+    void runWeeklySquadPrizes();
+    setInterval(() => { void runWeeklySquadPrizes(); }, 60 * 60 * 1000);
   }, 2 * 60 * 1000);
 
   // Pixel cycles — hourly check in the primary only. Atomic status claim +
@@ -229,5 +232,111 @@ async function runWeeklyPrizes(): Promise<void> {
     logger.info({ prevWeek, awarded }, "Weekly prizes awarded");
   } catch (err) {
     logger.error({ err }, "Weekly prizes run failed");
+  }
+}
+
+async function runWeeklySquadPrizes(): Promise<void> {
+  const { logger } = await import("./lib/logger");
+  try {
+    const { getSettingsMap, asNumber } = await import("./lib/settings");
+    const settings = await getSettingsMap();
+    if (!settings.squadWeeklyPrizesEnabled) {
+      logger.info("Weekly squad prizes: feature disabled, skipping");
+      return;
+    }
+
+    const { db, vaultUsersTable, squadsTable } = await import("@workspace/db");
+    const { and, eq, sql, desc } = await import("drizzle-orm");
+    const { weekKey } = await import("./lib/weeklyCredit");
+
+    const prevWeek = weekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+    const claimed = await db.execute(sql`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('lastWeeklySquadPrizeWeekKey', to_jsonb(${prevWeek}::text))
+      ON CONFLICT (key) DO UPDATE SET value = to_jsonb(${prevWeek}::text), updated_at = now()
+      WHERE admin_settings.value != to_jsonb(${prevWeek}::text)
+      RETURNING key
+    `);
+    if (claimed.rows.length === 0) return; // already awarded this week
+
+    // Top 3 squads by sum of member lifetime points (proxy for engagement)
+    const S = vaultUsersTable.state;
+    const scoreSql = sql<string>`CASE
+      WHEN ${S}->>'weekKey' = ${prevWeek}::text THEN COALESCE((${S}->>'weeklyPoints')::numeric, 0)
+      WHEN ${S}->>'prevWeekKey' = ${prevWeek}::text THEN COALESCE((${S}->>'prevWeekPoints')::numeric, 0)
+      ELSE 0 END`;
+
+    const topSquads = await db
+      .select({
+        squadId: vaultUsersTable.squadId,
+        totalScore: sql<number>`coalesce(sum(${scoreSql}), 0)::int`,
+        memberCount: sql<number>`count(${vaultUsersTable.id})::int`,
+      })
+      .from(vaultUsersTable)
+      .where(and(eq(vaultUsersTable.isBanned, false), sql`${vaultUsersTable.squadId} IS NOT NULL`))
+      .groupBy(vaultUsersTable.squadId)
+      .having(sql`coalesce(sum(${scoreSql}), 0) > 0`)
+      .orderBy(desc(sql`coalesce(sum(${scoreSql}), 0)`))
+      .limit(3);
+
+    if (topSquads.length === 0) {
+      logger.info({ prevWeek }, "Weekly squad prizes: no eligible squads");
+      return;
+    }
+
+    const PRIZE_POOL = [
+      asNumber(settings.squadWeeklyPrize1, 500_000),
+      asNumber(settings.squadWeeklyPrize2, 250_000),
+      asNumber(settings.squadWeeklyPrize3, 100_000),
+    ];
+
+    const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("./lib/telegramBot");
+    const { logUserActivity } = await import("./lib/activityLog");
+
+    let totalAwarded = 0;
+    for (let i = 0; i < topSquads.length; i++) {
+      const squad = topSquads[i];
+      if (!squad?.squadId || !PRIZE_POOL[i]) continue;
+      const totalPrize = PRIZE_POOL[i]!;
+      const memberCount = Math.max(squad.memberCount, 1);
+      const perMember = Math.floor(totalPrize / memberCount);
+      if (perMember <= 0) continue;
+
+      // Fetch squad name for the DM
+      const [squadRow] = await db.select({ name: squadsTable.name }).from(squadsTable).where(eq(squadsTable.id, squad.squadId));
+      const squadName = squadRow?.name ?? `Squad #${squad.squadId}`;
+
+      // Credit all non-banned members
+      const members = await db
+        .select({ telegramId: vaultUsersTable.telegramId })
+        .from(vaultUsersTable)
+        .where(and(eq(vaultUsersTable.squadId, squad.squadId), eq(vaultUsersTable.isBanned, false)));
+
+      for (const member of members) {
+        await db.update(vaultUsersTable)
+          .set({
+            pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${perMember}`,
+            lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${perMember}`,
+          })
+          .where(and(eq(vaultUsersTable.telegramId, member.telegramId), eq(vaultUsersTable.isBanned, false)));
+
+        await logUserActivity(member.telegramId, "squad_weekly_prize", { week: prevWeek, squadId: squad.squadId, squadRank: i + 1, prize: perMember });
+        totalAwarded++;
+
+        if (isTelegramBotConfigured()) {
+          try {
+            await sendPlainTelegramMessage(
+              member.telegramId,
+              `🏆 فريقك "${squadName}" حصل على المركز #${i + 1} في سباق الفرق الأسبوعي! فزت بمكافأة ${perMember.toLocaleString("en-US")} نقطة SKP 🎉 افتح التطبيق لاستلامها.`,
+            );
+          } catch { /* DM failure must not block */ }
+        }
+      }
+    }
+
+    logger.info({ prevWeek, topSquads: topSquads.length, totalAwarded }, "Weekly squad prizes awarded");
+  } catch (err) {
+    logger.error({ err }, "Weekly squad prizes run failed");
   }
 }

@@ -93,9 +93,16 @@ router.get("/squads/me", async (req, res): Promise<void> => {
     .orderBy(desc(vaultUsersTable.lifetimePoints))
     .limit(100);
 
-  const board = await loadSquadBoard(500);
+  const [board, settings] = await Promise.all([loadSquadBoard(500), getSettingsMap()]);
   const idx = board.findIndex((s) => s.id === me.squadId);
   const entry = idx >= 0 ? board[idx] : null;
+  const rank = idx >= 0 ? idx + 1 : null;
+  const memberCount = entry?.memberCount ?? members.length;
+
+  const rankBonusPercent = rank === 1 ? asNumber(settings.squadRankBonusPercent, 20) : 0;
+
+  const MILESTONE_THRESHOLDS = [10, 25, 50, 100];
+  const nextMilestone = MILESTONE_THRESHOLDS.find((t) => t > memberCount) ?? null;
 
   res.json({
     squad: {
@@ -105,8 +112,8 @@ router.get("/squads/me", async (req, res): Promise<void> => {
       ownerId: squad.ownerId,
       isGold: squad.isGold,
       isOwner: squad.ownerId === telegramId,
-      rank: idx >= 0 ? idx + 1 : null,
-      memberCount: entry?.memberCount ?? members.length,
+      rank,
+      memberCount,
       totalPoints: entry?.totalPoints ?? 0,
       members: members.map((m) => ({
         telegramId: m.telegramId,
@@ -114,6 +121,8 @@ router.get("/squads/me", async (req, res): Promise<void> => {
         lifetimePoints: m.lifetimePoints,
         isOwner: m.telegramId === squad.ownerId,
       })),
+      rankBonusPercent,
+      nextMilestone,
     },
   });
 });
@@ -226,6 +235,64 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
 
   await logUserActivity(telegramId, "squad_joined", { squadId, creditedBonus });
   res.json({ ok: true, squadId, creditedBonus });
+
+  // ── Fire-and-forget: squad growth milestone check ────────────────────────
+  void (async () => {
+    try {
+      const [updatedSquad] = await db.select({ id: squadsTable.id, milestonesClaimed: squadsTable.milestonesClaimed })
+        .from(squadsTable).where(eq(squadsTable.id, squadId));
+      if (!updatedSquad) return;
+
+      const currentCount = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(vaultUsersTable)
+        .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)));
+      const memberCount = currentCount[0]?.count ?? 0;
+
+      const milestoneSettings = await getSettingsMap();
+      const MILESTONES: { threshold: number; settingKey: string; defaultBonus: number }[] = [
+        { threshold: 10,  settingKey: 'squadGrowthMilestone10',  defaultBonus: 10000 },
+        { threshold: 25,  settingKey: 'squadGrowthMilestone25',  defaultBonus: 25000 },
+        { threshold: 50,  settingKey: 'squadGrowthMilestone50',  defaultBonus: 50000 },
+        { threshold: 100, settingKey: 'squadGrowthMilestone100', defaultBonus: 100000 },
+      ];
+
+      let claimed: string[] = [];
+      try { claimed = JSON.parse(updatedSquad.milestonesClaimed) as string[]; } catch { claimed = []; }
+
+      for (const m of MILESTONES) {
+        if (memberCount < m.threshold) continue;
+        if (claimed.includes(String(m.threshold))) continue;
+
+        // Atomically mark the milestone as claimed
+        const result = await db.update(squadsTable)
+          .set({ milestonesClaimed: sql`(${squadsTable.milestonesClaimed}::jsonb || to_jsonb(${String(m.threshold)}::text))::text` })
+          .where(and(
+            eq(squadsTable.id, squadId),
+            sql`NOT (${squadsTable.milestonesClaimed}::jsonb @> to_jsonb(${String(m.threshold)}::text))`
+          ))
+          .returning({ id: squadsTable.id });
+
+        if (result.length === 0) continue; // another process already claimed it
+
+        const bonusAmount = asNumber(milestoneSettings[m.settingKey], m.defaultBonus);
+        if (bonusAmount <= 0) continue;
+
+        // Credit all current non-banned squad members
+        await db.update(vaultUsersTable)
+          .set({
+            pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonusAmount}`,
+            lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonusAmount}`,
+          })
+          .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)));
+
+        req.log.info({ squadId, threshold: m.threshold, bonusAmount, memberCount }, 'Squad growth milestone awarded');
+        claimed.push(String(m.threshold));
+      }
+    } catch (err) {
+      req.log.warn({ err, squadId }, 'Squad milestone check failed (non-critical)');
+    }
+  })();
 });
 
 // POST /squads/leave — leave the caller's current squad

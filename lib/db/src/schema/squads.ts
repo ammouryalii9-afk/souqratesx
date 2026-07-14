@@ -8,6 +8,8 @@ export const squadsTable = pgTable("squads", {
   emoji: text("emoji").notNull().default("🛡️"),
   ownerId: text("owner_id").notNull(),
   isGold: boolean("is_gold").notNull().default(false),
+  /** JSON array of milestone thresholds already awarded e.g. ["10","25"] */
+  milestonesClaimed: text("milestones_claimed").notNull().default("[]"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -52,6 +52,8 @@ export type MySquad = {
   memberCount: number;
   totalPoints: number;
   members: SquadMember[];
+  rankBonusPercent: number;
+  nextMilestone: number | null;
 };
 
 export function getSquadBoard(): Promise<SquadBoardEntry[]> {

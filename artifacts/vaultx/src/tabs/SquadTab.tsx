@@ -285,7 +285,7 @@ function MySquadCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-5 relative z-10">
+        <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
           <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
             <span className="text-2xl font-black text-white tabular-nums">{squad.totalPoints.toLocaleString()}</span>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">{tr.squad.squadPoints}</p>
@@ -295,6 +295,31 @@ function MySquadCard({
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">{tr.squad.members}</p>
           </div>
         </div>
+
+        {/* Rank bonus badge */}
+        {squad.rankBonusPercent > 0 && (
+          <div className="relative z-10 mb-3 flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">
+            <Trophy className="w-4 h-4 text-yellow-400 shrink-0" />
+            <span className="text-xs font-bold text-yellow-300">فريقك #1 — كل عضو يكسب +{squad.rankBonusPercent}% إضافية على مكافآت الإعلانات والعروض 🎯</span>
+          </div>
+        )}
+
+        {/* Growth milestone progress */}
+        {squad.nextMilestone !== null && (
+          <div className="relative z-10 mb-4 bg-black/30 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">هدف نمو الفريق</span>
+              <span className="text-[10px] font-bold text-primary">{squad.memberCount} / {squad.nextMilestone} عضو</span>
+            </div>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${Math.min(100, (squad.memberCount / squad.nextMilestone) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1.5">عند وصولكم لـ {squad.nextMilestone} عضو، يحصل الجميع على مكافأة 🎁</p>
+          </div>
+        )}
 
         {/* Viral invite */}
         <div className="relative z-10">

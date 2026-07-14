@@ -43,6 +43,11 @@ const FEATURE_TOGGLES: ToggleDef[] = [
     description: "عند انتهاء دورة بكسلات وتوزيع أرباحها، تبدأ دورة جديدة تلقائيًا (مفعّل افتراضيًا)",
     defaultOn: true,
   },
+  {
+    key: "squadWeeklyPrizesEnabled",
+    label: "🏆 الجوائز الأسبوعية للفرق",
+    description: "كل اثنين: أعضاء أفضل 3 فرق يحصلون على مكافأة مشتركة (مقسّمة على عدد الأعضاء)",
+  },
 ];
 
 type FieldDef = {
@@ -249,6 +254,20 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
         type: "json",
         defaultValue: '[{"upTo":2500,"price":500},{"upTo":5000,"price":750},{"upTo":7500,"price":1000},{"upTo":10000,"price":1500}]',
       },
+    ],
+  },
+  {
+    title: "الفرق (Squad) — مكافآت الأعضاء",
+    fields: [
+      { key: "squadJoinBonus", label: "مكافأة انضمام للفريق (مرة واحدة لكل حساب)", type: "number", defaultValue: 5000 },
+      { key: "squadWeeklyPrize1", label: "جائزة الفريق #1 أسبوعياً (تُقسَّم على الأعضاء — SKX)", type: "number", defaultValue: 500000 },
+      { key: "squadWeeklyPrize2", label: "جائزة الفريق #2 أسبوعياً (SKX)", type: "number", defaultValue: 250000 },
+      { key: "squadWeeklyPrize3", label: "جائزة الفريق #3 أسبوعياً (SKX)", type: "number", defaultValue: 100000 },
+      { key: "squadRankBonusPercent", label: "% مكافأة مضاعفة لأعضاء الفريق #1 على مكافآت الإعلانات والعروض (0 = معطّل)", type: "number", defaultValue: 20 },
+      { key: "squadGrowthMilestone10", label: "مكافأة كل عضو عند وصول الفريق لـ 10 أعضاء (SKP)", type: "number", defaultValue: 10000 },
+      { key: "squadGrowthMilestone25", label: "مكافأة كل عضو عند وصول الفريق لـ 25 عضواً (SKP)", type: "number", defaultValue: 25000 },
+      { key: "squadGrowthMilestone50", label: "مكافأة كل عضو عند وصول الفريق لـ 50 عضواً (SKP)", type: "number", defaultValue: 50000 },
+      { key: "squadGrowthMilestone100", label: "مكافأة كل عضو عند وصول الفريق لـ 100 عضو (SKP)", type: "number", defaultValue: 100000 },
     ],
   },
 ];
