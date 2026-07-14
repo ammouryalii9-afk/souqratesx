@@ -203,6 +203,7 @@ async function awardSquadRankBonus(telegramId: string, basePoints: number): Prom
   try {
     const { getSettingsMap, asNumber } = await import("../lib/settings");
     const settings = await getSettingsMap();
+    if (!settings.squadRankBonusEnabled) return;
     const bonusPct = asNumber(settings.squadRankBonusPercent, 20);
     if (bonusPct <= 0) return;
 

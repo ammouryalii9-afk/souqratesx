@@ -48,6 +48,16 @@ const FEATURE_TOGGLES: ToggleDef[] = [
     label: "🏆 الجوائز الأسبوعية للفرق",
     description: "كل اثنين: أعضاء أفضل 3 فرق يحصلون على مكافأة مشتركة (مقسّمة على عدد الأعضاء)",
   },
+  {
+    key: "squadRankBonusEnabled",
+    label: "⚡ مضاعف نقاط الفريق #1",
+    description: "أعضاء الفريق الأول في الترتيب يكسبون نسبة إضافية على كل مكافأة إعلان أو عرض",
+  },
+  {
+    key: "squadGrowthMilestonesEnabled",
+    label: "🎯 مكافآت نمو الفريق (Milestones)",
+    description: "عند وصول الفريق لـ 10 / 25 / 50 / 100 عضو، يحصل الجميع تلقائياً على مكافأة",
+  },
 ];
 
 type FieldDef = {

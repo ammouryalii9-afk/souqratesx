@@ -250,6 +250,7 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
       const memberCount = currentCount[0]?.count ?? 0;
 
       const milestoneSettings = await getSettingsMap();
+      if (!milestoneSettings.squadGrowthMilestonesEnabled) return;
       const MILESTONES: { threshold: number; settingKey: string; defaultBonus: number }[] = [
         { threshold: 10,  settingKey: 'squadGrowthMilestone10',  defaultBonus: 10000 },
         { threshold: 25,  settingKey: 'squadGrowthMilestone25',  defaultBonus: 25000 },
