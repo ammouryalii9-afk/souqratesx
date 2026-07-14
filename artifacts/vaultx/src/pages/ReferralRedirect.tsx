@@ -81,7 +81,7 @@ export function ReferralRedirect() {
           SouqratesX
         </h1>
         <p style={{ fontSize: 15, color: '#7c6fa0', margin: 0, lineHeight: 1.6 }}>
-          منصة الربح داخل تيليجرام
+          منصة SouqrateX
         </p>
       </div>
 

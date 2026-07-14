@@ -94,7 +94,7 @@ export function AdsPage() {
             SouqratesX
           </h1>
           <p style={{ fontSize: 15, color: '#7c6fa0', margin: '6px 0 0', fontWeight: 500 }}>
-            منصة الربح داخل تيليجرام
+            منصة SouqrateX
           </p>
         </div>
 
