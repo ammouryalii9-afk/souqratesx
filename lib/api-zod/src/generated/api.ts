@@ -719,7 +719,9 @@ export const GetPublicConfigResponse = zod.object({
   "maintenanceMode": zod.boolean().describe('When true, all users see a maintenance screen instead of the game.')
 }).describe('Admin-controlled feature flags (all default false until enabled in admin panel)'),
   "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),
-  "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)')
+  "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)'),
+  "dailyCipher": zod.string().describe('Today\'s daily cipher word (uppercase English letters, e.g. BOSS)'),
+  "dailyComboIds": zod.array(zod.string()).describe('List of 3 icon IDs for today\'s daily combo (e.g. [star, globe, gem])')
 })
 
 

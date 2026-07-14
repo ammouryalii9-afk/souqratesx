@@ -200,6 +200,11 @@ router.get("/config/public", async (_req, res): Promise<void> => {
       },
       pointsPerDollar: asNumber(settings.pointsPerDollar, 2_000_000),
       dollarBonus: asNumber(settings.dollarBonus, 0),
+      dailyCipher: (asString(settings.dailyCipherWord) || 'BOSS').toUpperCase(),
+      dailyComboIds: (() => {
+        try { return JSON.parse(asString(settings.dailyComboIds) || '["star","globe","gem"]') as string[]; }
+        catch { return ['star', 'globe', 'gem']; }
+      })(),
     }),
   );
 });

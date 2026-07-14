@@ -47,6 +47,8 @@ export type PublicConfig = {
   botUsername: string | null;
   pointsPerDollar: number;
   dollarBonus: number;
+  dailyCipher: string;
+  dailyComboIds: string[];
 };
 
 const FALLBACK_BOT_USERNAME = "SouqratesX_bot";

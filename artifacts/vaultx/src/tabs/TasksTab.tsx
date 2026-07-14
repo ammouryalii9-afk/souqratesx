@@ -253,8 +253,8 @@ export const TasksTab = () => {
     const diff = now.getTime() - start.getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   })();
-  const dailyWord = DAILY_WORDS[dayOfYear % DAILY_WORDS.length];
-  const morseCode = dailyWord.split('').map(char => MORSE_CODE[char]).join(' ');
+  const dailyWord = (config?.dailyCipher || DAILY_WORDS[dayOfYear % DAILY_WORDS.length]).toUpperCase();
+  const morseCode = dailyWord.split('').map(char => MORSE_CODE[char] || '?').join(' ');
 
   const [cipherGuess, setCipherGuess] = useState('');
   const [cipherSolved, setCipherSolved] = useState(() => {
@@ -295,7 +295,7 @@ export const TasksTab = () => {
     return savedDate === todayStr ? (localStorage.getItem('dailyComboResult') as any) || 'none' : 'none';
   });
   const [selectedCombo, setSelectedCombo] = useState<string[]>([]);
-  const targetCombo = ['star', 'globe', 'gem'];
+  const targetCombo = (config?.dailyComboIds?.length === 3 ? config.dailyComboIds : ['star', 'globe', 'gem']);
   
   // Spin Wheel State
   const [spinHasSpun, setSpinHasSpun] = useState(() => localStorage.getItem('lastSpinDate') === todayStr);

@@ -3,7 +3,16 @@ import { adminApi, type AdminSettingsMap } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Save } from "lucide-react";
+import { Save, Cpu, Flame, Globe, Leaf, Star, Gem } from "lucide-react";
+
+const COMBO_ICON_OPTIONS = [
+  { id: 'cpu', icon: Cpu, label: 'CPU' },
+  { id: 'flame', icon: Flame, label: 'Flame' },
+  { id: 'globe', icon: Globe, label: 'Globe' },
+  { id: 'leaf', icon: Leaf, label: 'Leaf' },
+  { id: 'star', icon: Star, label: 'Star' },
+  { id: 'gem', icon: Gem, label: 'Gem' },
+];
 
 type ToggleDef = { key: string; label: string; description: string; defaultOn?: boolean };
 
@@ -369,6 +378,78 @@ export function AdminSettings() {
         </Button>
         {webhookStatus && <p className="text-xs text-muted-foreground mt-2 break-all">{webhookStatus}</p>}
       </div>
+      {/* ── المهام اليومية (شيفرة + كومبو) ── */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-white mb-3">المهام اليومية</h3>
+        <div className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">كلمة الشيفرة اليومية (بالإنجليزية، حروف كبيرة — مثال: BOSS)</span>
+            <Input
+              type="text"
+              data-testid="input-setting-dailyCipherWord"
+              value={(values['dailyCipherWord'] as string) ?? 'BOSS'}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, dailyCipherWord: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') }))
+              }
+              placeholder="BOSS"
+              dir="ltr"
+              maxLength={10}
+            />
+          </label>
+          <div className="flex flex-col gap-2">
+            <span className="text-xs text-muted-foreground">الكومبو اليومي — اختر 3 أيقونات</span>
+            <div className="flex gap-2 flex-wrap">
+              {COMBO_ICON_OPTIONS.map(({ id, icon: Icon, label }) => {
+                const currentCombo: string[] = (() => {
+                  try { return JSON.parse((values['dailyComboIds'] as string) || '["star","globe","gem"]'); }
+                  catch { return ['star', 'globe', 'gem']; }
+                })();
+                const selected = currentCombo.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    title={label}
+                    onClick={() => {
+                      const combo: string[] = (() => {
+                        try { return JSON.parse((values['dailyComboIds'] as string) || '["star","globe","gem"]'); }
+                        catch { return ['star', 'globe', 'gem']; }
+                      })();
+                      let next: string[];
+                      if (combo.includes(id)) {
+                        next = combo.filter((x) => x !== id);
+                      } else if (combo.length < 3) {
+                        next = [...combo, id];
+                      } else {
+                        next = combo;
+                      }
+                      setValues((prev) => ({ ...prev, dailyComboIds: JSON.stringify(next) }));
+                    }}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-colors ${
+                      selected
+                        ? 'bg-primary/20 border-primary text-primary'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6" />
+                    <span className="text-[10px]">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-[11px] text-muted-foreground">
+              محدد: {(() => {
+                try { return (JSON.parse((values['dailyComboIds'] as string) || '["star","globe","gem"]') as string[]).join(', ') || 'لا شيء'; }
+                catch { return 'خطأ في JSON'; }
+              })()} {' '}{(() => {
+                try { const c = JSON.parse((values['dailyComboIds'] as string) || '["star","globe","gem"]'); return c.length === 3 ? '✓' : `(${c.length}/3)`; }
+                catch { return ''; }
+              })()}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {SECTIONS.map((section) => (
         <div key={section.title} className="bg-white/5 border border-white/10 rounded-xl p-4">
           <h3 className="text-sm font-bold text-white mb-3">{section.title}</h3>

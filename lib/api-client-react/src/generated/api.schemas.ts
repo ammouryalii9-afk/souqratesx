@@ -401,6 +401,10 @@ export interface PublicConfig {
   pointsPerDollar: number;
   /** Flat bonus dollar amount shown to users (admin-controlled incentive) */
   dollarBonus: number;
+  /** Today's daily cipher word (uppercase English letters, e.g. BOSS) */
+  dailyCipher: string;
+  /** List of 3 icon IDs for today's daily combo (e.g. [star, globe, gem]) */
+  dailyComboIds: string[];
 }
 
 export interface EarnRewardResult {

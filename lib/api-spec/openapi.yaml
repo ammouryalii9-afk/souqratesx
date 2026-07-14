@@ -1734,6 +1734,14 @@ components:
         dollarBonus:
           type: number
           description: "Flat bonus dollar amount shown to users (admin-controlled incentive)"
+        dailyCipher:
+          type: string
+          description: "Today's daily cipher word (uppercase English letters, e.g. BOSS)"
+        dailyComboIds:
+          type: array
+          items:
+            type: string
+          description: "List of 3 icon IDs for today's daily combo (e.g. [star, globe, gem])"
       required:
         - botMessages
         - botUsername
@@ -1747,6 +1755,8 @@ components:
         - features
         - pointsPerDollar
         - dollarBonus
+        - dailyCipher
+        - dailyComboIds
     EarnRewardResult:
       type: object
       properties:
