@@ -782,24 +782,6 @@ export const TasksTab = () => {
             </button>
           </div>
         )}
-        {config?.onclicka.enabled && (
-          <div className="bg-card border border-white/5 rounded-xl p-4 flex items-center justify-between mt-3">
-            <div className="flex-1 pr-4">
-              <h3 className="font-semibold text-white text-sm mb-1">Watch a bonus ad</h3>
-              <p className="text-xs font-medium text-primary">
-                +{config.onclicka.rewardPoints.toLocaleString()} pts per ad
-              </p>
-            </div>
-            <button
-              data-testid="button-watch-onclicka-ad"
-              onClick={handleWatchOnclickaAd}
-              disabled={!config?.onclicka.enabled || onclickaLoading}
-              className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
-            >
-              {onclickaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
-            </button>
-          </div>
-        )}
       </section>
 
       {/* Sponsored Ads (Admin-managed) */}
