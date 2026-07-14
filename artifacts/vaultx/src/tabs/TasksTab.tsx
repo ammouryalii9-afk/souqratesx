@@ -774,11 +774,11 @@ export const TasksTab = () => {
             </div>
             <button
               data-testid="button-watch-banner-ad"
-              onClick={handleWatchBannerAd}
-              disabled={bannerAdLoading}
+              onClick={handleWatchAd}
+              disabled={!config?.adsgram.enabled || adLoading}
               className="min-w-[100px] h-9 bg-primary text-black text-xs font-bold rounded-lg flex items-center justify-center disabled:opacity-40 disabled:bg-white/10 disabled:text-white/50 transition-colors"
             >
-              {bannerAdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
+              {adLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Watch Ad'}
             </button>
           </div>
         )}
