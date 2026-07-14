@@ -8,15 +8,13 @@ function fetchBotUsername(): Promise<string> {
 }
 
 export function AdsPage() {
-  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState('SouqratesX_bot');
 
   useEffect(() => {
-    fetchBotUsername().then(setBotUsername);
+    fetchBotUsername().then(setBotUsername).catch(() => {});
   }, []);
 
-  const botLink = botUsername
-    ? `https://t.me/${botUsername}?startapp=ads`
-    : null;
+  const botLink = `https://t.me/${botUsername}?startapp=ads`;
 
   return (
     <div
@@ -80,41 +78,27 @@ export function AdsPage() {
         </div>
 
         {/* CTA */}
-        {botLink ? (
-          <a
-            href={botLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '15px 36px',
-              background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
-              borderRadius: 16,
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: 17,
-              textDecoration: 'none',
-              boxShadow: '0 4px 32px rgba(124,58,237,0.5)',
-            }}
-          >
-            <span style={{ fontSize: 20 }}>✈️</span>
-            العب على تيليجرام
-          </a>
-        ) : (
-          <div
-            style={{
-              padding: '15px 36px',
-              background: 'rgba(124,58,237,0.2)',
-              borderRadius: 16,
-              color: '#7c6fa0',
-              fontSize: 17,
-            }}
-          >
-            جارٍ التحميل…
-          </div>
-        )}
+        <a
+          href={botLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '15px 36px',
+            background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+            borderRadius: 16,
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 17,
+            textDecoration: 'none',
+            boxShadow: '0 4px 32px rgba(124,58,237,0.5)',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>✈️</span>
+          العب على تيليجرام
+        </a>
       </section>
 
       {/* Features */}
