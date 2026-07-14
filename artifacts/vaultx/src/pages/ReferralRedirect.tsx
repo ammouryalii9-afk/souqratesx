@@ -14,35 +14,40 @@ function tryTgDeepLink(url: string) {
   setTimeout(() => { try { document.body.removeChild(a); } catch { /* ignore */ } }, 2000);
 }
 
+function getStartapp(): string {
+  const path = window.location.pathname;
+  const refMatch = path.match(/^\/ref\/(.+)$/);
+  const squadMatch = path.match(/^\/squad\/(\d+)$/);
+  if (refMatch) return `ref_${refMatch[1]}`;
+  if (squadMatch) return `squad_${squadMatch[1]}`;
+  return 'open';
+}
+
 export function ReferralRedirect() {
-  const [tgUrl, setTgUrl] = useState<string | null>(null);
+  const [bot, setBot] = useState(DEFAULT_BOT);
+  const startapp = getStartapp();
+  const tgUrl = `https://t.me/${bot}?startapp=${startapp}`;
+  const deepLink = `tg://resolve?domain=${bot}&startapp=${startapp}`;
 
   useEffect(() => {
-    const path = window.location.pathname;
-    const refMatch = path.match(/^\/ref\/(.+)$/);
-    const squadMatch = path.match(/^\/squad\/(\d+)$/);
-    if (!refMatch && !squadMatch) return;
-
-    const startapp = refMatch
-      ? `ref_${refMatch[1]}`
-      : `squad_${squadMatch![1]}`;
-
-    // Build both URLs immediately with default bot name, show the page at once.
-    const buildUrls = (bot: string) => {
-      const deepLink = `tg://resolve?domain=${bot}&startapp=${startapp}`;
-      const webLink = `https://t.me/${bot}?startapp=${startapp}`;
-      setTgUrl(webLink);
-      // Try the deep link silently after 300ms (after page is rendered).
-      setTimeout(() => tryTgDeepLink(deepLink), 300);
-    };
-
-    // Show immediately with default, then refresh if API returns a different name.
-    buildUrls(DEFAULT_BOT);
+    // Try the deep link silently after the page renders — opens the Telegram
+    // app directly even when t.me is DNS-blocked on the user's network.
+    const t = setTimeout(() => tryTgDeepLink(deepLink), 300);
     fetch('/api/config/public', { credentials: 'include' })
       .then(r => r.json())
-      .then(d => { if (d?.botUsername && d.botUsername !== DEFAULT_BOT) buildUrls(d.botUsername); })
+      .then(d => { if (d?.botUsername) setBot(d.botUsername); })
       .catch(() => { /* keep default */ });
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    tryTgDeepLink(deepLink);
+    setTimeout(() => {
+      if (!document.hidden) window.location.href = tgUrl;
+    }, 1500);
+  };
 
   return (
     <div
@@ -82,7 +87,8 @@ export function ReferralRedirect() {
 
       {/* Button is visible immediately — no loading state */}
       <a
-        href={tgUrl ?? `https://t.me/${DEFAULT_BOT}?startapp=open`}
+        href={tgUrl}
+        onClick={handleOpen}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 10,
           padding: '15px 36px',

@@ -7,6 +7,23 @@ function fetchBotUsername(): Promise<string> {
     .catch(() => 'souqratesx_bot');
 }
 
+function openTelegram(botUsername: string, startapp: string) {
+  const deepLink = `tg://resolve?domain=${botUsername}&startapp=${startapp}`;
+  const webLink = `https://t.me/${botUsername}?startapp=${startapp}`;
+  // Try the tg:// deep link first — opens the Telegram app directly even when
+  // t.me is DNS-blocked on the user's network. Falls back to t.me shortly after.
+  const a = document.createElement('a');
+  a.href = deepLink;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { document.body.removeChild(a); } catch { /* ignore */ }
+    // If the page is still visible, the app didn't open — try the web link.
+    if (!document.hidden) window.open(webLink, '_blank');
+  }, 1500);
+}
+
 export function AdsPage() {
   const [botUsername, setBotUsername] = useState('souqratesx_bot');
 
@@ -15,6 +32,10 @@ export function AdsPage() {
   }, []);
 
   const botLink = `https://t.me/${botUsername}?startapp=ads`;
+  const handlePlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    openTelegram(botUsername, 'ads');
+  };
 
   return (
     <div
@@ -80,6 +101,7 @@ export function AdsPage() {
         {/* CTA */}
         <a
           href={botLink}
+          onClick={handlePlay}
           target="_blank"
           rel="noopener noreferrer"
           style={{
