@@ -180,29 +180,6 @@ export function AdsPage() {
         <p style={{ fontSize: 13, color: '#4c4470', margin: 0 }}>
           انضم لآلاف اللاعبين الآن وابدأ رحلتك
         </p>
-        {botLink && (
-          <a
-            href={botLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 28px',
-              background: 'rgba(124,58,237,0.12)',
-              border: '1px solid rgba(124,58,237,0.3)',
-              borderRadius: 14,
-              color: '#a78bfa',
-              fontWeight: 700,
-              fontSize: 14,
-              textDecoration: 'none',
-            }}
-          >
-            <span>🚀</span>
-            @{botUsername}
-          </a>
-        )}
         <p style={{ fontSize: 11, color: '#2a2040', margin: 0 }}>
           SouqratesX © {new Date().getFullYear()}
         </p>
