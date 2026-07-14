@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const DEFAULT_BOT = 'SouqratesX_bot';
+const DEFAULT_BOT = 'souqratesx_bot';
 
 function tryTgDeepLink(url: string) {
   // Programmatic click — doesn't navigate the current page.

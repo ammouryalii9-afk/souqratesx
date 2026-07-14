@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react';
 function fetchBotUsername(): Promise<string> {
   return fetch('/api/config/public', { credentials: 'include' })
     .then(r => r.json())
-    .then(d => (d?.botUsername as string | null) ?? 'SouqratesX_bot')
-    .catch(() => 'SouqratesX_bot');
+    .then(d => (d?.botUsername as string | null) ?? 'souqratesx_bot')
+    .catch(() => 'souqratesx_bot');
 }
 
 export function AdsPage() {
-  const [botUsername, setBotUsername] = useState('SouqratesX_bot');
+  const [botUsername, setBotUsername] = useState('souqratesx_bot');
 
   useEffect(() => {
     fetchBotUsername().then(setBotUsername).catch(() => {});
