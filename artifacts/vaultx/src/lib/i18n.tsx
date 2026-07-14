@@ -296,6 +296,10 @@ const en = {
     squadName: 'Squad name',
     cancel: 'Cancel',
     create: 'Create',
+    rankBonusLabel: (pct: number) => `Your squad is #1 — every member earns +${pct}% extra on ad & offerwall rewards 🎯`,
+    milestoneGoalTitle: 'Squad Growth Goal',
+    milestoneGoalProgress: (current: number, next: number) => `${current} / ${next} members`,
+    milestoneGoalDesc: (next: number) => `Reach ${next} members and everyone gets a bonus 🎁`,
   },
   common: {
     error: 'Error',
@@ -598,6 +602,10 @@ const ar: typeof en = {
     squadName: 'اسم الفريق',
     cancel: 'إلغاء',
     create: 'إنشاء',
+    rankBonusLabel: (pct: number) => `فريقك #1 — كل عضو يكسب +${pct}% إضافية على مكافآت الإعلانات والعروض 🎯`,
+    milestoneGoalTitle: 'هدف نمو الفريق',
+    milestoneGoalProgress: (current: number, next: number) => `${current} / ${next} عضو`,
+    milestoneGoalDesc: (next: number) => `عند وصولكم لـ ${next} عضو، يحصل الجميع على مكافأة 🎁`,
   },
   common: {
     error: 'خطأ',

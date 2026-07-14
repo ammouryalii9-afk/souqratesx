@@ -300,7 +300,7 @@ function MySquadCard({
         {squad.rankBonusPercent > 0 && (
           <div className="relative z-10 mb-3 flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">
             <Trophy className="w-4 h-4 text-yellow-400 shrink-0" />
-            <span className="text-xs font-bold text-yellow-300">فريقك #1 — كل عضو يكسب +{squad.rankBonusPercent}% إضافية على مكافآت الإعلانات والعروض 🎯</span>
+            <span className="text-xs font-bold text-yellow-300">{tr.squad.rankBonusLabel(squad.rankBonusPercent)}</span>
           </div>
         )}
 
@@ -308,8 +308,8 @@ function MySquadCard({
         {squad.nextMilestone !== null && (
           <div className="relative z-10 mb-4 bg-black/30 rounded-xl p-3 border border-white/5">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">هدف نمو الفريق</span>
-              <span className="text-[10px] font-bold text-primary">{squad.memberCount} / {squad.nextMilestone} عضو</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr.squad.milestoneGoalTitle}</span>
+              <span className="text-[10px] font-bold text-primary">{tr.squad.milestoneGoalProgress(squad.memberCount, squad.nextMilestone)}</span>
             </div>
             <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
@@ -317,7 +317,7 @@ function MySquadCard({
                 style={{ width: `${Math.min(100, (squad.memberCount / squad.nextMilestone) * 100)}%` }}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1.5">عند وصولكم لـ {squad.nextMilestone} عضو، يحصل الجميع على مكافأة 🎁</p>
+            <p className="text-[10px] text-muted-foreground mt-1.5">{tr.squad.milestoneGoalDesc(squad.nextMilestone)}</p>
           </div>
         )}
 
