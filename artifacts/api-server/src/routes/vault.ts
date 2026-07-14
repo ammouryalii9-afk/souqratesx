@@ -414,7 +414,7 @@ router.get("/vault/leaderboard/weekly", async (_req, res): Promise<void> => {
   // (full JSONB blobs) into JS on each request, which does not scale past a few
   // thousand users. weeklyPoints lives inside the state JSONB, so we extract it
   // with ->> and cast (::numeric handles both int and float values safely).
-  const weeklyPointsSql = sql<number>`COALESCE((${vaultUsersTable.state}->>'weeklyPoints')::numeric, 0)`;
+  const weeklyPointsSql = sql<number>`COALESCE((${vaultUsersTable.state}->>'weeklyPoints')::numeric, 0)::int`;
   const users = await db
     .select({
       telegramId: vaultUsersTable.telegramId,

@@ -112,84 +112,6 @@ export const FriendsTab = () => {
   return (
     <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
 
-      {/* Global Leaderboard */}
-      <section>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 shadow-inner">
-            <Trophy className="w-5 h-5 text-primary" />
-          </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">{tr.friends.leaderboard}</h2>
-        </div>
-
-        {/* All-time / Weekly toggle */}
-        <div className="flex gap-2 mb-3 p-1 bg-white/5 rounded-2xl border border-white/5">
-          {(['all', 'weekly'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
-              style={{
-                background: mode === m ? 'linear-gradient(135deg, hsl(152,76%,50%), hsl(152,76%,42%))' : 'transparent',
-                color: mode === m ? 'hsl(224,71%,4%)' : 'rgba(255,255,255,0.6)',
-              }}
-            >
-              {m === 'all' ? tr.friends.allTime : tr.friends.thisWeek}
-            </button>
-          ))}
-        </div>
-
-        <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
-          <div className="p-3.5 bg-primary/10 text-center text-sm text-primary font-bold border-b border-white/5 shadow-inner">
-            {myRow ? (
-              <>{tr.friends.yourRank}: <span className="text-white">#{myRow.rank}</span> {mode === 'all' ? tr.friends.globally : tr.friends.thisWeekLabel}</>
-            ) : (
-              <>{tr.friends.notRanked}</>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="py-16 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">
-              {tr.friends.noPlayers}
-            </div>
-          ) : (
-            <div className="flex flex-col divide-y divide-white/5">
-              {rows.slice(0, 50).map((user) => {
-                const league = getLeague(user.pts);
-                return (
-                  <div key={user.telegramId} className={`flex items-center justify-between p-4 transition-colors ${user.isCurrentUser ? 'bg-primary/10 relative' : 'hover:bg-white/[0.02]'}`}>
-                    {user.isCurrentUser && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />}
-                    <div className="flex items-center gap-4">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${
-                        user.rank === 1 ? 'bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40' :
-                        user.rank === 2 ? 'bg-[#C0C0C0]/20 text-[#C0C0C0] border border-[#C0C0C0]/40' :
-                        user.rank === 3 ? 'bg-[#CD7F32]/20 text-[#CD7F32] border border-[#CD7F32]/40' :
-                        user.isCurrentUser ? 'bg-primary/20 text-primary border border-primary/40' :
-                        'bg-white/5 text-muted-foreground border border-white/10'
-                      }`}>
-                        {user.rank}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className={`text-sm font-bold tracking-tight ${user.isCurrentUser ? 'text-primary' : 'text-white'}`}>
-                          {user.isCurrentUser ? `${user.name} ${tr.friends.youLabel}` : user.name}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground font-mono mt-0.5">{user.pts.toLocaleString()} pts</span>
-                      </div>
-                    </div>
-                    <div className="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shadow-sm border border-white/10 flex items-center gap-1.5" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
-                      <span>{league.icon}</span> {league.name}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Referral Center */}
       <section>
         <div className="flex items-center gap-3 mb-4">
@@ -271,6 +193,84 @@ export const FriendsTab = () => {
               </>
             );
           })()}
+        </div>
+      </section>
+
+      {/* Global Leaderboard */}
+      <section>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 shadow-inner">
+            <Trophy className="w-5 h-5 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">{tr.friends.leaderboard}</h2>
+        </div>
+
+        {/* All-time / Weekly toggle */}
+        <div className="flex gap-2 mb-3 p-1 bg-white/5 rounded-2xl border border-white/5">
+          {(['all', 'weekly'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+              style={{
+                background: mode === m ? 'linear-gradient(135deg, hsl(152,76%,50%), hsl(152,76%,42%))' : 'transparent',
+                color: mode === m ? 'hsl(224,71%,4%)' : 'rgba(255,255,255,0.6)',
+              }}
+            >
+              {m === 'all' ? tr.friends.allTime : tr.friends.thisWeek}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
+          <div className="p-3.5 bg-primary/10 text-center text-sm text-primary font-bold border-b border-white/5 shadow-inner">
+            {myRow ? (
+              <>{tr.friends.yourRank}: <span className="text-white">#{myRow.rank}</span> {mode === 'all' ? tr.friends.globally : tr.friends.thisWeekLabel}</>
+            ) : (
+              <>{tr.friends.notRanked}</>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="py-16 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              {tr.friends.noPlayers}
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-white/5">
+              {rows.slice(0, 50).map((user) => {
+                const league = getLeague(user.pts);
+                return (
+                  <div key={user.telegramId} className={`flex items-center justify-between p-4 transition-colors ${user.isCurrentUser ? 'bg-primary/10 relative' : 'hover:bg-white/[0.02]'}`}>
+                    {user.isCurrentUser && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />}
+                    <div className="flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${
+                        user.rank === 1 ? 'bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40' :
+                        user.rank === 2 ? 'bg-[#C0C0C0]/20 text-[#C0C0C0] border border-[#C0C0C0]/40' :
+                        user.rank === 3 ? 'bg-[#CD7F32]/20 text-[#CD7F32] border border-[#CD7F32]/40' :
+                        user.isCurrentUser ? 'bg-primary/20 text-primary border border-primary/40' :
+                        'bg-white/5 text-muted-foreground border border-white/10'
+                      }`}>
+                        {user.rank}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-bold tracking-tight ${user.isCurrentUser ? 'text-primary' : 'text-white'}`}>
+                          {user.isCurrentUser ? `${user.name} ${tr.friends.youLabel}` : user.name}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground font-mono mt-0.5">{user.pts.toLocaleString()} pts</span>
+                      </div>
+                    </div>
+                    <div className="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shadow-sm border border-white/10 flex items-center gap-1.5" style={{ background: `linear-gradient(135deg, ${league.color}40, ${league.color}10)`, color: league.color }}>
+                      <span>{league.icon}</span> {league.name}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
