@@ -98,8 +98,8 @@ function ConfirmModal({
   const displayTitle = lang === 'ar' && product.titleAr ? product.titleAr : product.title;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-[430px] rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1a24] to-[#0e0e14] p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-[380px] rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1a24] to-[#0e0e14] p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="flex flex-col items-center text-center mb-5">
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${meta.bg} flex items-center justify-center mb-3`}>
             <Icon className={`w-8 h-8 ${meta.color}`} />
