@@ -58,9 +58,10 @@ After any backend change: restart `api-server` workflow. After publishing: re-ru
 - **SKX** (hard) = `vault_users.skx_balance` — only withdrawable balance. `POST /vault/convert` converts SKP→SKX atomically at admin `skpToSkxConversionRate`% (default 5%).
 - `claimSeq` in `PROTECTED_STATE_KEYS` guards `PUT /vault/me` — stale syncs racing a convert are dropped.
 
-**Reward credit rule — ALL rewards = SKP via `pending_bonus_points`:**
-- Every earning path (ads, offerwalls, referrals, partner tasks, sponsored ads, squad bonuses/milestones, weekly prizes) credits `vault_users.pending_bonus_points` via `skpRewardFields()`.
-- Pixel dividends are the ONLY SKX exception (`skxCreditFields()`).
+**Reward credit rule — two currencies:**
+- **SKX (hard):** Ad views (Adsgram, Onclicka, Monetag), offerwalls/surveys (CPA networks, CPX Research), and sponsored ads → `skxCreditFields()` → `skx_balance` directly.
+- **SKP (soft):** Referral bonuses, partner tasks, squad bonuses/milestones, weekly prizes → `skpRewardFields()` → `pending_bonus_points`.
+- Pixel dividends are also SKX (`skxCreditFields()`).
 - `redeemPendingBonus()` folds pending into `state.tempMiningPoints` atomically at hydration (auth + GET /vault/me), returns `{ user, amount }`.
 - Responses include `redeemedBonus`; frontend shows `BonusRewardModal` with count-up animation + haptic.
 - **Frontend flows must NOT optimistically bump `tempMiningPoints`** — call `refreshFromServer()` instead. Optimistic bump + pending redemption = double credit via debounced PUT sync.

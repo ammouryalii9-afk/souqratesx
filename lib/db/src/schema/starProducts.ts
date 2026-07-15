@@ -15,12 +15,15 @@ import { z } from "zod/v4";
 export const starProductEffectTypes = [
   "points",
   "energy_refill",
+  "max_energy_boost",
   "turbo_boost",
   "premium_days",
   "permanent_multiplier",
   "badge",
   "skin",
   "mining_level_up",
+  "farm_instant",
+  "skx_credit",
   "squad_gold",
   "competition_entry",
 ] as const;

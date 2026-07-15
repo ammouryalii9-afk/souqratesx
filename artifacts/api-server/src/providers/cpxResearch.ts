@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db, vaultUsersTable, rewardTransactionsTable } from "@workspace/db";
+import { skxCreditFields } from "../lib/skxCredit";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
 interface CpxResearchConfig {
@@ -86,7 +87,7 @@ export function createCpxResearchProvider(): EarnProvider {
     async rewardUser(telegramId: string, amount: number, _txId: string): Promise<RewardResult> {
       const [updated] = await db
         .update(vaultUsersTable)
-        .set({ lifetimePoints: sql`greatest(0, ${vaultUsersTable.lifetimePoints} + ${amount})` })
+        .set(skxCreditFields(amount))
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();
 

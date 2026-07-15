@@ -6,7 +6,7 @@ import { getSessionTelegramId } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
 import { logUserActivity } from "../lib/activityLog";
 import { awardReferralBonus } from "../lib/referral";
-import { skpRewardFields, bumpCycleAdRevenue } from "../lib/skxCredit";
+import { skxCreditFields, bumpCycleAdRevenue } from "../lib/skxCredit";
 import { getSettingsMap, asNumber } from "../lib/settings";
 
 const router: IRouter = Router();
@@ -153,7 +153,7 @@ router.post("/ads/:id/claim", rateLimit("ads-claim", 30, 60_000), async (req, re
   // to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
-    .set(skpRewardFields(ad.rewardPoints))
+    .set(skxCreditFields(ad.rewardPoints))
     .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
     .returning();
 

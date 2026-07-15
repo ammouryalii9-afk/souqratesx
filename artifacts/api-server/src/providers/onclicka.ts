@@ -1,5 +1,6 @@
 import { and, eq, lt, isNull, or, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
+import { skxCreditFields } from "../lib/skxCredit";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
 function todayStr(): string {
@@ -39,7 +40,7 @@ export function createOnclickaProvider(): EarnProvider {
     return db
       .update(vaultUsersTable)
       .set({
-        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
+        ...skxCreditFields(amount),
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,
