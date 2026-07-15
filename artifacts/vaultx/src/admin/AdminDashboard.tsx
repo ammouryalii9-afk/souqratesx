@@ -16,10 +16,11 @@ import { AdminWithdrawals } from "./AdminWithdrawals";
 import { AdminSquads } from "./AdminSquads";
 import { AdminPixels } from "./AdminPixels";
 import { AdminCompetitions } from "./AdminCompetitions";
+import { AdminLiveUsers } from "./AdminLiveUsers";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3 } from "lucide-react";
+import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3, Radio } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "users" | "squads" | "pixels" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -29,6 +30,7 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "analytics",  label: "التحليلات",    icon: <TrendingUp className="w-4 h-4" />,   badge: "جديد" },
       { id: "anticheat",  label: "مكافحة الغش",  icon: <ShieldAlert className="w-4 h-4" />,  badge: "جديد" },
       { id: "providers",  label: "المزودون",      icon: <Zap className="w-4 h-4" />,          badge: "جديد" },
+      { id: "live",       label: "متصلون الآن",   icon: <Radio className="w-4 h-4 text-emerald-400" />, badge: "مباشر" },
     ],
   },
   {
@@ -113,6 +115,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "analytics"  && <AdminAnalytics />}
         {tab === "anticheat"  && <AdminAntiCheat />}
         {tab === "providers"  && <AdminProviderReports />}
+        {tab === "live"       && <AdminLiveUsers />}
         {tab === "users"      && <AdminUsers />}
         {tab === "squads"        && <AdminSquads />}
         {tab === "pixels"        && <AdminPixels />}

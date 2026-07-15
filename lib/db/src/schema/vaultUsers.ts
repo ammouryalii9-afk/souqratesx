@@ -46,6 +46,11 @@ export const vaultUsersTable = pgTable("vault_users", {
   squadId: integer("squad_id"),
   hasClaimedSquadBonus: boolean("has_claimed_squad_bonus").notNull().default(false),
   notes: text("notes"),
+  // Presence tracking: updated on every client heartbeat (every 30s while app is open).
+  // "online now" = lastSeenAt > now() - interval '3 minutes'.
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  // Accumulated time-in-app in seconds (capped per-ping to avoid abuse).
+  totalSessionSeconds: bigint("total_session_seconds", { mode: "number" }).notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

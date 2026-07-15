@@ -1357,6 +1357,8 @@ components:
           type: integer
         newUsersToday:
           type: integer
+        onlineNow:
+          type: integer
       required:
         - totalUsers
         - totalLifetimePoints
@@ -1364,6 +1366,7 @@ components:
         - premiumUsers
         - bannedUsers
         - newUsersToday
+        - onlineNow
     AdminUserSummary:
       type: object
       properties:

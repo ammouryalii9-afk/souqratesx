@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminApi, type AdminStats } from "./adminApi";
-import { Users, Coins, Crown, Ban, UserPlus, DollarSign, Send, Bell } from "lucide-react";
+import { Users, Coins, Crown, Ban, UserPlus, DollarSign, Send, Bell, Radio } from "lucide-react";
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
@@ -103,6 +103,11 @@ export function AdminOverview() {
         <StatCard icon={<DollarSign className="w-5 h-5" />} label="إجمالي الرصيد $" value={stats.totalBalanceUSD.toFixed(2)} />
         <StatCard icon={<Crown className="w-5 h-5" />} label="مستخدمو بريميوم" value={stats.premiumUsers} />
         <StatCard icon={<Ban className="w-5 h-5" />} label="محظورون" value={stats.bannedUsers} />
+        <StatCard
+          icon={<Radio className="w-5 h-5 text-emerald-400 animate-pulse" />}
+          label="متصل الآن"
+          value={stats.onlineNow}
+        />
       </div>
       <RemindersTool />
     </div>

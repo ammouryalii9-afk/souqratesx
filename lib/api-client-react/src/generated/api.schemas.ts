@@ -160,6 +160,7 @@ export interface AdminStats {
   premiumUsers: number;
   bannedUsers: number;
   newUsersToday: number;
+  onlineNow: number;
 }
 
 export interface AdminUserSummary {

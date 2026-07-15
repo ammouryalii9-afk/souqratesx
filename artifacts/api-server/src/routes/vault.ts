@@ -450,4 +450,25 @@ router.get("/vault/leaderboard/weekly", async (_req, res): Promise<void> => {
   res.json(payload);
 });
 
+// Heartbeat — called every 30s while the app is open.
+// Updates last_seen_at (presence) and accumulates time-in-app.
+// Cap per-ping delta to 120s so a stale/frozen client can't inflate the total.
+router.post("/vault/heartbeat", rateLimit("vault-heartbeat", 120, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const rawDelta = Number((req.body as Record<string, unknown>).sessionSeconds ?? 30);
+  const delta = Math.min(Math.max(0, Math.floor(rawDelta)), 120);
+
+  await db
+    .update(vaultUsersTable)
+    .set({
+      lastSeenAt: new Date(),
+      totalSessionSeconds: sql`${vaultUsersTable.totalSessionSeconds} + ${delta}::bigint`,
+    })
+    .where(eq(vaultUsersTable.telegramId, telegramId));
+
+  res.json({ ok: true });
+});
+
 export default router;

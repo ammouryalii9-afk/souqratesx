@@ -327,6 +327,33 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
   }, []);
 
+  // Heartbeat: every 30s while the app is open, update last_seen_at on the server
+  // and accumulate total session time. Only fires for authenticated Telegram users.
+  useEffect(() => {
+    if (!isTelegramUser) return;
+    const INTERVAL_MS = 30_000;
+    let lastPingAt = Date.now();
+
+    const id = setInterval(() => {
+      const now = Date.now();
+      const delta = Math.round((now - lastPingAt) / 1000);
+      lastPingAt = now;
+      apiFetch('/vault/heartbeat', {
+        method: 'POST',
+        body: JSON.stringify({ sessionSeconds: delta }),
+      }).catch(() => { /* silent — offline or session expired */ });
+    }, INTERVAL_MS);
+
+    // Send first ping immediately so presence is registered right away.
+    lastPingAt = Date.now();
+    apiFetch('/vault/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ sessionSeconds: 0 }),
+    }).catch(() => {});
+
+    return () => clearInterval(id);
+  }, [isTelegramUser]);
+
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     const lastReset = localStorage.getItem('lastResetDate');

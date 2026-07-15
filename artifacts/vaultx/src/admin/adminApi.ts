@@ -39,6 +39,17 @@ export type AdminStats = {
   premiumUsers: number;
   bannedUsers: number;
   newUsersToday: number;
+  onlineNow: number;
+};
+
+export type LiveUser = {
+  telegramId: string;
+  username: string | null;
+  firstName: string | null;
+  photoUrl: string | null;
+  lastSeenAt: string | null;
+  totalSessionSeconds: number;
+  lifetimePoints: number;
 };
 
 export type AdminUserSummary = {
@@ -290,6 +301,8 @@ export const adminApi = {
   logout: () => adminFetch<AdminSessionStatus>("/admin/logout", { method: "POST" }),
   me: () => adminFetch<AdminSessionStatus>("/admin/me"),
   stats: () => adminFetch<AdminStats>("/admin/stats"),
+  liveUsers: () => adminFetch<LiveUser[]>("/admin/live-users"),
+  topSessionUsers: () => adminFetch<LiveUser[]>("/admin/top-session-users"),
   analytics: (days?: number) => adminFetch<AnalyticsData>(`/admin/analytics${days ? `?days=${days}` : ""}`),
   antiCheat: () => adminFetch<AntiCheatData>("/admin/anticheat"),
   providerReport: (days?: number) => adminFetch<ProviderReportData>(`/admin/providers/report${days ? `?days=${days}` : ""}`),

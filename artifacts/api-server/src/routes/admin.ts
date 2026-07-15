@@ -171,6 +171,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
       premiumUsers: sql<number>`count(*) filter (where ${vaultUsersTable.isPremium})`,
       bannedUsers: sql<number>`count(*) filter (where ${vaultUsersTable.isBanned})`,
       newUsersToday: sql<number>`count(*) filter (where ${vaultUsersTable.createdAt} >= now() - interval '1 day')`,
+      onlineNow: sql<number>`count(*) filter (where ${vaultUsersTable.lastSeenAt} >= now() - interval '3 minutes')`,
     })
     .from(vaultUsersTable);
 
@@ -182,6 +183,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
       premiumUsers: Number(totals?.premiumUsers ?? 0),
       bannedUsers: Number(totals?.bannedUsers ?? 0),
       newUsersToday: Number(totals?.newUsersToday ?? 0),
+      onlineNow: Number(totals?.onlineNow ?? 0),
     }),
   );
 });
@@ -1243,6 +1245,67 @@ router.get("/admin/squads", async (req, res): Promise<void> => {
     .orderBy(desc(sql`coalesce(sum(${vaultUsersTable.lifetimePoints}), 0)`))
     .limit(500);
   res.json(rows);
+});
+
+// Live users — online in the last 3 minutes, sorted by last_seen_at desc.
+// Returns up to 200 rows; includes totalSessionSeconds for "time spent" display.
+router.get("/admin/live-users", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+
+  const rows = await db
+    .select({
+      telegramId: vaultUsersTable.telegramId,
+      username: vaultUsersTable.username,
+      firstName: vaultUsersTable.firstName,
+      photoUrl: vaultUsersTable.photoUrl,
+      lastSeenAt: vaultUsersTable.lastSeenAt,
+      totalSessionSeconds: vaultUsersTable.totalSessionSeconds,
+      lifetimePoints: vaultUsersTable.lifetimePoints,
+    })
+    .from(vaultUsersTable)
+    .where(sql`${vaultUsersTable.lastSeenAt} >= now() - interval '3 minutes'`)
+    .orderBy(desc(vaultUsersTable.lastSeenAt))
+    .limit(200);
+
+  res.json(rows.map((r) => ({
+    telegramId: r.telegramId,
+    username: r.username,
+    firstName: r.firstName,
+    photoUrl: r.photoUrl,
+    lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
+    totalSessionSeconds: r.totalSessionSeconds,
+    lifetimePoints: r.lifetimePoints,
+  })));
+});
+
+// Top users by total session time (all-time, up to 50 rows).
+router.get("/admin/top-session-users", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+
+  const rows = await db
+    .select({
+      telegramId: vaultUsersTable.telegramId,
+      username: vaultUsersTable.username,
+      firstName: vaultUsersTable.firstName,
+      photoUrl: vaultUsersTable.photoUrl,
+      lastSeenAt: vaultUsersTable.lastSeenAt,
+      totalSessionSeconds: vaultUsersTable.totalSessionSeconds,
+      lifetimePoints: vaultUsersTable.lifetimePoints,
+    })
+    .from(vaultUsersTable)
+    .where(sql`${vaultUsersTable.totalSessionSeconds} > 0`)
+    .orderBy(desc(vaultUsersTable.totalSessionSeconds))
+    .limit(50);
+
+  res.json(rows.map((r) => ({
+    telegramId: r.telegramId,
+    username: r.username,
+    firstName: r.firstName,
+    photoUrl: r.photoUrl,
+    lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
+    totalSessionSeconds: r.totalSessionSeconds,
+    lifetimePoints: r.lifetimePoints,
+  })));
 });
 
 router.delete("/admin/squads/:id", async (req, res): Promise<void> => {

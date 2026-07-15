@@ -226,7 +226,8 @@ export const GetAdminStatsResponse = zod.object({
   "totalBalanceUSD": zod.number(),
   "premiumUsers": zod.number(),
   "bannedUsers": zod.number(),
-  "newUsersToday": zod.number()
+  "newUsersToday": zod.number(),
+  "onlineNow": zod.number()
 })
 
 
