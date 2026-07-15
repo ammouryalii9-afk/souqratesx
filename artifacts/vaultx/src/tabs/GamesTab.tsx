@@ -22,9 +22,10 @@ type CompetitionEntry = {
   entryFeeStars: number;
   maxEntries: number | null;
   status: string;
+  type: string;
   endAt: string;
   entered: boolean;
-  myPointsGained: number;
+  myProgress: number;
 };
 
 function formatTimeLeft(endAt: string): string {
@@ -48,7 +49,7 @@ function CompetitionsSection() {
       const r = await fetch('/api/competitions', { credentials: 'include' });
       if (!r.ok) return;
       const data = await r.json() as { competitions: CompetitionEntry[] };
-      setComps(data.competitions.filter(c => c.status === 'active'));
+      setComps(data.competitions.filter(c => c.status === 'active' && c.type !== 'referral'));
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
@@ -107,7 +108,7 @@ function CompetitionsSection() {
                 </div>
                 {c.entered && (
                   <div className="mt-2 text-[11px] bg-primary/10 text-primary px-2 py-1 rounded-lg inline-block border border-primary/20 font-bold">
-                    ✓ Entered · +{c.myPointsGained.toLocaleString()} pts gained
+                    ✓ Entered · +{(c.myProgress ?? 0).toLocaleString()} pts gained
                   </div>
                 )}
               </div>
