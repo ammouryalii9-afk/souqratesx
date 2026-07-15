@@ -6,6 +6,7 @@ import { SplashScreen } from "./components/SplashScreen";
 import { AdBanner } from "./components/AdBanner";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import { EventBanner } from "./components/EventBanner";
+import { ReferralRaceBanner } from "./components/ReferralRaceBanner";
 import { CelebrationOverlay } from "./components/CelebrationOverlay";
 import { WelcomeReward } from "./components/WelcomeReward";
 import { OfflineEarningsModal } from "./components/OfflineEarningsModal";
@@ -130,6 +131,7 @@ function MainLayout() {
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
       <Header />
       <AnnouncementBanner isTelegramUser={isTelegramUser} />
+      <ReferralRaceBanner isTelegramUser={isTelegramUser} />
       <EventBanner />
       <CelebrationOverlay />
       <WelcomeReward />
