@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { db, vaultUsersTable } from "@workspace/db";
+import { db, vaultUsersTable, competitionsTable, competitionEntriesTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
@@ -7,10 +7,6 @@ import { skpRewardFields } from "./skxCredit";
 
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
 
-// One-time bonuses when a referrer's TOTAL invite count crosses a milestone.
-// Fired exactly once per milestone: referralCount increments atomically by 1,
-// so exactly one concurrent linkReferrer call sees the returned count equal
-// to a milestone value.
 const REFERRAL_MILESTONES: Record<number, number> = {
   5: 25_000,
   10: 75_000,
@@ -20,13 +16,9 @@ const REFERRAL_MILESTONES: Record<number, number> = {
 };
 
 /**
- * Links a user to their referrer, parsed from the Telegram `start_param`
- * (format: `ref_<telegramId>`). Idempotent and abuse-safe: the referrer is
- * set at most ONCE per account ever (guard-in-WHERE on `referrerId IS NULL`),
- * so it is safe to call on EVERY login — an existing account clicking a
- * referral link gets attributed on their next open, but an already-attributed
- * account can never switch referrers or double-count. No-ops on
- * self-referral or an unknown/banned referrer.
+ * Links a user to their referrer. Idempotent — safe to call on every login.
+ * After bumping the referrer's count, also checks active referral-race
+ * competitions to auto-award if the target is reached.
  */
 export async function linkReferrer(newTelegramId: string, startParam: string | null | undefined): Promise<void> {
   if (!startParam || !startParam.startsWith("ref_")) return;
@@ -54,6 +46,8 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
   await logUserActivity(referrerTelegramId, "referral_joined", { referredTelegramId: newTelegramId });
 
   const newCount = bumped?.referralCount ?? 0;
+
+  // ── Referral milestones ────────────────────────────────────────────────────
   const milestoneBonus = REFERRAL_MILESTONES[newCount];
   if (milestoneBonus) {
     const settings = await getSettingsMap();
@@ -61,14 +55,101 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
       await awardReferralMilestone(referrerTelegramId, newCount, milestoneBonus);
     }
   }
+
+  // ── Referral-race competitions: check if referrer just hit the target ──────
+  await checkReferralRaceWin(referrerTelegramId, newCount);
 }
 
 /**
- * Credits a one-time referral milestone bonus in SKX (hard currency).
- * skx_balance is a server-authoritative column the client never syncs, so a
- * direct credit is safe even while the referrer is online.
+ * Called after each referral count bump. Checks if the referrer is participating
+ * in any active referral-race competition AND has now reached the required invite
+ * count. First caller to do so wins — the competition is closed atomically.
  */
-async function awardReferralMilestone(referrerTelegramId: string, milestone: number, bonus: number): Promise<void> {
+async function checkReferralRaceWin(referrerTelegramId: string, currentReferralCount: number): Promise<void> {
+  try {
+    // Find active referral-race competitions where this user has an entry
+    const entries = await db
+      .select({
+        competitionId: competitionEntriesTable.competitionId,
+        referralsAtEntry: competitionEntriesTable.referralsAtEntry,
+      })
+      .from(competitionEntriesTable)
+      .innerJoin(
+        competitionsTable,
+        and(
+          eq(competitionEntriesTable.competitionId, competitionsTable.id),
+          eq(competitionsTable.status, "active"),
+          eq(competitionsTable.type, "referral"),
+        ),
+      )
+      .where(eq(competitionEntriesTable.telegramId, referrerTelegramId));
+
+    for (const entry of entries) {
+      // Fetch the competition's target
+      const [comp] = await db
+        .select()
+        .from(competitionsTable)
+        .where(
+          and(
+            eq(competitionsTable.id, entry.competitionId),
+            eq(competitionsTable.status, "active"),
+          ),
+        );
+
+      if (!comp || !comp.requiredInvites) continue;
+
+      const gained = Math.max(0, currentReferralCount - (entry.referralsAtEntry ?? 0));
+      if (gained < comp.requiredInvites) continue;
+
+      // Close competition atomically — only first winner succeeds
+      const [closed] = await db
+        .update(competitionsTable)
+        .set({ status: "closed", winnerTelegramId: referrerTelegramId })
+        .where(
+          and(
+            eq(competitionsTable.id, comp.id),
+            eq(competitionsTable.status, "active"), // guard: only one winner
+          ),
+        )
+        .returning();
+
+      if (!closed) continue; // another request already closed it
+
+      // Award prize
+      if (comp.prizePoints > 0) {
+        await db
+          .update(vaultUsersTable)
+          .set(skpRewardFields(comp.prizePoints))
+          .where(eq(vaultUsersTable.telegramId, referrerTelegramId));
+      }
+
+      logger.info(
+        { competitionId: comp.id, winner: referrerTelegramId, prize: comp.prizePoints, gained },
+        "Referral race won — competition closed",
+      );
+
+      // DM the winner
+      try {
+        const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("./telegramBot");
+        if (isTelegramBotConfigured()) {
+          await sendPlainTelegramMessage(
+            referrerTelegramId,
+            `🏆 مبروك! أنت الفائز بمسابقة "${comp.title}"!\n` +
+            `وصلت إلى ${gained} دعوة وحصلت على ${comp.prizePoints.toLocaleString()} SKP 🎉\n\n` +
+            `🏆 Congratulations! You won "${comp.title}"!\n` +
+            `You reached ${gained} referrals and earned ${comp.prizePoints.toLocaleString()} SKP 🎉`,
+          );
+        }
+      } catch {
+        // DM failure never blocks the award
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, referrerTelegramId }, "checkReferralRaceWin failed — non-fatal");
+  }
+}
+
+export async function awardReferralMilestone(referrerTelegramId: string, milestone: number, bonus: number): Promise<void> {
   const [credited] = await db
     .update(vaultUsersTable)
     .set({
@@ -97,13 +178,6 @@ async function awardReferralMilestone(referrerTelegramId: string, milestone: num
   }
 }
 
-/**
- * Credits the referrer of `earnerTelegramId` (if any) a percentage of a
- * server-verified point credit — real ad views (Adsgram) and completed
- * offerwall tasks (CPA/Monlix/Bitlabs). Not applied to unverified
- * client-side mini-games/daily rewards, which have no real revenue behind
- * them and would otherwise be a trivial multi-account exploit vector.
- */
 export async function awardReferralBonus(
   earnerTelegramId: string,
   baseAmount: number,
@@ -120,8 +194,6 @@ export async function awardReferralBonus(
   const bonus = Math.round(baseAmount * (ratePercent / 100));
   if (bonus <= 0) return;
 
-  // Referral trickle from server-verified earnings is SKX (hard currency),
-  // credited directly to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
     .set({

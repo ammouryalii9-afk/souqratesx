@@ -4,8 +4,8 @@ import { useVault } from '../context/VaultContext';
 import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette, Rocket, Trophy, Target, ShoppingBag, CheckCircle2, ChevronRight } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, getGroupChallenges, claimGroupChallenge, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask, type GroupChallenge } from '../lib/gameApi';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette, Rocket, Trophy, Target, ShoppingBag, CheckCircle2, ChevronRight, Users, Timer } from 'lucide-react';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, getGroupChallenges, claimGroupChallenge, getCompetitions, joinReferralRace, getRaceLeaderboard, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask, type GroupChallenge, type RaceCompetition, type RaceLeaderboardEntry } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp, haptic } from '../lib/telegram';
 import { StarsPurchaseSuccess } from '../components/StarsPurchaseSuccess';
@@ -80,12 +80,49 @@ export const TasksTab = () => {
     getGroupChallenges().then(r => setGroupChallenges(r.challenges)).catch(() => setGroupChallenges([]));
   };
 
+  const [raceComps, setRaceComps] = useState<RaceCompetition[]>([]);
+  const [raceLeaderboards, setRaceLeaderboards] = useState<Record<number, RaceLeaderboardEntry[]>>({});
+  const [joiningRaceId, setJoiningRaceId] = useState<number | null>(null);
+  const [raceCountdowns, setRaceCountdowns] = useState<Record<number, string>>({});
+
+  const loadRaces = () => {
+    getCompetitions().then(r => {
+      const referralRaces = r.competitions.filter(c => c.type === 'referral');
+      setRaceComps(referralRaces);
+      referralRaces.forEach(c => {
+        getRaceLeaderboard(c.id).then(lb => setRaceLeaderboards(prev => ({ ...prev, [c.id]: lb.leaderboard }))).catch(() => {});
+      });
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    const tick = () => {
+      setRaceCountdowns(() => {
+        const result: Record<number, string> = {};
+        raceComps.forEach(c => {
+          const ms = new Date(c.endAt).getTime() - Date.now();
+          if (ms <= 0) { result[c.id] = 'انتهت'; return; }
+          const d = Math.floor(ms / 86400000);
+          const h = Math.floor((ms % 86400000) / 3600000);
+          const m = Math.floor((ms % 3600000) / 60000);
+          const s = Math.floor((ms % 60000) / 1000);
+          result[c.id] = d > 0 ? `${d}ي ${h}س ${m}د` : `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        });
+        return result;
+      });
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [raceComps]);
+
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
     getStarProducts().then(setStarProducts).catch(() => setStarProducts([]));
     loadAds();
     loadPartnerTasks();
     loadGroupChallenges();
+    loadRaces();
   }, []);
 
   // Server is the source of truth for whether the watch condition is satisfied;
@@ -416,6 +453,28 @@ export const TasksTab = () => {
           setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
         }
       }
+    }
+  };
+
+  const handleJoinRace = async (comp: RaceCompetition) => {
+    if (joiningRaceId === comp.id) return;
+    setJoiningRaceId(comp.id);
+    try {
+      const result = await joinReferralRace(comp.id);
+      if (result.ok) {
+        if (result.alreadyJoined) {
+          toast({ title: "أنت مسجل بالفعل!", description: "شارك رابطك وادعو أصدقاءك." });
+        } else {
+          haptic('success');
+          toast({ title: "انضممت للسباق! 🔥", description: "ابدأ بمشاركة رابط الدعوة الآن!" });
+          setRaceComps(prev => prev.map(c => c.id === comp.id ? { ...c, entered: true } : c));
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطأ";
+      toast({ title: "خطأ", description: msg, variant: "destructive" });
+    } finally {
+      setJoiningRaceId(null);
     }
   };
 
@@ -1174,6 +1233,155 @@ export const TasksTab = () => {
           </div>
         </section>
       )}
+
+      {/* Referral Race Competitions */}
+      {raceComps.length > 0 && raceComps.map(comp => {
+        const required = comp.requiredInvites ?? 100;
+        const progress = comp.entered ? Math.min(1, comp.myProgress / required) : 0;
+        const pct = Math.round(progress * 100);
+        const leaderboard = raceLeaderboards[comp.id] ?? [];
+        const top3 = leaderboard.slice(0, 3);
+        const countdown = raceCountdowns[comp.id] ?? '...';
+        const isJoining = joiningRaceId === comp.id;
+
+        // Color based on progress
+        const barColor = pct >= 100 ? '#22c55e'
+          : pct >= 90 ? '#ef4444'
+          : pct >= 66 ? '#f97316'
+          : pct >= 33 ? '#f59e0b'
+          : '#6366f1';
+        const glowColor = pct >= 90 ? 'rgba(239,68,68,0.4)'
+          : pct >= 66 ? 'rgba(249,115,22,0.3)'
+          : pct >= 33 ? 'rgba(245,158,11,0.25)'
+          : 'rgba(99,102,241,0.2)';
+
+        const MEDALS = ['🥇','🥈','🥉'];
+        const myRank = leaderboard.findIndex(e => e.gained === comp.myProgress) + 1;
+
+        return (
+          <section key={comp.id}>
+            {/* Card */}
+            <div className="relative overflow-hidden rounded-2xl border border-orange-500/25"
+              style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(239,68,68,0.06) 50%, rgba(17,24,39,0.95) 100%)' }}>
+
+              {/* Ambient glow */}
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: `radial-gradient(ellipse at top right, ${glowColor}, transparent 70%)` }} />
+
+              <div className="relative p-4 space-y-4">
+
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl shrink-0"
+                      style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)' }}>
+                      🔥
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">مسابقة دورية</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                      </div>
+                      <h3 className="text-white font-bold text-sm leading-tight">{comp.title}</h3>
+                    </div>
+                  </div>
+                  {/* Countdown */}
+                  <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1 text-orange-300/70 text-[10px]">
+                      <Timer className="w-3 h-3" /> ينتهي خلال
+                    </div>
+                    <div className="font-mono text-sm font-bold text-orange-300">{countdown}</div>
+                  </div>
+                </div>
+
+                {/* Prize banner */}
+                <div className="flex items-center justify-between bg-white/4 rounded-xl px-3 py-2 border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-yellow-400" />
+                    <span className="text-xs text-white/70">الجائزة الكبرى</span>
+                  </div>
+                  <span className="text-yellow-400 font-bold text-sm">{comp.prizePoints.toLocaleString()} SKP</span>
+                </div>
+
+                {/* Target */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50 flex items-center gap-1"><Users className="w-3 h-3" /> الهدف: {required} دعوة</span>
+                  {comp.entered && (
+                    <span className={`font-bold ${pct >= 100 ? 'text-green-400' : pct >= 66 ? 'text-orange-400' : 'text-white/70'}`}>
+                      تقدمك: {comp.myProgress} / {required}
+                      {myRank > 0 && myRank <= 20 && <span className="mr-1 text-primary"> #{myRank}</span>}
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                {comp.entered && (
+                  <div className="space-y-1">
+                    <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
+                        style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}` }}
+                      >
+                        {pct > 20 && (
+                          <div className="absolute inset-0 opacity-40"
+                            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)', animation: 'shimmer 1.5s infinite' }} />
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-white/30">
+                      <span>0</span>
+                      <span className={pct >= 33 ? 'text-white/50' : ''}>{Math.round(required * 0.33)}</span>
+                      <span className={pct >= 66 ? 'text-orange-400/70' : ''}>{Math.round(required * 0.66)}</span>
+                      <span className={pct >= 100 ? 'text-green-400' : ''}>{required}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Leaderboard top 3 */}
+                {top3.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">المتصدرون</p>
+                    {top3.map((entry, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-1.5">
+                        <span className="text-base w-6 text-center">{MEDALS[i]}</span>
+                        <span className="flex-1 text-sm text-white truncate">{entry.name}</span>
+                        <span className="text-xs font-bold" style={{ color: i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : '#b87333' }}>
+                          {entry.gained} / {required}
+                        </span>
+                        <div className="w-16 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div className="h-full rounded-full"
+                            style={{ width: `${Math.min(100, (entry.gained / required) * 100)}%`, background: i === 0 ? '#fbbf24' : barColor }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* CTA */}
+                {!comp.entered ? (
+                  <button
+                    onClick={() => handleJoinRace(comp)}
+                    disabled={isJoining}
+                    className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #f97316, #ef4444)', color: 'white', boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
+                  >
+                    {isJoining ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> انضم للسباق — مجاناً!</>}
+                  </button>
+                ) : pct < 100 ? (
+                  <div className="text-center text-xs text-white/40 py-1">
+                    شارك رابط الدعوة الخاص بك لتصعد في الترتيب 🚀
+                  </div>
+                ) : (
+                  <div className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+                    style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e' }}>
+                    <Check className="w-4 h-4" /> وصلت للهدف! 🎉
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })}
 
       {/* Group Invite Challenges */}
       {groupChallenges.length > 0 && (

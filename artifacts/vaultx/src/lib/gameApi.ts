@@ -180,6 +180,36 @@ export function verifyPartnerTask(id: number): Promise<{ ok: boolean; alreadyCla
   return apiFetch(`/partner-tasks/${id}/verify`, { method: "POST" });
 }
 
+// ── Referral Race Competitions ────────────────────────────────────────────
+
+export type RaceCompetition = {
+  id: number;
+  title: string;
+  description: string | null;
+  prizePoints: number;
+  type: string;
+  requiredInvites: number | null;
+  winnerTelegramId: string | null;
+  status: string;
+  endAt: string;
+  entered: boolean;
+  myProgress: number;
+};
+
+export type RaceLeaderboardEntry = { rank: number; name: string; gained: number };
+
+export function getCompetitions(): Promise<{ competitions: RaceCompetition[] }> {
+  return apiFetch<{ competitions: RaceCompetition[] }>("/competitions");
+}
+
+export function joinReferralRace(id: number): Promise<{ ok: boolean; alreadyJoined: boolean; referralsAtEntry?: number }> {
+  return apiFetch(`/competitions/${id}/join`, { method: "POST" });
+}
+
+export function getRaceLeaderboard(id: number): Promise<{ leaderboard: RaceLeaderboardEntry[] }> {
+  return apiFetch<{ leaderboard: RaceLeaderboardEntry[] }>(`/competitions/${id}/leaderboard`);
+}
+
 // ── Group Invite Challenges ───────────────────────────────────────────────
 
 export type GroupChallenge = {
