@@ -30,6 +30,32 @@ export function skxCreditFields(amount: number, statePatches: Record<string, str
 }
 
 /**
+ * SKP reward credit — ALL platform rewards (ad views, offerwall tasks, partner
+ * tasks, referral bonuses/milestones, squad bonuses/milestones, weekly prizes)
+ * are soft-currency SKP, never directly withdrawable.
+ *
+ * Because state.tempMiningPoints is client-synced (an online client's debounced
+ * PUT /vault/me would erase a direct write), the reward lands in the
+ * server-only `pending_bonus_points` column; redeemPendingBonus() folds it into
+ * state.tempMiningPoints atomically at the next hydration (auth / GET
+ * /vault/me) with a claimSeq bump so stale in-flight syncs are dropped.
+ *
+ *  - pending_bonus_points += amount (delivered as SKP at hydration)
+ *  - lifetime_points += amount      (leaderboard-only total)
+ *  - state.weeklyPoints += amount   (weekly race, toSpendable:false — the SKP
+ *    itself arrives via the pending redemption, not here)
+ *
+ * Callers keep their own WHERE guards (banned check, cooldowns, idempotency).
+ */
+export function skpRewardFields(amount: number, statePatches: Record<string, string | number> = {}) {
+  return {
+    pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${amount}`,
+    lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${amount}`,
+    state: creditedStateSql(amount, statePatches, { toSpendable: false }),
+  };
+}
+
+/**
  * Adds a verified ad/offerwall SKX credit to the ACTIVE pixel cycle's running
  * ad-revenue counter. The dividend pool at cycle close = this counter ×
  * pixelDividendPercent / 100. Fire-and-forget: a missing active cycle (or a

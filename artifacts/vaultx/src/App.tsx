@@ -9,6 +9,7 @@ import { EventBanner } from "./components/EventBanner";
 import { CelebrationOverlay } from "./components/CelebrationOverlay";
 import { WelcomeReward } from "./components/WelcomeReward";
 import { OfflineEarningsModal } from "./components/OfflineEarningsModal";
+import { BonusRewardModal } from "./components/BonusRewardModal";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -132,6 +133,7 @@ function MainLayout() {
       <CelebrationOverlay />
       <WelcomeReward />
       <OfflineEarningsModal />
+      <BonusRewardModal />
 
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0 transition-opacity duration-300">

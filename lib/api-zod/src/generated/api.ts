@@ -38,7 +38,8 @@ export const AuthTelegramResponse = zod.object({
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
-  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
 })
 
 
@@ -58,7 +59,8 @@ export const GetVaultMeResponse = zod.object({
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
-  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
 })
 
 
@@ -83,7 +85,8 @@ export const UpdateVaultMeResponse = zod.object({
   "referralCount": zod.number(),
   "referralEarnings": zod.number()
 }),
-  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user')
+  "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
+  "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
 })
 
 

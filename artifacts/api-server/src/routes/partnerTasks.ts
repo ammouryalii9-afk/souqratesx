@@ -3,7 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, partnerTasksTable, partnerTaskCompletionsTable, vaultUsersTable } from "@workspace/db";
 import { getSessionTelegramId } from "../lib/session";
 import { getChatMemberStatus, isTelegramBotConfigured } from "../lib/telegramBot";
-import { skxCreditFields } from "../lib/skxCredit";
+import { skpRewardFields } from "../lib/skxCredit";
 import { rateLimit } from "../lib/rateLimit";
 
 const router: IRouter = Router();
@@ -123,7 +123,7 @@ router.post("/partner-tasks/:id/verify", rateLimit("partner-verify", 10, 60_000)
   // getChatMember, credited to the server-authoritative skx_balance column.
   const [updated] = await db
     .update(vaultUsersTable)
-    .set(skxCreditFields(task.rewardPoints))
+    .set(skpRewardFields(task.rewardPoints))
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .returning({ lifetimePoints: vaultUsersTable.lifetimePoints });
 

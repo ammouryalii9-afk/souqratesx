@@ -5,7 +5,7 @@ import { db, vaultUsersTable, squadsTable } from "@workspace/db";
 import { getSessionTelegramId, clearSessionCookie } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
-import { skxCreditFields } from "../lib/skxCredit";
+import { skpRewardFields } from "../lib/skxCredit";
 
 const router: IRouter = Router();
 
@@ -218,8 +218,9 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
       .set({
         squadId,
         hasClaimedSquadBonus: true,
-        // Squad join bonus is SKX (hard currency), credited server-side directly.
-        ...skxCreditFields(joinBonus),
+        // Squad join bonus is SKP — delivered via pendingBonusPoints, folded
+        // into state.tempMiningPoints at the next hydration.
+        ...skpRewardFields(joinBonus),
       })
       .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.hasClaimedSquadBonus, false)))
       .returning();
@@ -321,7 +322,8 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
                 `🎁 تم إضافة ${bonusAmount.toLocaleString("en-US")} نقطة SKP لجميع أعضاء الفرقة!\n\n` +
                 (m.threshold < 100
                   ? `💪 استمر — المكافأة القادمة عند ${m.threshold === 10 ? 25 : m.threshold === 25 ? 50 : 100} عضو!`
-                  : `🌟 أنتم في القمة!`)
+                  : `🌟 أنتم في القمة!`) +
+                `\n\n🏆 Congrats, leader of "${squadName}"! Your squad reached ${m.threshold} members 🎉 ${bonusAmount.toLocaleString("en-US")} SKP was added to every member!`
               ).catch(() => { /* DM failure never blocks */ });
             }
 
@@ -331,7 +333,8 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
               await sendPlainTelegramMessage(
                 member.telegramId,
                 `🎁 فرقة "${squadName}" وصلت إلى ${m.threshold} عضو!\n\n` +
-                `حصلت على ${bonusAmount.toLocaleString("en-US")} نقطة SKP مكافأة — افتح التطبيق لترى رصيدك 🚀`
+                `حصلت على ${bonusAmount.toLocaleString("en-US")} نقطة SKP مكافأة — افتح التطبيق لترى رصيدك 🚀\n\n` +
+                `🎁 Squad "${squadName}" reached ${m.threshold} members! You earned a ${bonusAmount.toLocaleString("en-US")} SKP bonus — open the app to see your balance 🚀`
               ).catch(() => { /* skip users who blocked the bot */ });
             }
           } catch {

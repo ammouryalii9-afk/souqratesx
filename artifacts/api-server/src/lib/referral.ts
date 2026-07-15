@@ -3,7 +3,7 @@ import { db, vaultUsersTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
-import { skxCreditFields } from "./skxCredit";
+import { skpRewardFields } from "./skxCredit";
 
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
 
@@ -72,7 +72,7 @@ async function awardReferralMilestone(referrerTelegramId: string, milestone: num
   const [credited] = await db
     .update(vaultUsersTable)
     .set({
-      ...skxCreditFields(bonus),
+      ...skpRewardFields(bonus),
       referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
     })
     .where(and(eq(vaultUsersTable.telegramId, referrerTelegramId), eq(vaultUsersTable.isBanned, false)))
@@ -88,7 +88,8 @@ async function awardReferralMilestone(referrerTelegramId: string, milestone: num
     if (isTelegramBotConfigured()) {
       await sendPlainTelegramMessage(
         referrerTelegramId,
-        `🎉 مبروك! وصلت إلى ${milestone} إحالة وحصلت على مكافأة ${bonus.toLocaleString("en-US")} نقطة!`,
+        `🎉 مبروك! وصلت إلى ${milestone} إحالة وحصلت على مكافأة ${bonus.toLocaleString("en-US")} نقطة SKP! افتح التطبيق لاستلامها.\n\n` +
+        `🎉 Congratulations! You reached ${milestone} referrals and earned a ${bonus.toLocaleString("en-US")} SKP bonus! Open the app to claim it.`,
       );
     }
   } catch {
@@ -124,7 +125,7 @@ export async function awardReferralBonus(
   const [updated] = await db
     .update(vaultUsersTable)
     .set({
-      ...skxCreditFields(bonus),
+      ...skpRewardFields(bonus),
       referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
     })
     .where(and(eq(vaultUsersTable.telegramId, earner.referrerId), eq(vaultUsersTable.isBanned, false)))

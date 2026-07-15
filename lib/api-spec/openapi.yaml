@@ -1177,6 +1177,9 @@ components:
           $ref: "#/components/schemas/VaultUserProfile"
         state:
           $ref: "#/components/schemas/VaultStateData"
+        redeemedBonus:
+          type: integer
+          description: "SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation."
       required:
         - user
         - state

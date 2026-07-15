@@ -49,6 +49,8 @@ export interface VaultStateUpdate {
 export interface VaultSession {
   user: VaultUserProfile;
   state: VaultStateData;
+  /** SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation. */
+  redeemedBonus?: number;
 }
 
 export interface ConvertSkpBody {

@@ -123,6 +123,10 @@ type VaultContextType = {
   addLifetimePoints: (n: number) => void;
   addBonusPoints: (n: number) => void;
   refreshFromServer: () => Promise<void>;
+
+  /** SKP bonus redeemed server-side during the last hydration (null = nothing to show). */
+  bonusReward: number | null;
+  dismissBonusReward: () => void;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -145,6 +149,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [username, setUsername] = useState('CryptoMiner');
   const [isTelegramUser, setIsTelegramUser] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  // SKP bonus folded in by the server during hydration — drives the animated reward popup.
+  const [bonusReward, setBonusReward] = useState<number | null>(null);
+  const dismissBonusReward = () => setBonusReward(null);
 
   const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 0);
   const [tempMiningPoints, setTempMiningPoints] = useState(() => {
@@ -305,6 +312,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
         setHasClaimedWelcome(!!state.hasClaimedWelcome);
         setIsPremium(!!data.user.isPremium);
+        if (typeof data.redeemedBonus === 'number' && data.redeemedBonus > 0) {
+          setBonusReward(data.redeemedBonus);
+          haptic('success');
+        }
       })
       .catch((err) => {
         console.error('Telegram auth failed, falling back to local progress', err);
@@ -752,6 +763,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
       setHasClaimedWelcome(!!state.hasClaimedWelcome);
       setIsPremium(!!data.user.isPremium);
+      if (typeof data.redeemedBonus === 'number' && data.redeemedBonus > 0) {
+        setBonusReward(data.redeemedBonus);
+        haptic('success');
+      }
     } catch (err) {
       console.error('Failed to refresh state from server', err);
     } finally {
@@ -826,6 +841,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addLifetimePoints,
         addBonusPoints,
         refreshFromServer,
+        bonusReward,
+        dismissBonusReward,
       }}
     >
       {children}

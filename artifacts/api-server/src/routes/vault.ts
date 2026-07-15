@@ -75,8 +75,9 @@ router.get("/vault/me", async (req, res): Promise<void> => {
   // Hydration moment: fold any server-granted bonus (weekly prize, referral
   // milestone) into the spendable balance NOW — the client is about to replace
   // its local state with this response, so the credit can't be clobbered.
+  const redeemed = await redeemPendingBonus(telegramId);
   const user =
-    (await redeemPendingBonus(telegramId)) ??
+    redeemed?.user ??
     (await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, telegramId)))[0];
   if (!user) {
     res.status(401).json({ error: "Not authenticated" });
@@ -98,6 +99,7 @@ router.get("/vault/me", async (req, res): Promise<void> => {
         referralEarnings: user.referralEarnings,
       },
       state: user.state,
+      redeemedBonus: redeemed?.amount ?? 0,
     }),
   );
 });

@@ -18,3 +18,6 @@ Weekly scores reset lazily (on the user's first credit of the new week), but the
 **Why:** a lazy reset plus a periodic reader is a destroy-before-read race by construction.
 
 **How to apply:** every rollover path (client-sync merge AND server credit SQL) must copy `weekKey`/`weeklyPoints` into `prevWeekKey`/`prevWeekPoints` before resetting; the reader queries a CASE over both locations. Protect all these keys from client tampering. Seed/claim the "last awarded period" marker atomically so restarts and first boots can't double- or bogus-pay.
+
+## Frontend rule
+When a reward moves to the server-side pending channel, remove the client's optimistic `setTempMiningPoints`/`addLifetimePoints` for that flow and call `refreshFromServer()` instead — the optimistic bump plus later pending redemption double-credits via the debounced PUT sync. Hydration responses expose `redeemedBonus` to drive the reward popup.

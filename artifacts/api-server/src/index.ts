@@ -200,15 +200,15 @@ async function runWeeklyPrizes(): Promise<void> {
       const prize = PRIZES[i] ?? 0;
       if (!winner?.telegramId || prize <= 0) continue;
 
-      // Credit lifetime + SKX (hard currency, server-authoritative column the
-      // client never syncs — safe to credit directly even for online winners).
+      // Weekly prize is SKP (soft, spendable) — delivered via pendingBonusPoints
+      // and folded into state.tempMiningPoints at the winner's next hydration.
       // Deliberately NOT weeklyPoints (the prize must not seed the winner's
       // NEXT week score).
       const res = await db
         .update(vaultUsersTable)
         .set({
           lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${prize}`,
-          skxBalance: sql`${vaultUsersTable.skxBalance} + ${prize}`,
+          pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${prize}`,
         })
         .where(and(eq(vaultUsersTable.telegramId, winner.telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning({ telegramId: vaultUsersTable.telegramId });
@@ -221,7 +221,8 @@ async function runWeeklyPrizes(): Promise<void> {
         try {
           await sendPlainTelegramMessage(
             winner.telegramId,
-            `🏆 مبروك! حصلت على المركز #${i + 1} في سباق الأسبوع الماضي وفزت بجائزة ${prize.toLocaleString("en-US")} نقطة! افتح التطبيق لاستلامها 🎉`,
+            `🏆 مبروك! حصلت على المركز #${i + 1} في سباق الأسبوع الماضي وفزت بجائزة ${prize.toLocaleString("en-US")} نقطة SKP! افتح التطبيق لاستلامها 🎉\n\n` +
+            `🏆 Congratulations! You ranked #${i + 1} in last week's race and won ${prize.toLocaleString("en-US")} SKP! Open the app to claim it 🎉`,
           );
         } catch {
           // DM failure must never block the remaining prizes.
@@ -328,7 +329,8 @@ async function runWeeklySquadPrizes(): Promise<void> {
           try {
             await sendPlainTelegramMessage(
               member.telegramId,
-              `🏆 فريقك "${squadName}" حصل على المركز #${i + 1} في سباق الفرق الأسبوعي! فزت بمكافأة ${perMember.toLocaleString("en-US")} نقطة SKP 🎉 افتح التطبيق لاستلامها.`,
+              `🏆 فريقك "${squadName}" حصل على المركز #${i + 1} في سباق الفرق الأسبوعي! فزت بمكافأة ${perMember.toLocaleString("en-US")} نقطة SKP 🎉 افتح التطبيق لاستلامها.\n\n` +
+              `🏆 Your squad "${squadName}" ranked #${i + 1} in the weekly squad race! You won ${perMember.toLocaleString("en-US")} SKP 🎉 Open the app to claim it.`,
             );
           } catch { /* DM failure must not block */ }
         }

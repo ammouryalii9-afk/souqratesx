@@ -81,8 +81,8 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
   // milestone) into the spendable balance NOW — the client is about to replace
   // its local state with this response, so the credit can't be clobbered by a
   // stale debounced sync.
-  const withBonus = await redeemPendingBonus(telegramId);
-  if (withBonus) user = withBonus;
+  const redeemed = await redeemPendingBonus(telegramId);
+  if (redeemed) user = redeemed.user;
 
   setSessionCookie(res, telegramId);
 
@@ -101,6 +101,7 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         referralEarnings: user.referralEarnings,
       },
       state: user.state,
+      redeemedBonus: redeemed?.amount ?? 0,
     }),
   );
 });

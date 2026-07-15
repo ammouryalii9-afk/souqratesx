@@ -1,7 +1,7 @@
 import { and, eq, lt, isNull, or, sql } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
-import { skxCreditFields } from "../lib/skxCredit";
+import { skpRewardFields } from "../lib/skxCredit";
 
 function todayStr(): string {
   return new Date().toISOString().split("T")[0]!;
@@ -42,7 +42,7 @@ export function createAdsgramProvider(): EarnProvider {
       .set({
         // Ad rewards are SKX (the hard/withdrawable currency) — credited to the
         // server-authoritative skx_balance column directly.
-        ...skxCreditFields(amount),
+        ...skpRewardFields(amount),
         adsWatchedToday: sql`case when ${vaultUsersTable.adsWatchedDate} = ${today} then ${vaultUsersTable.adsWatchedToday} + 1 else 1 end`,
         adsWatchedDate: today,
         lastAdRewardAt: now,

@@ -124,8 +124,10 @@ export const TasksTab = () => {
     setClaimingAdId(ad.id);
     try {
       const result = await claimAd(ad.id);
-      setTempMiningPoints(prev => prev + result.creditedPoints);
-      addLifetimePoints(result.creditedPoints);
+      // Reward is credited server-side into pending_bonus_points; the refresh
+      // folds it into the balance (and triggers the reward popup). No local
+      // optimistic credit — it would double-count via the debounced sync.
+      await refreshFromServer();
       setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, claimed: true } : a));
       toast({ title: 'Reward Claimed!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
@@ -146,7 +148,9 @@ export const TasksTab = () => {
       const result = provider === 'adsgram' ? await claimAdsgramReward()
         : provider === 'monetag' ? await claimMonetagReward()
         : await claimOnclickaReward();
-      addLifetimePoints(result.creditedPoints);
+      // Reward lands server-side in pending_bonus_points; the refresh folds it
+      // into the balance and triggers the reward popup — no local credit needed.
+      void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
@@ -163,7 +167,9 @@ export const TasksTab = () => {
       const bannerConfig = { ...config, adsgram: { ...config.adsgram, blockId: config.adsgram.bannerBlockId } };
       const provider = await watchRewardedAdWithFallback(bannerConfig);
       const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimOnclickaReward();
-      addLifetimePoints(result.creditedPoints);
+      // Reward lands server-side in pending_bonus_points; the refresh folds it
+      // into the balance and triggers the reward popup — no local credit needed.
+      void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
@@ -179,7 +185,9 @@ export const TasksTab = () => {
       const { showMonetagRewardedAd } = await import('../lib/monetag');
       await showMonetagRewardedAd(config.monetag.zoneId);
       const result = await claimMonetagReward();
-      addLifetimePoints(result.creditedPoints);
+      // Reward lands server-side in pending_bonus_points; the refresh folds it
+      // into the balance and triggers the reward popup — no local credit needed.
+      void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
@@ -195,7 +203,9 @@ export const TasksTab = () => {
       const { showOnclickaRewardedAd } = await import('../lib/onclicka');
       await showOnclickaRewardedAd(config.onclicka.spotId);
       const result = await claimOnclickaReward();
-      addLifetimePoints(result.creditedPoints);
+      // Reward lands server-side in pending_bonus_points; the refresh folds it
+      // into the balance and triggers the reward popup — no local credit needed.
+      void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
@@ -381,13 +391,12 @@ export const TasksTab = () => {
           setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'done' }));
           setPartnerTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: true } : t));
           if (!result.alreadyClaimed && result.creditedPoints > 0) {
-            setTempMiningPoints(prev => prev + result.creditedPoints);
-            addLifetimePoints(result.creditedPoints);
+            // Server-side pending credit — refresh folds it in and shows the popup.
+            await refreshFromServer();
             toast({ title: "Task Complete! ✅", description: `+${result.creditedPoints.toLocaleString()} points added.` });
           } else {
             toast({ title: "Already Claimed", description: "You already completed this task." });
           }
-          refreshFromServer();
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Verification failed";

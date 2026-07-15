@@ -262,6 +262,11 @@ const en = {
     desc: (time: string) => `Your miners kept working while you were away (${time}).`,
     claim: (n: string) => `Collect ${n} points`,
   },
+  bonusReward: {
+    title: 'Reward Received!',
+    desc: 'A bonus was added to your SKP balance',
+    button: 'Awesome!',
+  },
   squad: {
     title: 'Squads',
     subtitle: 'Team up, pool your points, and climb the squad leaderboard. Recruit friends — everyone who joins gets a bonus.',
@@ -591,6 +596,11 @@ const ar: typeof en = {
     title: 'أهلاً بعودتك!',
     desc: (time: string) => `عمّالك واصلوا التعدين أثناء غيابك (${time}).`,
     claim: (n: string) => `اجمع ${n} نقطة`,
+  },
+  bonusReward: {
+    title: 'وصلتك مكافأة!',
+    desc: 'تمت إضافة مكافأة إلى رصيد SKP الخاص بك',
+    button: 'رائع!',
   },
   squad: {
     title: 'الفرق',

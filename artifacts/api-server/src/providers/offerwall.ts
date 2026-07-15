@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db, vaultUsersTable } from "@workspace/db";
-import { skxCreditFields } from "../lib/skxCredit";
+import { skpRewardFields } from "../lib/skxCredit";
 import type { EarnOffer, EarnProvider, HealthCheckResult, ProviderContext, RewardResult, RewardVerifyInput } from "./types";
 
 // Upper bound per single postback — a sanity cap against buggy/malicious postbacks,
@@ -72,7 +72,7 @@ export function createOfferwallProvider(key: string, title: string): EarnProvide
         .set({
           // Offerwall/survey rewards are SKX (hard currency) — credited to the
           // server-authoritative skx_balance column directly.
-          ...skxCreditFields(amount),
+          ...skpRewardFields(amount),
         })
         .where(and(eq(vaultUsersTable.telegramId, telegramId), eq(vaultUsersTable.isBanned, false)))
         .returning();
