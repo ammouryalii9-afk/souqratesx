@@ -45,6 +45,7 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         firstName: telegramUser.first_name ?? existing.firstName,
         lastName: telegramUser.last_name ?? existing.lastName,
         photoUrl: telegramUser.photo_url ?? existing.photoUrl,
+        telegramLangCode: telegramUser.language_code ?? existing.telegramLangCode,
       })
       .where(eq(vaultUsersTable.telegramId, telegramId))
       .returning();
@@ -57,6 +58,7 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         firstName: telegramUser.first_name ?? null,
         lastName: telegramUser.last_name ?? null,
         photoUrl: telegramUser.photo_url ?? null,
+        telegramLangCode: telegramUser.language_code ?? null,
         lifetimePoints: 0,
         state: {},
       })

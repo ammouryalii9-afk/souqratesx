@@ -45,6 +45,7 @@ export const vaultUsersTable = pgTable("vault_users", {
   referralEarnings: integer("referral_earnings").notNull().default(0),
   squadId: integer("squad_id"),
   hasClaimedSquadBonus: boolean("has_claimed_squad_bonus").notNull().default(false),
+  telegramLangCode: text("telegram_lang_code"),
   notes: text("notes"),
   // Presence tracking: updated on every client heartbeat (every 30s while app is open).
   // "online now" = lastSeenAt > now() - interval '3 minutes'.

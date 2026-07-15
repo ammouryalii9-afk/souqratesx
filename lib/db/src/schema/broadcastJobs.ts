@@ -10,6 +10,7 @@ export const broadcastJobsTable = pgTable("broadcast_jobs", {
   totalUsers: integer("total_users").notNull().default(0),
   sentCount: integer("sent_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
+  langFilter: text("lang_filter"),
   sponsorName: text("sponsor_name"),
   sponsorUrl: text("sponsor_url"),
   isSponsored: integer("is_sponsored").notNull().default(0),

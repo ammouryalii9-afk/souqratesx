@@ -14,7 +14,7 @@ const en = {
   },
   header: {
     balance: 'Balance',
-    langToggle: 'عربي',
+    langToggle: 'EN',
   },
   onboarding: {
     terms: 'Terms & Conditions',
@@ -350,7 +350,7 @@ const ar: typeof en = {
   },
   header: {
     balance: 'الرصيد',
-    langToggle: 'English',
+    langToggle: 'عربي',
   },
   onboarding: {
     terms: 'الشروط والأحكام',
