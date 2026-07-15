@@ -101,12 +101,16 @@ export const TasksTab = () => {
         const result: Record<number, string> = {};
         raceComps.forEach(c => {
           const ms = new Date(c.endAt).getTime() - Date.now();
-          if (ms <= 0) { result[c.id] = 'انتهت'; return; }
+          if (ms <= 0) { result[c.id] = lang === 'en' ? 'Ended' : 'انتهت'; return; }
           const d = Math.floor(ms / 86400000);
           const h = Math.floor((ms % 86400000) / 3600000);
           const m = Math.floor((ms % 3600000) / 60000);
           const s = Math.floor((ms % 60000) / 1000);
-          result[c.id] = d > 0 ? `${d}ي ${h}س ${m}د` : `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+          if (d > 0) {
+            result[c.id] = lang === 'en' ? `${d}d ${h}h ${m}m` : `${d}ي ${h}س ${m}د`;
+          } else {
+            result[c.id] = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+          }
         });
         return result;
       });
@@ -114,7 +118,7 @@ export const TasksTab = () => {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [raceComps]);
+  }, [raceComps, lang]);
 
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
