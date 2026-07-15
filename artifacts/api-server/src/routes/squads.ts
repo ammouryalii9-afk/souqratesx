@@ -283,10 +283,21 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
         const bonusAmount = asNumber(milestoneSettings[m.settingKey], m.defaultBonus);
         if (bonusAmount <= 0) continue;
 
-        // Credit all current non-banned squad members with SKP (spendable, non-withdrawable)
+        // Credit all current non-banned squad members with SKP (spendable, non-withdrawable).
+        // Written directly to state.tempMiningPoints via jsonb_set + claimSeq bump so any
+        // in-flight PUT /vault/me with stale tempMiningPoints is dropped and the client
+        // re-syncs with the correct value (same guard used by SKP→SKX conversion).
         await db.update(vaultUsersTable)
           .set({
-            pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonusAmount}`,
+            state: sql`jsonb_set(
+              jsonb_set(
+                COALESCE(${vaultUsersTable.state}, '{}'::jsonb),
+                '{tempMiningPoints}',
+                to_jsonb(COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::bigint, 0) + ${bonusAmount})
+              ),
+              '{claimSeq}',
+              to_jsonb(COALESCE((${vaultUsersTable.state}->>'claimSeq')::int, 0) + 1)
+            )`,
             lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonusAmount}`,
           })
           .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)));
