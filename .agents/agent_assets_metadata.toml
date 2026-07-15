@@ -65,3 +65,9 @@ id = "U5usUwC8l_agnUGAlhf2d"
 uri = "file://تقرير_اقتصاد_المنصة.md"
 type = "text"
 title = "تقرير اقتصاد المنصة - SouqratesX"
+
+[[outputs]]
+id = "_MhgrgjpKud2AHC4bTbtK"
+uri = "file://.local/stars-products-benefits-guide.md"
+type = "text"
+title = "دليل مميزات منتجات متجر النجوم"
