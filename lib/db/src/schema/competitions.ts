@@ -9,7 +9,9 @@ import { z } from "zod/v4";
 export const competitionsTable = pgTable("competitions", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
+  titleEn: text("title_en"),
   description: text("description"),
+  descriptionEn: text("description_en"),
   prizePoints: bigint("prize_points", { mode: "number" }).notNull().default(0),
   entryFeeStars: integer("entry_fee_stars").notNull().default(5),
   maxEntries: integer("max_entries"),

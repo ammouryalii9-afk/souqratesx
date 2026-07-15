@@ -191,7 +191,9 @@ router.post("/competitions/:id/invoice", async (req, res): Promise<void> => {
 
 const createSchema = z.object({
   title: z.string().min(2).max(80),
-  description: z.string().max(300).optional(),
+  titleEn: z.string().max(80).optional().nullable(),
+  description: z.string().max(300).optional().nullable(),
+  descriptionEn: z.string().max(300).optional().nullable(),
   prizePoints: z.number().int().min(0),
   entryFeeStars: z.number().int().min(1).default(5),
   maxEntries: z.number().int().min(1).optional().nullable(),
@@ -227,7 +229,9 @@ router.post("/admin/competitions", async (req, res): Promise<void> => {
   const d = parsed.data;
   const [comp] = await db.insert(competitionsTable).values({
     title: d.title,
+    titleEn: d.titleEn ?? null,
     description: d.description ?? null,
+    descriptionEn: d.descriptionEn ?? null,
     prizePoints: d.prizePoints,
     entryFeeStars: d.entryFeeStars,
     maxEntries: d.maxEntries ?? null,

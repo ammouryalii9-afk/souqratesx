@@ -140,7 +140,9 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
             <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">{t.badge}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shrink-0" />
           </div>
-          <p className="text-white font-bold text-sm leading-tight truncate">{comp.title}</p>
+          <p className="text-white font-bold text-sm leading-tight truncate">
+            {lang === 'en' && comp.titleEn ? comp.titleEn : comp.title}
+          </p>
         </div>
 
         <div className={`text-right shrink-0 ${lang === 'ar' ? 'text-right' : 'text-left'}`}>
@@ -150,6 +152,13 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
           <span className="font-mono text-sm font-bold text-orange-300">{countdown}</span>
         </div>
       </div>
+
+      {/* Description */}
+      {(comp.description || comp.descriptionEn) && (
+        <p className="px-4 pb-1 text-xs text-white/50 leading-relaxed">
+          {lang === 'en' && comp.descriptionEn ? comp.descriptionEn : comp.description}
+        </p>
+      )}
 
       {/* Prize + target */}
       <div className="px-4 pb-2 flex items-center gap-3 text-xs">

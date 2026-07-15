@@ -22,7 +22,9 @@ type Competition = {
 
 type FormState = {
   title: string;
+  titleEn: string;
   description: string;
+  descriptionEn: string;
   prizePoints: string;
   entryFeeStars: string;
   maxEntries: string;
@@ -33,7 +35,9 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
   title: "",
+  titleEn: "",
   description: "",
+  descriptionEn: "",
   prizePoints: "500000",
   entryFeeStars: "10",
   maxEntries: "",
@@ -70,7 +74,9 @@ export function AdminCompetitions() {
     try {
       await adminApi.post("/admin/competitions", {
         title: form.title,
+        titleEn: form.titleEn || undefined,
         description: form.description || undefined,
+        descriptionEn: form.descriptionEn || undefined,
         prizePoints: parseInt(form.prizePoints),
         entryFeeStars: parseInt(form.entryFeeStars) || 5,
         maxEntries: form.maxEntries ? parseInt(form.maxEntries) : undefined,
@@ -149,13 +155,21 @@ export function AdminCompetitions() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs text-muted-foreground mb-1 block">عنوان المسابقة *</label>
-              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={form.type === "referral" ? "مثال: سباق يوليو — أول 100 دعوة يفوز!" : "مثال: مسابقة يوليو الكبرى"} required className="bg-white/5 border-white/10 text-white" />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">العنوان (عربي) *</label>
+              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={form.type === "referral" ? "سباق يوليو — أول 100 دعوة يفوز!" : "مسابقة يوليو الكبرى"} required className="bg-white/5 border-white/10 text-white" />
             </div>
-            <div className="col-span-2">
-              <label className="text-xs text-muted-foreground mb-1 block">الوصف</label>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Title (English)</label>
+              <Input value={form.titleEn} onChange={e => setForm(f => ({ ...f, titleEn: e.target.value }))} placeholder={form.type === "referral" ? "July Race — First 100 referrals wins!" : "July Grand Competition"} className="bg-white/5 border-white/10 text-white" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">الوصف (عربي)</label>
               <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="تفاصيل اختيارية..." className="bg-white/5 border-white/10 text-white" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Description (English)</label>
+              <Input value={form.descriptionEn} onChange={e => setForm(f => ({ ...f, descriptionEn: e.target.value }))} placeholder="Optional details..." className="bg-white/5 border-white/10 text-white" />
             </div>
 
             {form.type === "referral" ? (

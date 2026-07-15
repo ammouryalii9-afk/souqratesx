@@ -185,7 +185,9 @@ export function verifyPartnerTask(id: number): Promise<{ ok: boolean; alreadyCla
 export type RaceCompetition = {
   id: number;
   title: string;
+  titleEn: string | null;
   description: string | null;
+  descriptionEn: string | null;
   prizePoints: number;
   type: string;
   requiredInvites: number | null;
