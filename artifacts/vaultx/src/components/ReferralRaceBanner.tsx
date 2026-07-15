@@ -3,21 +3,63 @@ import { Flame, Trophy, Timer, Users, Loader2, ChevronRight } from 'lucide-react
 import { getCompetitions, joinReferralRace, getRaceLeaderboard, type RaceCompetition, type RaceLeaderboardEntry } from '../lib/gameApi';
 import { haptic } from '../lib/telegram';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '../lib/i18n';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
+
+const T = {
+  ar: {
+    badge: 'سباق الدعوات',
+    endsIn: 'ينتهي',
+    prize: 'الجائزة الكبرى',
+    target: 'هدف {n} دعوة',
+    progress: 'تقدمك:',
+    joinFree: 'انضم مجاناً',
+    goalReached: '✅ وصلت للهدف!',
+    shareHint: 'شارك رابطك لتصعد 🚀',
+    showBoard: 'الترتيب',
+    hide: 'إخفاء',
+    noPlayers: 'لا يوجد متسابقون بعد',
+    joinedTitle: 'انضممت للسباق! 🔥',
+    joinedDesc: 'شارك رابط دعوتك وادعو أصدقاءك الآن!',
+    alreadyTitle: 'أنت مسجل بالفعل',
+    alreadyDesc: 'شارك رابط دعوتك لتصعد في الترتيب.',
+    errTitle: 'خطأ',
+    errDesc: 'حاول مجدداً',
+  },
+  en: {
+    badge: 'Referral Race',
+    endsIn: 'Ends in',
+    prize: 'Grand Prize',
+    target: 'Target: {n} referrals',
+    progress: 'Progress:',
+    joinFree: 'Join Free',
+    goalReached: '✅ Goal Reached!',
+    shareHint: 'Share your invite link to climb 🚀',
+    showBoard: 'Leaderboard',
+    hide: 'Hide',
+    noPlayers: 'No participants yet',
+    joinedTitle: 'You joined the race! 🔥',
+    joinedDesc: 'Share your referral link now and invite friends!',
+    alreadyTitle: 'Already joined',
+    alreadyDesc: 'Share your link to move up the leaderboard.',
+    errTitle: 'Error',
+    errDesc: 'Please try again',
+  },
+} as const;
 
 function useCountdown(endAt: string) {
   const [label, setLabel] = useState('');
   useEffect(() => {
     const tick = () => {
       const ms = new Date(endAt).getTime() - Date.now();
-      if (ms <= 0) { setLabel('انتهت'); return; }
+      if (ms <= 0) { setLabel('—'); return; }
       const d = Math.floor(ms / 86_400_000);
       const h = Math.floor((ms % 86_400_000) / 3_600_000);
       const m = Math.floor((ms % 3_600_000) / 60_000);
       const s = Math.floor((ms % 60_000) / 1_000);
       setLabel(d > 0
-        ? `${d}ي ${h}س ${m}د`
+        ? `${d}d ${h}h ${m}m`
         : `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
     };
     tick();
@@ -29,6 +71,8 @@ function useCountdown(endAt: string) {
 
 function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: number) => void }) {
   const { toast } = useToast();
+  const { lang } = useLanguage();
+  const t = T[lang];
   const countdown = useCountdown(comp.endAt);
   const [joining, setJoining] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -62,13 +106,13 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
       const r = await joinReferralRace(comp.id);
       if (r.ok && !r.alreadyJoined) {
         haptic('success');
-        toast({ title: 'انضممت للسباق! 🔥', description: 'شارك رابط دعوتك وادعو أصدقاءك الآن!' });
+        toast({ title: t.joinedTitle, description: t.joinedDesc });
         onJoined(comp.id);
       } else {
-        toast({ title: 'أنت مسجل بالفعل', description: 'شارك رابط دعوتك لتصعد في الترتيب.' });
+        toast({ title: t.alreadyTitle, description: t.alreadyDesc });
       }
     } catch {
-      toast({ title: 'خطأ', description: 'حاول مجدداً', variant: 'destructive' });
+      toast({ title: t.errTitle, description: t.errDesc, variant: 'destructive' });
     } finally {
       setJoining(false);
     }
@@ -84,7 +128,6 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
     >
       {/* Top row */}
       <div className="px-4 pt-3 pb-2 flex items-center gap-3">
-        {/* Icon */}
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
           style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.35)' }}
@@ -92,19 +135,17 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
           🔥
         </div>
 
-        {/* Title + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">سباق الدعوات</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">{t.badge}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shrink-0" />
           </div>
           <p className="text-white font-bold text-sm leading-tight truncate">{comp.title}</p>
         </div>
 
-        {/* Countdown */}
-        <div className="text-right shrink-0">
+        <div className={`text-right shrink-0 ${lang === 'ar' ? 'text-right' : 'text-left'}`}>
           <div className="flex items-center justify-end gap-1 text-orange-300/60 text-[10px]">
-            <Timer className="w-3 h-3" /> ينتهي
+            <Timer className="w-3 h-3" /> {t.endsIn}
           </div>
           <span className="font-mono text-sm font-bold text-orange-300">{countdown}</span>
         </div>
@@ -118,16 +159,16 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
         </div>
         <div className="flex items-center gap-1 text-white/50">
           <Users className="w-3.5 h-3.5" />
-          هدف {required} دعوة
+          {t.target.replace('{n}', String(required))}
         </div>
         {comp.entered && (
-          <div className={`mr-auto font-bold ${pct >= 100 ? 'text-green-400' : 'text-white/70'}`}>
-            تقدمك: {comp.myProgress}/{required}
+          <div className={`${lang === 'ar' ? 'mr-auto' : 'ml-auto'} font-bold ${pct >= 100 ? 'text-green-400' : 'text-white/70'}`}>
+            {t.progress} {comp.myProgress}/{required}
           </div>
         )}
       </div>
 
-      {/* Progress bar (only when entered) */}
+      {/* Progress bar */}
       {comp.entered && (
         <div className="px-4 pb-2">
           <div className="h-2 rounded-full bg-white/5 overflow-hidden">
@@ -139,19 +180,19 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
         </div>
       )}
 
-      {/* Expandable leaderboard */}
+      {/* Leaderboard */}
       {expanded && (
         <div className="px-4 pb-2 space-y-1">
           {lbLoading ? (
             <div className="flex justify-center py-2"><Loader2 className="w-4 h-4 text-orange-400 animate-spin" /></div>
           ) : leaderboard.length === 0 ? (
-            <p className="text-center text-xs text-white/30 py-1">لا يوجد متسابقون بعد</p>
+            <p className="text-center text-xs text-white/30 py-1">{t.noPlayers}</p>
           ) : (
             leaderboard.map((e, i) => (
               <div key={i} className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-1.5">
                 <span className="text-sm w-5">{MEDALS[i]}</span>
                 <span className="flex-1 text-xs text-white truncate">{e.name}</span>
-                <span className="text-xs font-bold text-orange-300">{e.gained} / {required}</span>
+                <span className="text-xs font-bold text-orange-300">{e.gained}/{required}</span>
                 <div className="w-12 h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <div className="h-full rounded-full"
                     style={{ width: `${Math.min(100, (e.gained / required) * 100)}%`, background: barColor }} />
@@ -162,7 +203,7 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
         </div>
       )}
 
-      {/* Bottom row: CTA + expand toggle */}
+      {/* Bottom row */}
       <div className="px-3 pb-3 flex items-center gap-2">
         {!comp.entered ? (
           <button
@@ -171,16 +212,16 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
             className="flex-1 h-9 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all"
             style={{ background: 'linear-gradient(135deg,#f97316,#ef4444)', color: 'white', boxShadow: '0 3px 14px rgba(249,115,22,0.35)' }}
           >
-            {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> انضم مجاناً</>}
+            {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> {t.joinFree}</>}
           </button>
         ) : pct >= 100 ? (
           <div className="flex-1 h-9 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"
             style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e' }}>
-            ✅ وصلت للهدف!
+            {t.goalReached}
           </div>
         ) : (
           <div className="flex-1 h-9 rounded-xl text-xs text-white/40 flex items-center justify-center">
-            شارك رابطك لتصعد 🚀
+            {t.shareHint}
           </div>
         )}
 
@@ -188,7 +229,7 @@ function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: nu
           onClick={() => setExpanded(v => !v)}
           className="h-9 px-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-1 text-xs text-white/60 active:scale-95 transition-all"
         >
-          <span>{expanded ? 'إخفاء' : 'الترتيب'}</span>
+          <span>{expanded ? t.hide : t.showBoard}</span>
           <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
         </button>
       </div>
