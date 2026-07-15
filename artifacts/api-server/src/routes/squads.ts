@@ -239,8 +239,12 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
   // ── Fire-and-forget: squad growth milestone check ────────────────────────
   void (async () => {
     try {
-      const [updatedSquad] = await db.select({ id: squadsTable.id, milestonesClaimed: squadsTable.milestonesClaimed })
-        .from(squadsTable).where(eq(squadsTable.id, squadId));
+      const [updatedSquad] = await db.select({
+          id: squadsTable.id,
+          name: squadsTable.name,
+          ownerId: squadsTable.ownerId,
+          milestonesClaimed: squadsTable.milestonesClaimed,
+        }).from(squadsTable).where(eq(squadsTable.id, squadId));
       if (!updatedSquad) return;
 
       const currentCount = await db
@@ -289,6 +293,48 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
 
         req.log.info({ squadId, threshold: m.threshold, bonusAmount, memberCount }, 'Squad growth milestone awarded');
         claimed.push(String(m.threshold));
+
+        // ── Telegram notifications (fire-and-forget per user) ──────────────
+        void (async () => {
+          try {
+            const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("../lib/telegramBot");
+            if (!isTelegramBotConfigured()) return;
+
+            // Fetch all non-banned squad members for notifications
+            const members = await db
+              .select({ telegramId: vaultUsersTable.telegramId })
+              .from(vaultUsersTable)
+              .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)));
+
+            const squadName = updatedSquad.name;
+            const ownerId = updatedSquad.ownerId;
+
+            // Notify owner with richer message
+            if (ownerId) {
+              await sendPlainTelegramMessage(
+                ownerId,
+                `🏆 مبروك يا قائد فرقة "${squadName}"!\n\n` +
+                `فرقتك وصلت إلى ${m.threshold} عضو 🎉\n\n` +
+                `🎁 تم إضافة ${bonusAmount.toLocaleString("en-US")} نقطة لجميع أعضاء الفرقة!\n\n` +
+                (m.threshold < 100
+                  ? `💪 استمر — المكافأة القادمة عند ${m.threshold === 10 ? 25 : m.threshold === 25 ? 50 : 100} عضو!`
+                  : `🌟 أنتم في القمة!`)
+              ).catch(() => { /* DM failure never blocks */ });
+            }
+
+            // Notify every other member
+            for (const member of members) {
+              if (member.telegramId === ownerId) continue;
+              await sendPlainTelegramMessage(
+                member.telegramId,
+                `🎁 فرقة "${squadName}" وصلت إلى ${m.threshold} عضو!\n\n` +
+                `حصلت على ${bonusAmount.toLocaleString("en-US")} نقطة مكافأة — افتح التطبيق لترى رصيدك 🚀`
+              ).catch(() => { /* skip users who blocked the bot */ });
+            }
+          } catch {
+            // Notification failure must never surface as an error
+          }
+        })();
       }
     } catch (err) {
       req.log.warn({ err, squadId }, 'Squad milestone check failed (non-critical)');
