@@ -220,6 +220,59 @@ router.get("/admin/competitions", async (req, res): Promise<void> => {
   res.json({ competitions: comps.map(c => ({ ...c, entryCount: countMap.get(c.id) ?? 0 })) });
 });
 
+router.get("/admin/competitions/:id/participants", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "unauthorized" }); return; }
+
+  const id = parseInt(req.params.id ?? "0");
+  if (!id) { res.status(400).json({ error: "invalid id" }); return; }
+
+  const [comp] = await db.select().from(competitionsTable).where(eq(competitionsTable.id, id));
+  if (!comp) { res.status(404).json({ error: "not found" }); return; }
+
+  const entries = await db
+    .select({
+      telegramId: competitionEntriesTable.telegramId,
+      referralsAtEntry: competitionEntriesTable.referralsAtEntry,
+      pointsAtEntry: competitionEntriesTable.pointsAtEntry,
+      joinedAt: competitionEntriesTable.enteredAt,
+      firstName: vaultUsersTable.firstName,
+      username: vaultUsersTable.username,
+      currentReferrals: vaultUsersTable.referralCount,
+      currentPoints: vaultUsersTable.lifetimePoints,
+    })
+    .from(competitionEntriesTable)
+    .innerJoin(vaultUsersTable, eq(competitionEntriesTable.telegramId, vaultUsersTable.telegramId))
+    .where(eq(competitionEntriesTable.competitionId, id))
+    .orderBy(desc(competitionEntriesTable.enteredAt));
+
+  const participants = entries
+    .map(e => ({
+      telegramId: e.telegramId,
+      name: e.username ? `@${e.username}` : (e.firstName ?? "Player"),
+      joinedAt: e.joinedAt,
+      gained: isReferral(comp)
+        ? Math.max(0, (e.currentReferrals ?? 0) - (e.referralsAtEntry ?? 0))
+        : Math.max(0, (e.currentPoints ?? 0) - (e.pointsAtEntry ?? 0)),
+      atEntry: isReferral(comp) ? (e.referralsAtEntry ?? 0) : (e.pointsAtEntry ?? 0),
+      current: isReferral(comp) ? (e.currentReferrals ?? 0) : (e.currentPoints ?? 0),
+    }))
+    .sort((a, b) => b.gained - a.gained)
+    .map((e, i) => ({ rank: i + 1, ...e }));
+
+  res.json({
+    competition: {
+      id: comp.id,
+      title: comp.title,
+      type: comp.type,
+      requiredInvites: comp.requiredInvites,
+      prizePoints: comp.prizePoints,
+      status: comp.status,
+      endAt: comp.endAt,
+    },
+    participants,
+  });
+});
+
 router.post("/admin/competitions", async (req, res): Promise<void> => {
   if (!isAdminSession(req as never)) { res.status(401).json({ error: "unauthorized" }); return; }
 

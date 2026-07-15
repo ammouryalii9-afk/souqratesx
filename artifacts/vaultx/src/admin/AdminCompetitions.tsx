@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, Trophy, X, CheckCircle2, Flame, Users } from "lucide-react";
+import {
+  Loader2, Plus, Trophy, X, CheckCircle2, Flame, Users,
+  ArrowLeft, Medal, Clock, ChevronRight,
+} from "lucide-react";
 import { adminApi } from "./adminApi";
 
 type Competition = {
@@ -18,6 +21,29 @@ type Competition = {
   endAt: string;
   createdAt: string;
   entryCount: number;
+};
+
+type Participant = {
+  rank: number;
+  telegramId: string;
+  name: string;
+  joinedAt: string | null;
+  gained: number;
+  atEntry: number;
+  current: number;
+};
+
+type DetailData = {
+  competition: {
+    id: number;
+    title: string;
+    type: string | null;
+    requiredInvites: number | null;
+    prizePoints: number;
+    status: string | null;
+    endAt: Date | string;
+  };
+  participants: Participant[];
 };
 
 type FormState = {
@@ -46,6 +72,8 @@ const EMPTY_FORM: FormState = {
   requiredInvites: "100",
 };
 
+const MEDALS = ["🥇", "🥈", "🥉"];
+
 export function AdminCompetitions() {
   const [items, setItems] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +83,11 @@ export function AdminCompetitions() {
   const [showForm, setShowForm] = useState(false);
   const [closingId, setClosingId] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
+
+  // Detail view
+  const [detail, setDetail] = useState<DetailData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -67,6 +100,20 @@ export function AdminCompetitions() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function openDetail(id: number) {
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const r = await adminApi.get<DetailData>(`/admin/competitions/${id}/participants`);
+      setDetail(r);
+    } catch {
+      setDetailError("فشل تحميل التفاصيل");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -106,6 +153,9 @@ export function AdminCompetitions() {
         setLastResult("✓ أُغلقت المسابقة — لا مشتركين");
       }
       load();
+      if (detail?.competition.id === id) {
+        openDetail(id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل الإغلاق");
     } finally {
@@ -115,6 +165,150 @@ export function AdminCompetitions() {
 
   const minEndAt = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16);
 
+  // ─── Detail View ────────────────────────────────────────────────────────────
+  if (detail || detailLoading || detailError) {
+    const comp = detail?.competition;
+    const participants = detail?.participants ?? [];
+    const required = comp?.requiredInvites ?? 0;
+    const isReferral = comp?.type === "referral";
+
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setDetail(null); setDetailError(null); }}
+            className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-bold text-white truncate">{comp?.title ?? "تفاصيل المسابقة"}</h2>
+            <p className="text-xs text-muted-foreground">
+              {participants.length} مشترك
+              {required > 0 && ` · الهدف ${required} دعوة`}
+              {comp && ` · ${comp.prizePoints.toLocaleString()} SKP`}
+            </p>
+          </div>
+          {comp?.status === "active" && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handleClose(comp.id)}
+              disabled={closingId === comp.id}
+              className="shrink-0"
+            >
+              {closingId === comp.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "إغلاق"}
+            </Button>
+          )}
+        </div>
+
+        {detailLoading && (
+          <div className="py-16 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          </div>
+        )}
+
+        {detailError && (
+          <div className="bg-red-900/30 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm">{detailError}</div>
+        )}
+
+        {detail && (
+          <>
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-white">{participants.length}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">مشترك</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-green-400">
+                  {required > 0
+                    ? participants.filter(p => p.gained >= required).length
+                    : participants.filter(p => p.gained > 0).length}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {required > 0 ? "وصل الهدف" : "نشطون"}
+                </p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-orange-400">
+                  {participants[0]?.gained ?? 0}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {isReferral ? "أعلى دعوات" : "أعلى نقاط"}
+                </p>
+              </div>
+            </div>
+
+            {/* Participants list */}
+            {participants.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-sm">لا يوجد مشتركين بعد</div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold px-1">
+                  المشتركون — مرتبون حسب التقدم
+                </p>
+                {participants.map((p) => {
+                  const pct = required > 0 ? Math.min(100, (p.gained / required) * 100) : 0;
+                  const done = required > 0 && p.gained >= required;
+                  return (
+                    <div key={p.telegramId} className="bg-white/4 border border-white/5 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {/* Rank */}
+                        <span className="text-base w-7 text-center shrink-0">
+                          {p.rank <= 3 ? MEDALS[p.rank - 1] : (
+                            <span className="text-xs text-white/30 font-mono">#{p.rank}</span>
+                          )}
+                        </span>
+
+                        {/* Name + joined */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                          <p className="text-[10px] text-white/30">
+                            <Clock className="w-2.5 h-2.5 inline mr-0.5" />
+                            {p.joinedAt ? new Date(p.joinedAt).toLocaleString("ar-EG") : "—"}
+                          </p>
+                        </div>
+
+                        {/* Progress numbers */}
+                        <div className="text-right shrink-0">
+                          <p className={`text-sm font-bold ${done ? "text-green-400" : "text-orange-300"}`}>
+                            {p.gained.toLocaleString()}
+                            {required > 0 && (
+                              <span className="text-white/30 font-normal"> / {required}</span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-white/30">
+                            {isReferral ? `${p.current} إجمالي · كان ${p.atEntry}` : `${p.current.toLocaleString()} نقطة`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Progress bar (referral only) */}
+                      {required > 0 && (
+                        <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pct}%`,
+                              background: done ? "#22c55e" : pct >= 66 ? "#f97316" : "#6366f1",
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ─── List View ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -134,7 +328,6 @@ export function AdminCompetitions() {
         <form onSubmit={handleCreate} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-bold text-white/80">مسابقة جديدة</h3>
 
-          {/* Type selector */}
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -222,7 +415,11 @@ export function AdminCompetitions() {
       ) : (
         <div className="space-y-3">
           {items.map(c => (
-            <div key={c.id} className={`border rounded-xl p-4 ${c.type === "referral" ? "bg-orange-950/20 border-orange-500/20" : "bg-white/5 border-white/10"}`}>
+            <button
+              key={c.id}
+              onClick={() => openDetail(c.id)}
+              className={`w-full text-right border rounded-xl p-4 transition-all hover:border-white/20 active:scale-[0.99] ${c.type === "referral" ? "bg-orange-950/20 border-orange-500/20" : "bg-white/5 border-white/10"}`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -249,19 +446,9 @@ export function AdminCompetitions() {
                     <p className="text-xs text-yellow-400 mt-1">🏆 الفائز: {c.winnerTelegramId}</p>
                   )}
                 </div>
-                {c.status === 'active' && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleClose(c.id)}
-                    disabled={closingId === c.id}
-                    className="shrink-0"
-                  >
-                    {closingId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "إغلاق وإعلان"}
-                  </Button>
-                )}
+                <Medal className="w-4 h-4 text-white/20 shrink-0 mt-1" />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
