@@ -2,13 +2,14 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import { db, vaultUsersTable, type VaultUser } from "@workspace/db";
 
 /**
- * Legacy safety net. Server-granted bonuses (weekly prizes, referral
- * milestones) are now credited DIRECTLY to the server-authoritative
- * `skx_balance` column, so nothing new ever lands in `pending_bonus_points`.
- * This fold remains only to catch any stragglers written by an old code path
- * mid-deploy: it moves them into skx_balance atomically (guard-in-WHERE —
- * concurrent calls redeem exactly once). Safe to call at any time since the
- * client never writes skx_balance.
+ * Folds `pending_bonus_points` into `state.tempMiningPoints` (SKP — spendable,
+ * non-withdrawable). Called at every hydration point (auth + GET /vault/me) so
+ * the client always receives the updated state before its next PUT /vault/me.
+ *
+ * Atomic guard-in-WHERE (pending_bonus_points > 0) ensures exactly-once
+ * delivery even under concurrent calls. `claimSeq` is bumped so any in-flight
+ * PUT /vault/me carrying stale tempMiningPoints is rejected and the client
+ * re-syncs with the correct value.
  *
  * Returns the updated row when something was redeemed, else null.
  */
@@ -16,7 +17,18 @@ export async function redeemPendingBonus(telegramId: string): Promise<VaultUser 
   const [redeemed] = await db
     .update(vaultUsersTable)
     .set({
-      skxBalance: sql`${vaultUsersTable.skxBalance} + ${vaultUsersTable.pendingBonusPoints}`,
+      state: sql`jsonb_set(
+        jsonb_set(
+          COALESCE(${vaultUsersTable.state}, '{}'::jsonb),
+          '{tempMiningPoints}',
+          to_jsonb(
+            COALESCE((${vaultUsersTable.state}->>'tempMiningPoints')::bigint, 0)
+            + ${vaultUsersTable.pendingBonusPoints}
+          )
+        ),
+        '{claimSeq}',
+        to_jsonb(COALESCE((${vaultUsersTable.state}->>'claimSeq')::int, 0) + 1)
+      )`,
       pendingBonusPoints: 0,
     })
     .where(and(eq(vaultUsersTable.telegramId, telegramId), gt(vaultUsersTable.pendingBonusPoints, 0)))
