@@ -10,6 +10,7 @@ const en = {
     squad: 'Squad',
     friends: 'Friends',
     pixels: 'Pixels',
+    stars: 'Stars',
   },
   header: {
     balance: 'Balance',
@@ -345,6 +346,7 @@ const ar: typeof en = {
     squad: 'الفريق',
     friends: 'الأصدقاء',
     pixels: 'البكسلات',
+    stars: 'النجوم',
   },
   header: {
     balance: 'الرصيد',

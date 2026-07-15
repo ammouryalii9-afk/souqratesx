@@ -170,6 +170,50 @@ async function applyStarProductEffect(
         .where(eq(vaultUsersTable.telegramId, telegramId));
       break;
     }
+    case "max_energy_boost": {
+      // Permanently increases maxEnergy by effectValue, and also increases
+      // current energy by the same amount so the purchase is immediately useful.
+      const boost = product.effectValue ?? 500;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: sql`jsonb_set(
+            jsonb_set(${baseState},
+              '{maxEnergy}', to_jsonb(coalesce((${vaultUsersTable.state}->>'maxEnergy')::int, 100) + ${boost}::int)),
+            '{energy}', to_jsonb(coalesce((${vaultUsersTable.state}->>'energy')::int, 100) + ${boost}::int))`,
+          starsBalance: creditStars,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "farm_instant": {
+      // Instantly completes the current farming cycle: sets farmState → 'ready'
+      // so the user can collect immediately. No-op if not currently farming.
+      await db
+        .update(vaultUsersTable)
+        .set({
+          state: sql`CASE
+            WHEN coalesce(${vaultUsersTable.state}->>'farmState', 'idle') = 'active'
+            THEN jsonb_set(${baseState}, '{farmState}', '"ready"')
+            ELSE ${baseState}
+          END`,
+          starsBalance: creditStars,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
+    case "skx_credit": {
+      // Directly credits SKX (hard currency) to the user's withdrawable balance.
+      const skxAmount = product.effectValue ?? 0;
+      await db
+        .update(vaultUsersTable)
+        .set({
+          skxBalance: sql`${vaultUsersTable.skxBalance} + ${skxAmount}::bigint`,
+          starsBalance: creditStars,
+        })
+        .where(eq(vaultUsersTable.telegramId, telegramId));
+      break;
+    }
     case "squad_gold": {
       const userRow = await db
         .select({ squadId: vaultUsersTable.squadId })
