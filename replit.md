@@ -1,132 +1,135 @@
 # SouqratesX
 
-SouqratesX is a Telegram Mini App (Play-to-Earn) where users tap-mine points, upgrade miners, farm passive rewards, and complete daily tasks, with progress synced permanently to a server-side database.
+Telegram Mini App (Play-to-Earn) — tap-mine SKP points, upgrade miners, farm passively, complete tasks. Progress synced permanently to Postgres.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm --filter @workspace/vaultx run dev` — run the SouqratesX frontend
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
-- Required env: `SESSION_SECRET` — used to sign the SouqratesX session cookie
-- Required env: `TELEGRAM_BOT_TOKEN` — used to verify Telegram WebApp `initData` server-side
+```bash
+pnpm --filter @workspace/api-server run dev      # API server (port 5000)
+pnpm --filter @workspace/vaultx run dev          # Frontend
+pnpm run typecheck                                # Full typecheck
+pnpm --filter @workspace/api-spec run codegen    # Regenerate API hooks + Zod schemas (run after openapi.yaml changes)
+pnpm --filter @workspace/db run push             # Push DB schema (dev only)
+```
+
+**Required secrets:** `SUPABASE_DATABASE_URL`, `SESSION_SECRET`, `TELEGRAM_BOT_TOKEN`, `ADMIN_PASSWORD`
+
+After any backend change: restart `api-server` workflow. After publishing: re-run "ربط Webhook الآن" in Admin Settings.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
-- Frontend: React + Vite (SouqratesX artifact), Telegram WebApp SDK
+- pnpm workspaces · Node.js 24 · TypeScript 5.9
+- API: Express 5 · DB: PostgreSQL + Drizzle ORM · Validation: Zod v4 + drizzle-zod
+- Build: esbuild (CJS) · Frontend: React + Vite · Codegen: Orval (from OpenAPI spec)
 
-## Where things live
+## Key Files
 
-- `artifacts/vaultx` — the Telegram Mini App frontend (React/Vite)
-- `artifacts/vaultx/src/context/VaultContext.tsx` — core game state, Telegram auth bootstrap, and server sync logic
-- `artifacts/vaultx/src/lib/telegram.ts` — Telegram WebApp SDK helpers
-- `artifacts/api-server` — Express API server
-- `artifacts/api-server/src/routes/auth.ts` — Telegram `initData` verification + session cookie issuance
-- `artifacts/api-server/src/routes/vault.ts` — get/update game state, leaderboard
-- `artifacts/api-server/src/lib/telegramAuth.ts` — HMAC verification of Telegram `initData`
-- `artifacts/api-server/src/lib/session.ts` — signed session cookie helpers
-- `lib/db/src/schema/vaultUsers.ts` — `vault_users` table (source of truth for user schema)
-- `lib/db/src/schema/adminSettings.ts` — `admin_settings` key/value table for global platform config (economy tuning, ads, CPA/offerwalls, surveys, Stars, Premium — API keys pending from user)
-- `lib/db/src/schema/adminAuditLog.ts` — `admin_audit_log` table logging every admin panel write action
-- `lib/api-spec/openapi.yaml` — source of truth for all API contracts
-- `artifacts/api-server/src/providers/` — the earning Provider Engine: `types.ts` (the `EarnProvider` interface every provider implements), `adsgram.ts`, `offerwall.ts` (shared factory for CPA/Monlix/Bitlabs), `manager.ts` (loads/enables providers, unified `GET /earn/offers`), `rewardEngine.ts` (provider-independent verify → dedupe → credit → log → referral pipeline)
-- `lib/db/src/schema/providers.ts` — `providers` (per-provider config/enabled/priority), `provider_logs`, `reward_transactions` (idempotency ledger for all provider rewards), `provider_statistics` (daily rollups)
-- `artifacts/api-server/src/routes/admin.ts` — admin panel API (login/logout/me, stats, user CRUD/ban/premium/stars, settings, audit log)
-- `artifacts/vaultx/src/admin/` — the `/manager` admin panel frontend (login, overview, users, settings, audit log tabs)
-- `lib/db/src/schema/squads.ts` — `squads` table (id/name/emoji/ownerId); `vault_users` also has `squadId` (nullable) + `hasClaimedSquadBonus`
-- `artifacts/api-server/src/routes/squads.ts` — squad CRUD + live leaderboard (GROUP BY sum(lifetimePoints), HAVING count>0)
-- `artifacts/api-server/src/lib/squadSignup.ts` — `joinSquadOnSignup` parses `startapp=squad_<id>` at signup, auto-joins + credits squad owner as referrer
-- `artifacts/vaultx/src/tabs/SquadTab.tsx` + `src/lib/squadsApi.ts` — player Squads tab; `artifacts/vaultx/src/admin/AdminSquads.tsx` — admin squad management
-- `artifacts/api-server/src/lib/weeklyCredit.ts` — `weekKey()` (Monday UTC) + `creditedStateSql()` — the single SQL builder every server-side point credit must use (bumps weeklyPoints, archives prevWeek on rollover; `{toSpendable:false}` skips the tempMiningPoints layer)
-- `artifacts/api-server/src/lib/pendingBonus.ts` — `redeemPendingBonus()` folds `vault_users.pending_bonus_points` into `state.tempMiningPoints` atomically at hydration moments (auth + GET /vault/me)
-- `artifacts/api-server/src/lib/settings.ts` — `getSettingsMap()` with 30s TTL cache; every admin settings write calls `bustSettingsCache()`
-- `lib/db/src/schema/pixels.ts` — `pixel_cycles` (status active/distributing/completed, totalAdRevenueSkx, distributionAmountSkx), `pixels` (per-user purchases per cycle), `pixel_dividends` (payout history)
-- `artifacts/api-server/src/lib/pixelCycle.ts` — pixel settings loader (`getPixelSettings`), tiered pricing (`priceAt`/`blendedCost`), cycle lifecycle (auto-start, close + dividend distribution)
-- `artifacts/api-server/src/routes/pixels.ts` — `GET /pixels/market`, `POST /pixels/buy`, `GET /pixels/me` + admin `GET /admin/pixels/cycles`, `POST /admin/pixels/cycles/close`
-- `artifacts/vaultx/src/tabs/PixelsTab.tsx` — player Pixels tab (6th bottom-nav tab); `artifacts/vaultx/src/admin/AdminPixels.tsx` — admin "البكسلات" tab
+| Path | Purpose |
+|------|---------|
+| `artifacts/vaultx/src/context/VaultContext.tsx` | Core game state, auth bootstrap, server sync |
+| `artifacts/vaultx/src/lib/telegram.ts` | Telegram WebApp SDK helpers + `haptic()` |
+| `artifacts/api-server/src/routes/auth.ts` | `initData` HMAC verification + session cookie |
+| `artifacts/api-server/src/routes/vault.ts` | GET/PUT game state, leaderboard |
+| `artifacts/api-server/src/routes/admin.ts` | Admin panel API (stats, users, settings, audit) |
+| `artifacts/api-server/src/routes/squads.ts` | Squad CRUD + leaderboard |
+| `artifacts/api-server/src/routes/pixels.ts` | Pixel market/buy/me + admin cycle management |
+| `artifacts/api-server/src/providers/` | Provider Engine: Adsgram, offerwalls, manager, rewardEngine |
+| `artifacts/api-server/src/lib/pendingBonus.ts` | `redeemPendingBonus()` — folds pending SKP at hydration |
+| `artifacts/api-server/src/lib/skxCredit.ts` | `skpRewardFields()` (all rewards) · `skxCreditFields()` (pixels only) |
+| `artifacts/api-server/src/lib/weeklyCredit.ts` | `weekKey()` + `creditedStateSql()` — every server-side point credit uses this |
+| `artifacts/api-server/src/lib/settings.ts` | `getSettingsMap()` with 30s TTL cache |
+| `artifacts/api-server/src/lib/referral.ts` | `linkReferrer()` + `awardReferralBonus()` |
+| `artifacts/api-server/src/lib/squadSignup.ts` | Auto-join squad + credit owner as referrer at signup |
+| `artifacts/api-server/src/index.ts` | Cluster setup · weekly prize job · daily reminders (PRIMARY only) |
+| `artifacts/api-server/src/routes/telegramWebhook.ts` | Stars payments · /start handler |
+| `artifacts/vaultx/src/admin/` | `/manager` admin panel frontend |
+| `artifacts/vaultx/src/components/BonusRewardModal.tsx` | Animated SKP reward popup (count-up + haptic) |
+| `lib/db/src/schema/vaultUsers.ts` | `vault_users` table — source of truth |
+| `lib/db/src/schema/providers.ts` | `providers`, `provider_logs`, `reward_transactions`, `provider_statistics` |
+| `lib/db/src/schema/pixels.ts` | `pixel_cycles`, `pixels`, `pixel_dividends` |
+| `lib/api-spec/openapi.yaml` | Source of truth for all API contracts |
 
-## Architecture decisions
+## Architecture Decisions
 
-- Game state is stored as a single JSONB blob (`vault_users.state`) rather than normalized columns, mirroring the frontend's in-memory state shape to minimize migration churn as features evolve.
-- `lifetimePoints` is kept as a separate denormalized int column on `vault_users` for fast leaderboard sorting.
-- `lifetimePoints` anti-cheat: `PUT /vault/me` no longer trusts the client's `lifetimePoints` blindly. It compares against the server's stored value + `lastPointsSyncAt`, and clamps any increase above an admin-tunable `admin_settings.maxPointsPerHourCap` (default 3,000,000/hr) rather than rejecting the sync outright — keeps the client-authoritative game loop but caps how much any single exploit attempt can inject. Decreases from the client are always ignored (server value wins).
-- Telegram haptic feedback is wired via `artifacts/vaultx/src/lib/telegram.ts`'s `haptic()` helper (no-ops outside Telegram) on taps, upgrades, and all game interactions for a smoother native feel.
-- Telegram auth uses the official `initData` HMAC verification scheme (no OAuth/third-party auth library) plus a custom lightweight HMAC-signed httpOnly session cookie.
-- The frontend gracefully falls back to localStorage-only progress when not running inside Telegram (e.g. local dev browser preview) — this fallback must be preserved.
-- Admin panel lives at the `/manager` client route inside the same `vaultx` artifact (root `main.tsx` checks `window.location.pathname` and renders `AdminApp` instead of the game `App`), rather than a separate artifact — avoids duplicating hosting/build setup.
-- Admin auth uses a separate signed httpOnly cookie (`souqratesx_admin_session`, distinct from the player session cookie) gated by the `ADMIN_PASSWORD` secret — not tied to any Telegram identity.
-- Platform-wide tunables (economy rates, and placeholder keys for Adsgram/CPA offerwalls/Monlix/Bitlabs/Telegram Stars/Premium) are stored in the freeform `admin_settings` key-value table so new integrations can add settings without schema migrations.
-- ALL reward paths (ads, offerwalls, referrals, partner tasks, sponsored ads, squad bonuses/milestones, weekly prizes) credit SKP via `pending_bonus_points` — never SKX (pixel dividends are the sole SKX exception). Hydration responses (auth + GET /vault/me) include `redeemedBonus`; the frontend (`VaultContext.bonusReward` + `BonusRewardModal`) shows an animated bilingual popup with haptics when it arrives. Reward-claiming frontend flows must NOT optimistically bump tempMiningPoints — they call `refreshFromServer()` and let the server fold the pending credit in (optimistic bump + redemption = double credit via debounced sync). All reward Telegram DMs are bilingual (AR + EN).
-- Background server-side credits to the SPENDABLE balance (weekly prizes, referral milestones — anything not triggered by the online client itself) must go to the `vault_users.pending_bonus_points` column, NEVER directly to `state.tempMiningPoints` — an online client's debounced `PUT /vault/me` sends stale tempMiningPoints verbatim and would erase the credit. Pending points are folded in exactly once (guard-in-WHERE) by `redeemPendingBonus()` at hydration (auth / GET /vault/me), when the client is about to replace its local state anyway.
-- Weekly leaderboard scores (`state.weeklyPoints` + `weekKey`) reset LAZILY on the first credit of a new week. Every rollover path (PUT /vault/me merge AND `creditedStateSql`) must first archive the old score into `state.prevWeekKey`/`prevWeekPoints` — the weekly prize job reads whichever of the two holds the previous week's score. All three fields are in `PROTECTED_STATE_KEYS`. Any NEW code path that resets weeklyPoints must archive the same way.
+**State storage:** Single JSONB blob (`vault_users.state`) mirrors frontend shape; `lifetimePoints` is a separate column for leaderboard sorting.
 
-## Product
+**Dual currency (SKP / SKX):**
+- **SKP** (soft) = `state.tempMiningPoints` — spendable on upgrades/skins, never withdrawable.
+- **SKX** (hard) = `vault_users.skx_balance` — only withdrawable balance. `POST /vault/convert` converts SKP→SKX atomically at admin `skpToSkxConversionRate`% (default 5%).
+- `claimSeq` in `PROTECTED_STATE_KEYS` guards `PUT /vault/me` — stale syncs racing a convert are dropped.
 
-- Tap-to-mine core loop with miner level upgrades and energy system
-- Idle mining, passive income cards, and an 8-hour farming cycle
-- Games tab: 3 mini-games for extra points — Speed Tap (10s tap sprint), Memory Match (card matching), Lucky Wheel (3 free daily spins). (A 4th game, "Tappy Dodge", was removed — its physics/lifecycle bugs were too costly to keep debugging.)
-- Daily tasks: streak tracking, daily cipher (Morse code), daily spin wheel. The Tasks tab opens with a "Daily Rewards" progress summary card (X/3 of cipher/combo/spin done + progress bar + remaining points) for at-a-glance clarity, and is split into labeled sections (daily rewards → "Earn Points" → "Store & Partners") to reduce clutter.
-- Automatic daily reminder notifications: `runDailyReminders()` runs once/day in the api-server PRIMARY process only (not per worker — see `index.ts` cluster fork) and DMs (via `sendReminderToUser`) every non-banned user inactive >3 days a "your mining rewards are waiting" message with a web_app launch button. Requires `TELEGRAM_BOT_TOKEN` + `REPLIT_DOMAINS`. Separate from the admin manual "send reminders" tool.
-- Referral system with trickling referral earnings + referral milestones (1/5/10/25/50/100 invites → escalating bonuses, credited server-side via pending bonus, awarded once each via `claimedReferralMilestones` guard)
-- Global leaderboard by lifetime points + weekly leaderboard (Monday-UTC weeks, `state.weeklyPoints`, 60s server cache). Automatic weekly prizes: hourly job in the PRIMARY cluster process pays top-10 of the finished week (1M/600k/400k/250k/150k/100k×5) + DM, idempotent via atomically-claimed `admin_settings.lastWeeklyPrizeWeekKey` (first payout for week 2026-07-06 ran 2026-07-13; next runs each Monday)
-- Offline earnings: on reopening after ≥10 min away, a popup offers passive income earned while away (client-computed from `profitPerHour` after server hydration, capped at 3h; granted only on "collect" and flows through the normal sync, bounded server-side by `maxPointsPerHourCap`)
-- Real Telegram user identity and permanent server-side progress persistence (works across devices)
-- Dual-currency economy SKP/SKX (2026-07-13, replaces the earlier "claimed points" design): **SKP** (soft) = `state.tempMiningPoints` — everything earned in-game fills this buffer; it is spendable on upgrades/skins but NEVER withdrawable. **SKX** (hard) = server-authoritative `vault_users.skx_balance` bigint column — the ONLY withdrawable balance (net of `withdrawnPoints`), never client-synced. `POST /vault/convert` converts SKP→SKX in one atomic UPDATE at admin `skpToSkxConversionRate`% (default 5, the rest is burned): deducts the SKP buffer (guard-in-WHERE ≥ amount, no overdraft race) + credits `skx_balance` + bumps `state.claimSeq`. `claimSeq` is in `PROTECTED_STATE_KEYS` and `PUT /vault/me`'s UPDATE is guarded on it (unchanged since pre-read) — a stale in-flight sync racing a convert is dropped instead of resurrecting the burned SKP (double-convert). Any new code path that rewrites the whole state blob must respect the same guard. `lifetimePoints` remains leaderboard-only. Pixels use SKX for purchases and dividends.
-- Admin control panel at `/manager` (password-protected via `ADMIN_PASSWORD` secret): overview stats, user search/edit/ban/premium/stars/delete, platform settings (economy + placeholders for Adsgram/CPA/Monlix/Bitlabs/Stars/Premium keys), audit log. Overview tab has a "send reminders to inactive users" tool (POST `/admin/reminders/send`). Anti-cheat tab has a bulk-ban action ("حظر الكل") that bans all flagged suspicious users at once via `POST /admin/users/bulk-ban` (auth-gated, capped at 500 ids/call, audit-logged as `bulk_ban`/`bulk_unban`, uses Drizzle `inArray`).
-- Skins Shop (`artifacts/vaultx/src/components/SkinsShop.tsx`, in Games tab): players buy cosmetic miner skins with `tempMiningPoints` (the spendable balance; `lifetimePoints` is leaderboard-only and never spent). Prices live in `SKINS` in `VaultContext.tsx` (Classic free, then 50k/150k/500k). `buySkin(skinId)` deducts and adds to `ownedSkinIds`.
-- Pixels investment system (6th bottom-nav tab, "البكسلات" admin tab): each cycle sells a fixed supply (admin `pixelTotalSupply`, default 10k) of pixels for SKX at tiered prices (`pixelPriceTiers` JSON in admin settings — price steps up as supply sells; blended cost across tier boundaries). Cycles run `pixelCycleDays` (default 15); `pixelDividendPercent` (default 35%) of the ad revenue booked to the cycle (`pixel_cycles.totalAdRevenueSkx`, fed by the reward engine) is distributed pro-rata to holders in SKX when the cycle closes (scheduled in the PRIMARY cluster process, or manually via admin "إغلاق الدورة"). Auto-start of the next cycle is controlled by `pixelCycleAutoStart` (default on). Purchases are atomic (supply + SKX balance guards in the UPDATE's WHERE); `maxPixelsPerPurchase` caps a single buy.
-- Onboarding welcome reward (`artifacts/vaultx/src/components/WelcomeReward.tsx`, shown in `MainLayout` for Telegram users only): 3-step how-to-play carousel ending in a one-time 5,000-point gift. Tracked by `hasClaimedWelcome` in the state JSONB. Server enforces one-time-only in `PUT /vault/me` by treating the flag as MONOTONIC (sticky-true) — the first false→true is accepted, but a stale/tampered client can never reset it to false (this is intentionally NOT in `PROTECTED_STATE_KEYS`, which would block the legit first claim).
-- Monetization is fully wired end-to-end and auto-activates once the admin pastes real keys into Admin Settings — no further code changes needed per provider:
-  - `/config/public` exposes only non-secret "enabled" flags/prices derived from `admin_settings` (e.g. Adsgram enabled iff `adsgramBlockId` set; offerwalls enabled iff url+key set; Stars/Premium enabled iff `TELEGRAM_BOT_TOKEN` is present).
-  - Earning logic runs through the **Provider Engine** (`artifacts/api-server/src/providers/`): every provider (Adsgram, CPA, Monlix, Bitlabs) implements the same `EarnProvider` interface (`initialize/isEnabled/getOffers/verifyReward/rewardUser/healthCheck`); `manager.ts` loads each provider's config from the `providers` DB table (auto-synced from `admin_settings` on boot and after every settings save — the `/manager` Settings tab is still the only place admins paste keys) and exposes a unified `GET /earn/offers`; `rewardEngine.ts` is the single provider-independent pipeline for verify → idempotency (`reward_transactions`) → credit → log (`provider_logs`) → referral bonus. Adding a new provider = one new module + one line in `manager.ts`'s registry, no route changes.
-  - Onclicka (Telegram Mini Apps): TWO formats with DIFFERENT SDK scripts (loading the wrong one = eternal "SDK unavailable"). Rewarded video: `onclickaSpotId` in Admin Settings, frontend loads `js.onclckvd.com/in-stream-ad-admanager/tma.js` then `initCdTma({id: <numeric>})` → `show()` in `artifacts/vaultx/src/lib/onclicka.ts`, claims via `POST /earn/onclicka/reward`, shares ads cooldown/daily-cap columns. Inpage (passive, auto-rendering, no reward): `onclickaInpageId` setting → exposed as `onclicka.inpageId` in `/config/public` → `initOnclickaInpage()` loads `js.onclckmn.com/static/onclicka.js` with `data-admpid` once at app start (App.tsx MainLayout). Ad fallback chain is adsgram → monetag → onclicka on no-fill (`adFallback.ts`).
-  - Adsgram: frontend loads the Adsgram SDK dynamically and calls `/earn/adsgram/reward` (routed through the Adsgram provider; cooldown + daily cap enforced via `vault_users.adsWatchedToday/adsWatchedDate/lastAdRewardAt`, config lives in the `providers` table `adsgram` row). Additionally, `GET /earn/adsgram/postback?userId=[userId]&secret=...&txId=...` exists as a server-to-server Reward URL for Adsgram's dashboard (Adsgram requires the URL literally contain the substring `[userId]`) — same provider/reward-engine path as the client-triggered flow.
-  - CPA/Monlix/Bitlabs/Lootably/Revlum/AyeT-Studios/OfferToro/Torox/Yandex Ads/Adsterra/PropellerAds/CPALead/Monetag/Adscend Media: outbound offerwall links append `sub1=<telegramId>`; providers postback to `/earn/offerwall/postback?provider=...&telegramId=...&amount=...&secret=...`, routed through the shared offerwall provider factory + reward engine. Each was added the same way as the others (one `createOfferwallProvider(key, name)` registry line + seed + admin UI section) — accounts pending approval as of 2026-07-10, ready to activate once keys arrive. Each provider must get its own unique postback secret (not shared with Adsgram or each other) — a leaked secret on one network shouldn't let anyone forge rewards on others.
-  - Telegram Stars: `/stars/invoice` creates a real Stars (XTR) invoice via the Bot API using `TELEGRAM_BOT_TOKEN`; `/telegram/webhook` auto-approves `pre_checkout_query` and, on `successful_payment`, applies the purchased effect directly server-side (energy_refill → sets `state.energy = state.maxEnergy`; boost → sets `state.activeTurbo`/`turboExpiresAt`; premium_month → extends `premiumExpiresAt`) in addition to crediting `starsBalance`. The frontend calls `refreshFromServer()` (in `VaultContext`) ~1.5s after `openInvoice` reports `'paid'` to pull the server-applied state immediately, instead of waiting for the next debounced autosync (which would otherwise overwrite the server's change with stale local values). Admin Settings has a "ربط Webhook الآن" (setup webhook) button calling `/admin/telegram/setup-webhook` — requires HTTPS, so it only succeeds after publishing (expected failure on localhost dev).
-- Squads (الفِرَق) — viral growth loop: players create/join/leave a squad (5th bottom-nav tab). Squad leaderboard ranks squads by summed member `lifetimePoints` (live GROUP BY, empty squads excluded via HAVING). Viral invite link is `https://t.me/<botUsername>?startapp=squad_<id>` (Mini App direct-launch — `startapp` NOT `start`, so the payload arrives as `start_param` in initData). The bot username is never hardcoded: the server fetches it via Bot API `getMe` (cached, 3s timeout) and exposes it as `botUsername` in `GET /config/public`; the frontend reads it via `getBotUsername()` in `gameApi.ts` — both squad invites and the Friends referral link (`?startapp=ref_<telegramId>`) build from that value. New users arriving via that link are auto-joined to the squad AND the squad owner is credited as their referrer (`joinSquadOnSignup` → `linkReferrer(ref_<ownerId>)`, with self-referral guard). One-time join bonus (admin-tunable `squadJoinBonus`, default 5000) is granted at most once per account EVER via `hasClaimedSquadBonus` guard-in-WHERE — squad-hopping can't farm it. Admin panel has a "الفِرَق" tab (list/delete squads; delete nulls members' `squadId`, audit-logged as `delete_squad`).
-- Referral engine (server-authoritative, replaces the old client-side mock): `vault_users` has `referrerId`/`referralCount`/`referralEarnings`. `artifacts/api-server/src/lib/referral.ts` — `linkReferrer()` parses Telegram's `start_param` (`ref_<telegramId>`) on EVERY login (called from `auth.ts`, not just at signup — existing accounts clicking a referral link get attributed on their next open). It is idempotent/abuse-safe: `referrerId` is set at most once per account ever via guard-in-WHERE (`referrerId IS NULL`) + `returning()` check before bumping the referrer's `referralCount` — no referrer switching, no double-count. Squad invite links (`squad_<id>`) likewise auto-join on any login but only when the user has no squad (`squadId IS NULL` guard — never yanks someone from their current squad), and the squad owner is credited as referrer ONLY when the join actually happened; `awardReferralBonus()` is called only from the two server-verified earning paths in `earn.ts` (Adsgram reward/postback, offerwall postback) — NOT from the client-synced `PUT /vault/me` tap-mining/task path, since that's unverified and would be a trivial multi-account exploit. Bonus = `referralRatePercent` (admin setting, default 10%) of the base credited points, added atomically to the referrer's `lifetimePoints` + `referralEarnings`. Frontend (`VaultContext.tsx`) now reads `referralCount`/`referralEarnings` from the server user object (not localStorage/mock trickle) on auth + `refreshFromServer()`.
-- Bot `/start` flow: `/admin/telegram/setup-webhook` now also calls `setMyCommands` (registers `/start`) and `setChatMenuButton` (sets a persistent "فتح التطبيق" web_app menu button next to the message box). The webhook handler (`artifacts/api-server/src/routes/telegramWebhook.ts`) replies to a `/start` message with a welcome text + an inline `web_app` button that opens the Mini App at the root domain. All three (webhook, commands, menu button) require HTTPS and are set together from the same admin action — must re-run "ربط Webhook الآن" after every deploy to a new domain.
+**Reward credit rule — ALL rewards = SKP via `pending_bonus_points`:**
+- Every earning path (ads, offerwalls, referrals, partner tasks, sponsored ads, squad bonuses/milestones, weekly prizes) credits `vault_users.pending_bonus_points` via `skpRewardFields()`.
+- Pixel dividends are the ONLY SKX exception (`skxCreditFields()`).
+- `redeemPendingBonus()` folds pending into `state.tempMiningPoints` atomically at hydration (auth + GET /vault/me), returns `{ user, amount }`.
+- Responses include `redeemedBonus`; frontend shows `BonusRewardModal` with count-up animation + haptic.
+- **Frontend flows must NOT optimistically bump `tempMiningPoints`** — call `refreshFromServer()` instead. Optimistic bump + pending redemption = double credit via debounced PUT sync.
 
-## Security hardening (launch readiness)
+**Background credits:** Must go to `pending_bonus_points`, never `state.tempMiningPoints` directly — an online client's debounced `PUT /vault/me` sends stale tempMiningPoints and would erase the credit.
 
-- Telegram webhook is authenticated: `setWebhook` registers a `secret_token` (HMAC-derived from `SESSION_SECRET`), and `/telegram/webhook` rejects calls without a matching `X-Telegram-Bot-Api-Secret-Token` header — must re-run "ربط Webhook الآن" after changing `SESSION_SECRET` or deploying, or Telegram's calls get 403.
-- CORS is restricted to the app's own domains (`REPLIT_DOMAINS` + dev domain) with credentials; cookies are `sameSite: lax` (app + API are same-origin via path routing).
-- `is_banned` is enforced at login, state sync, ad rewards, offerwall credits, and banned users are hidden from the leaderboard.
-- In-memory per-IP rate limits (behind `trust proxy: 1` so IPs can't be spoofed): auth 20/min, vault sync 60/min, adsgram 30/min, postbacks 60/min, admin login 5/min.
-- All credit paths are atomic SQL increments; adsgram cooldown/daily-cap are re-checked inside the UPDATE's WHERE clause (no double-credit races). Offerwall credits capped at 1M/postback.
-- `processed_transactions` table (`lib/db/src/schema/processedTransactions.ts`) is an idempotency ledger: Stars payments dedupe on `telegram_payment_charge_id`; offerwall postbacks dedupe on `txId`/`transId`/`tx` query param when the provider sends one.
-- Server refuses to boot without `SESSION_SECRET`. Admin session tokens embed an issue timestamp and expire server-side after 12h.
-- Withdrawals are race-proof (2026-07-12 audit): request = deduct+insert in one DB transaction backed by partial unique index `one_pending_withdrawal_per_user` (at most one pending per user, 23505 → 409); admin approve/reject use an atomic `UPDATE ... WHERE status='pending' RETURNING` gate first — refund happens only after winning the gate, so racing admins can never double-refund or clobber an approval.
-- Partner-task verification fails CLOSED: `getChatMember` API errors return 503 (no more "benefit of doubt" crediting); banned users blocked before verification.
-- Client ad-reward routes (`/earn/adsgram/reward`, `/earn/monetag/reward`) reject with 403 when the provider is disabled in admin settings. (The client-triggered reward itself remains client-trusted by design, bounded by cooldown + daily cap; Adsgram also has the server postback path.)
-- Stars purchase effects (`applyStarProductEffect`) are atomic single-statement `jsonb_set` SQL — the old read-modify-write raced with the frequent `PUT /vault/me` sync and could clobber state.
-- Per-IP rate limits are divided by cluster worker count (floor, min 1) so the effective cross-worker limit matches the configured number.
-- Progression fields in the state JSONB are monotonic in `PUT /vault/me` (2026-07-12): `miningLevel`/`maxEnergy`/`permanentMultiplierPercent` clamp to max(server, client), `ownedSkinIds`/`ownedBadgeIds` union-merge, `passiveCards` merge per-card keeping the higher level — a stale session (second device/old tab) can no longer downgrade paid upgrades. `tempMiningPoints` is intentionally NOT clamped (spending lowers it). Any new upgrade/purchase field must be added to this merge.
-- Client hydration is server-authoritative: on successful Telegram auth, ALL game fields are set from server state (defaults when empty) — stale localStorage never survives a server-side reset. Progress-mutating actions are no-op'd while the auth request is in flight so pre-hydration taps can't be lost/overwritten. The localStorage-only fallback outside Telegram is preserved.
-- DB pool uses keepAlive + warm-up query at boot — remote Supabase pooler TLS handshake cost ~1s/query before this; don't remove it or every request slows down.
-- DB is Supabase Postgres via `SUPABASE_DATABASE_URL` (pooler URL — the direct `db.*.supabase.co` host is IPv6-only and unreachable); falls back to `DATABASE_URL` if unset. All user balances were zeroed on 2026-07-09 to prepare for launch.
-- 2026-07-13 pre-launch audit: anti-cheat rate window has a 5s floor (sub-second syncs can't inflate the hourly cap); withdrawals deduct into a `withdrawnPoints` column so lifetime totals stay honest; minimum withdrawal is dynamic ($0.50 worth at the admin-set rate); `competition_entries` has a unique (user, competition) index + Stars webhook re-checks entry before crediting; offerwall per-postback cap raised to 2M.
+**Weekly leaderboard:** Resets lazily on first credit of the new week. Every rollover path must archive old score to `prevWeekKey`/`prevWeekPoints` before overwriting. Both fields + `weekKey` are in `PROTECTED_STATE_KEYS`.
 
-## User preferences
+**Anti-cheat:** `PUT /vault/me` clamps `lifetimePoints` increases above `maxPointsPerHourCap` (default 3M/hr). Progression fields are monotonic (miningLevel/maxEnergy/ownedSkins etc. clamp to max(server, client)).
 
-- User wants SouqratesX to eventually support real cash withdrawal, but explicitly deferred that in favor of first shipping real Telegram auth + persistent server-side progress.
-- User will create Adsgram/CPA/Monlix/Bitlabs accounts and provide API keys later — build integrations "ready to activate" via the admin settings panel now, without blocking on real keys.
+**Admin panel:** Lives at `/manager` inside `vaultx` artifact. Separate signed httpOnly cookie (`souqratesx_admin_session`), expires 12h. Protected by `ADMIN_PASSWORD`.
+
+**Telegram auth:** Official `initData` HMAC verification. Dev preview always 401s (no valid initData) — expected. Frontend falls back to localStorage outside Telegram; this fallback must be preserved.
+
+**DB:** Supabase Postgres via `SUPABASE_DATABASE_URL` (pooler URL — direct host is IPv6-only). Pool uses keepAlive + warm-up query at boot; removing it adds ~1s/query.
+
+## Product Features
+
+- **Core loop:** Tap-mine · miner upgrades · energy system · 8h farm cycle · passive income cards
+- **Games tab:** Speed Tap · Memory Match · Lucky Wheel (3 free daily spins)
+- **Tasks tab:** Daily cipher (Morse) · daily combo · daily spin · streak tracking · partner tasks · sponsored ads · offerwalls
+- **Squads:** Create/join/leave · viral invite via `startapp=squad_<id>` · leaderboard by summed lifetimePoints · one-time join bonus (`hasClaimedSquadBonus`)
+- **Referrals:** Server-authoritative · `linkReferrer()` runs every login (idempotent) · milestones (1/5/10/25/50/100 invites) · 10% referral bonus on verified earning paths only
+- **Pixels:** 6th tab · buy pixels with SKX · tiered pricing · 35% of ad revenue distributed as dividends per cycle
+- **Weekly prizes:** Top-10 paid each Monday (1M/600k/400k/250k/150k/100k×5) · bilingual AR+EN DM · idempotent via `lastWeeklyPrizeWeekKey`
+- **Daily reminders:** Bot DMs inactive users (>3 days) once/day · PRIMARY process only
+- **Offline earnings:** Popup on return after ≥10 min · client-computed from `profitPerHour` · capped at 3h · bounded by `maxPointsPerHourCap`
+- **Onboarding:** 3-step carousel + 5,000 SKP welcome gift · `hasClaimedWelcome` monotonic (sticky-true) in state merge
+- **Skins Shop:** Buy cosmetic skins with SKP · prices in `VaultContext.SKINS`
+- **Stars (XTR):** Real Telegram invoices · webhook auto-approves · effects applied server-side atomically
+- **Bot /start:** Sets webhook + commands + menu button together via "ربط Webhook الآن" · requires HTTPS
+
+## Monetization (Provider Engine)
+
+All providers share the same pipeline: verify → idempotency (`reward_transactions`) → SKP credit → log → referral bonus.
+
+Adding a new provider = one module + one line in `manager.ts`. Keys are pasted in Admin Settings; no code change needed to activate.
+
+| Provider | Status |
+|----------|--------|
+| Adsgram (rewarded video + server postback) | Ready — paste `adsgramBlockId` |
+| Onclicka rewarded video (`onclckvd.com/tma.js`) | Ready — paste `onclickaSpotId` |
+| Onclicka inpage passive (`onclckmn.com/onclicka.js`) | Ready — paste `onclickaInpageId` |
+| Monetag | Ready |
+| CPA / Monlix / Bitlabs / Lootably / Revlum / AyeT / OfferToro / Torox / Adsterra / PropellerAds / CPALead / Adscend | Accounts pending approval |
+| Telegram Stars | Ready (requires HTTPS + webhook setup) |
+
+Each offerwall postback secret must be unique — a leaked secret on one network can't forge rewards on others.
+
+## Security
+
+- Webhook authenticated via HMAC-derived `secret_token` in `X-Telegram-Bot-Api-Secret-Token`
+- CORS restricted to `REPLIT_DOMAINS` + dev domain · cookies `sameSite: lax`
+- `is_banned` enforced at login, sync, ads, offerwalls · banned users hidden from leaderboard
+- Per-IP rate limits: auth 20/min · vault 60/min · adsgram 30/min · postbacks 60/min · admin login 5/min · divided by worker count
+- Withdrawals race-proof: deduct+insert in one DB transaction · partial unique index `one_pending_withdrawal_per_user` · admin approve/reject via `UPDATE ... WHERE status='pending' RETURNING`
+- Stars purchases atomic `jsonb_set` SQL (no read-modify-write race)
+- Partner-task verification fails CLOSED: API errors → 503, no benefit-of-doubt crediting
+- Anti-cheat rate window has 5s floor (sub-second syncs can't inflate hourly cap)
 
 ## Gotchas
 
-- Always run `pnpm --filter @workspace/api-spec run codegen` after changing `lib/api-spec/openapi.yaml`, and restart `api-server` after backend changes.
-- `TELEGRAM_BOT_TOKEN` must match the actual bot used to launch the Mini App, or `initData` verification will always fail (frontend falls back to localStorage silently in that case).
-- Local dev preview simulates a Telegram WebView but without a valid signed `initData`, so `/api/auth/telegram` will 401 in that environment — this is expected, not a bug.
+- Run `codegen` after every `openapi.yaml` change; restart `api-server` after backend changes.
+- `TELEGRAM_BOT_TOKEN` must match the bot that launched the Mini App — mismatch → silent localStorage fallback.
+- Local dev preview always gets 401 on `/api/auth/telegram` (no valid `initData`) — expected, not a bug.
+- Re-run "ربط Webhook الآن" after every publish or `SESSION_SECRET` change.
+- Onclicka has TWO different SDK scripts: rewarded video uses `js.onclckvd.com/tma.js`; inpage uses `js.onclckmn.com/onclicka.js`. Wrong script = eternal "SDK unavailable".
 
-## Pointers
+## User Preferences
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Real cash withdrawal deferred — ship Telegram auth + server-side progress first.
+- Ad network keys (Adsgram/CPA/Monlix/Bitlabs) provided later — integrations ready to activate via Admin Settings.
