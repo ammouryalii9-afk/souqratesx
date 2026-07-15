@@ -38,7 +38,7 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 export const TasksTab = () => {
   const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
   const { toast } = useToast();
-  const { tr } = useLanguage();
+  const { tr, lang } = useLanguage();
 
   const [claimedTasks, setClaimedTasks] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('claimedTasks') || '[]'); } catch { return []; }
@@ -463,10 +463,10 @@ export const TasksTab = () => {
       const result = await joinReferralRace(comp.id);
       if (result.ok) {
         if (result.alreadyJoined) {
-          toast({ title: "أنت مسجل بالفعل!", description: "شارك رابطك وادعو أصدقاءك." });
+          toast({ title: lang === 'en' ? 'Already joined' : 'أنت مسجل بالفعل!', description: lang === 'en' ? 'Share your link to move up.' : 'شارك رابطك وادعو أصدقاءك.' });
         } else {
           haptic('success');
-          toast({ title: "انضممت للسباق! 🔥", description: "ابدأ بمشاركة رابط الدعوة الآن!" });
+          toast({ title: lang === 'en' ? 'You joined the race! 🔥' : 'انضممت للسباق! 🔥', description: lang === 'en' ? 'Share your referral link now!' : 'ابدأ بمشاركة رابط الدعوة الآن!' });
           setRaceComps(prev => prev.map(c => c.id === comp.id ? { ...c, entered: true } : c));
         }
       }
@@ -1279,16 +1279,16 @@ export const TasksTab = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">مسابقة دورية</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">{lang === 'en' ? 'Referral Race' : 'مسابقة دورية'}</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                       </div>
-                      <h3 className="text-white font-bold text-sm leading-tight">{comp.title}</h3>
+                      <h3 className="text-white font-bold text-sm leading-tight">{lang === 'en' && comp.titleEn ? comp.titleEn : comp.title}</h3>
                     </div>
                   </div>
                   {/* Countdown */}
                   <div className="text-right shrink-0">
                     <div className="flex items-center gap-1 text-orange-300/70 text-[10px]">
-                      <Timer className="w-3 h-3" /> ينتهي خلال
+                      <Timer className="w-3 h-3" /> {lang === 'en' ? 'Ends in' : 'ينتهي خلال'}
                     </div>
                     <div className="font-mono text-sm font-bold text-orange-300">{countdown}</div>
                   </div>
@@ -1298,17 +1298,17 @@ export const TasksTab = () => {
                 <div className="flex items-center justify-between bg-white/4 rounded-xl px-3 py-2 border border-white/5">
                   <div className="flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-yellow-400" />
-                    <span className="text-xs text-white/70">الجائزة الكبرى</span>
+                    <span className="text-xs text-white/70">{lang === 'en' ? 'Grand Prize' : 'الجائزة الكبرى'}</span>
                   </div>
                   <span className="text-yellow-400 font-bold text-sm">{comp.prizePoints.toLocaleString()} SKP</span>
                 </div>
 
                 {/* Target */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/50 flex items-center gap-1"><Users className="w-3 h-3" /> الهدف: {required} دعوة</span>
+                  <span className="text-white/50 flex items-center gap-1"><Users className="w-3 h-3" /> {lang === 'en' ? `Target: ${required} referrals` : `الهدف: ${required} دعوة`}</span>
                   {comp.entered && (
                     <span className={`font-bold ${pct >= 100 ? 'text-green-400' : pct >= 66 ? 'text-orange-400' : 'text-white/70'}`}>
-                      تقدمك: {comp.myProgress} / {required}
+                      {lang === 'en' ? 'Progress:' : 'تقدمك:'} {comp.myProgress} / {required}
                       {myRank > 0 && myRank <= 20 && <span className="mr-1 text-primary"> #{myRank}</span>}
                     </span>
                   )}
@@ -1340,7 +1340,7 @@ export const TasksTab = () => {
                 {/* Leaderboard top 3 */}
                 {top3.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">المتصدرون</p>
+                    <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">{lang === 'en' ? 'Leaderboard' : 'المتصدرون'}</p>
                     {top3.map((entry, i) => (
                       <div key={i} className="flex items-center gap-2 bg-white/3 rounded-lg px-3 py-1.5">
                         <span className="text-base w-6 text-center">{MEDALS[i]}</span>
@@ -1365,16 +1365,16 @@ export const TasksTab = () => {
                     className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                     style={{ background: 'linear-gradient(135deg, #f97316, #ef4444)', color: 'white', boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
                   >
-                    {isJoining ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> انضم للسباق — مجاناً!</>}
+                    {isJoining ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Flame className="w-4 h-4" /> {lang === 'en' ? 'Join Free!' : 'انضم للسباق — مجاناً!'}</>}
                   </button>
                 ) : pct < 100 ? (
                   <div className="text-center text-xs text-white/40 py-1">
-                    شارك رابط الدعوة الخاص بك لتصعد في الترتيب 🚀
+                    {lang === 'en' ? 'Share your invite link to climb 🚀' : 'شارك رابط الدعوة الخاص بك لتصعد في الترتيب 🚀'}
                   </div>
                 ) : (
                   <div className="w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
                     style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e' }}>
-                    <Check className="w-4 h-4" /> وصلت للهدف! 🎉
+                    <Check className="w-4 h-4" /> {lang === 'en' ? 'Goal Reached! 🎉' : 'وصلت للهدف! 🎉'}
                   </div>
                 )}
               </div>
