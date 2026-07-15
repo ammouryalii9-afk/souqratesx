@@ -113,14 +113,17 @@ export function claimOnclickaReward(): Promise<{ creditedPoints: number; lifetim
 export type StarProduct = {
   id: number;
   title: string;
+  titleAr: string | null;
   description: string | null;
+  descriptionAr: string | null;
   imageUrl: string | null;
   priceStars: number;
-  effectType: "points" | "energy_refill" | "turbo_boost" | "premium_days" | "permanent_multiplier" | "badge" | "skin";
+  effectType: "points" | "energy_refill" | "max_energy_boost" | "turbo_boost" | "premium_days" | "permanent_multiplier" | "badge" | "skin" | "mining_level_up" | "farm_instant" | "skx_credit" | "squad_gold" | "competition_entry";
   effectValue: number | null;
   isActive: boolean;
   sortOrder: number;
   benefitsBullets: string | null;
+  benefitsBulletsAr: string | null;
   createdAt: string;
 };
 

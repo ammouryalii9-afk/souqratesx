@@ -623,7 +623,9 @@ function toStarProduct(row: typeof starProductsTable.$inferSelect) {
   return {
     id: row.id,
     title: row.title,
+    titleAr: row.titleAr,
     description: row.description,
+    descriptionAr: row.descriptionAr,
     imageUrl: row.imageUrl,
     priceStars: row.priceStars,
     effectType: row.effectType,
@@ -631,6 +633,7 @@ function toStarProduct(row: typeof starProductsTable.$inferSelect) {
     isActive: row.isActive,
     sortOrder: row.sortOrder,
     benefitsBullets: row.benefitsBullets,
+    benefitsBulletsAr: row.benefitsBulletsAr,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -657,18 +660,21 @@ router.post("/admin/star-products", async (req, res): Promise<void> => {
     return;
   }
 
-  const body = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null };
+  const body = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null; titleAr?: string | null; descriptionAr?: string | null; benefitsBulletsAr?: string | null };
   const [product] = await db
     .insert(starProductsTable)
     .values({
       title: parsed.data.title,
+      titleAr: body.titleAr ?? null,
       description: parsed.data.description ?? null,
+      descriptionAr: body.descriptionAr ?? null,
       imageUrl: parsed.data.imageUrl ?? null,
       priceStars: parsed.data.priceStars,
       effectType: parsed.data.effectType,
       effectValue: parsed.data.effectValue ?? null,
       sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : 0,
       benefitsBullets: body.benefitsBullets ?? null,
+      benefitsBulletsAr: body.benefitsBulletsAr ?? null,
     })
     .returning();
 
@@ -700,10 +706,12 @@ router.patch("/admin/star-products/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const patchBody = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null };
+  const patchBody = parsed.data as typeof parsed.data & { sortOrder?: number; benefitsBullets?: string | null; titleAr?: string | null; descriptionAr?: string | null; benefitsBulletsAr?: string | null };
   const patch: Partial<typeof starProductsTable.$inferInsert> = {};
   if (parsed.data.title !== undefined) patch.title = parsed.data.title;
+  if (patchBody.titleAr !== undefined) patch.titleAr = patchBody.titleAr;
   if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+  if (patchBody.descriptionAr !== undefined) patch.descriptionAr = patchBody.descriptionAr;
   if (parsed.data.imageUrl !== undefined) patch.imageUrl = parsed.data.imageUrl;
   if (parsed.data.priceStars !== undefined) patch.priceStars = parsed.data.priceStars;
   if (parsed.data.effectType !== undefined) patch.effectType = parsed.data.effectType;
@@ -711,6 +719,7 @@ router.patch("/admin/star-products/:id", async (req, res): Promise<void> => {
   if (parsed.data.isActive !== undefined) patch.isActive = parsed.data.isActive;
   if (patchBody.sortOrder !== undefined) patch.sortOrder = patchBody.sortOrder;
   if (patchBody.benefitsBullets !== undefined) patch.benefitsBullets = patchBody.benefitsBullets;
+  if (patchBody.benefitsBulletsAr !== undefined) patch.benefitsBulletsAr = patchBody.benefitsBulletsAr;
 
   const [product] = await db.update(starProductsTable).set(patch).where(eq(starProductsTable.id, id)).returning();
   if (!product) {

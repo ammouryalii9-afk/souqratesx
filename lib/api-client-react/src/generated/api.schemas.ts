@@ -449,18 +449,34 @@ export type StarProductEffectType = typeof StarProductEffectType[keyof typeof St
 export const StarProductEffectType = {
   points: 'points',
   energy_refill: 'energy_refill',
+  max_energy_boost: 'max_energy_boost',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
   permanent_multiplier: 'permanent_multiplier',
   badge: 'badge',
   skin: 'skin',
+  mining_level_up: 'mining_level_up',
+  farm_instant: 'farm_instant',
+  skx_credit: 'skx_credit',
+  squad_gold: 'squad_gold',
+  competition_entry: 'competition_entry',
 } as const;
 
 export interface StarProduct {
   id: number;
   title: string;
+  /**
+     * Arabic title shown to Arabic-language users.
+     * @nullable
+     */
+  titleAr: string | null;
   /** @nullable */
   description: string | null;
+  /**
+     * Arabic description shown to Arabic-language users.
+     * @nullable
+     */
+  descriptionAr: string | null;
   /** @nullable */
   imageUrl: string | null;
   priceStars: number;
@@ -474,10 +490,15 @@ export interface StarProduct {
   /** Display order — lower numbers appear first in the store. */
   sortOrder: number;
   /**
-     * Newline-separated list of benefit bullet points shown in the purchase confirmation modal.
+     * Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.
      * @nullable
      */
   benefitsBullets: string | null;
+  /**
+     * Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.
+     * @nullable
+     */
+  benefitsBulletsAr: string | null;
   createdAt: string;
 }
 
@@ -489,17 +510,27 @@ export type CreateStarProductBodyEffectType = typeof CreateStarProductBodyEffect
 export const CreateStarProductBodyEffectType = {
   points: 'points',
   energy_refill: 'energy_refill',
+  max_energy_boost: 'max_energy_boost',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
   permanent_multiplier: 'permanent_multiplier',
   badge: 'badge',
   skin: 'skin',
+  mining_level_up: 'mining_level_up',
+  farm_instant: 'farm_instant',
+  skx_credit: 'skx_credit',
+  squad_gold: 'squad_gold',
+  competition_entry: 'competition_entry',
 } as const;
 
 export interface CreateStarProductBody {
   title: string;
   /** @nullable */
+  titleAr?: string | null;
+  /** @nullable */
   description?: string | null;
+  /** @nullable */
+  descriptionAr?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   /** @minimum 1 */
@@ -510,6 +541,8 @@ export interface CreateStarProductBody {
   sortOrder?: number;
   /** @nullable */
   benefitsBullets?: string | null;
+  /** @nullable */
+  benefitsBulletsAr?: string | null;
 }
 
 export type UpdateStarProductBodyEffectType = typeof UpdateStarProductBodyEffectType[keyof typeof UpdateStarProductBodyEffectType];
@@ -518,17 +551,27 @@ export type UpdateStarProductBodyEffectType = typeof UpdateStarProductBodyEffect
 export const UpdateStarProductBodyEffectType = {
   points: 'points',
   energy_refill: 'energy_refill',
+  max_energy_boost: 'max_energy_boost',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
   permanent_multiplier: 'permanent_multiplier',
   badge: 'badge',
   skin: 'skin',
+  mining_level_up: 'mining_level_up',
+  farm_instant: 'farm_instant',
+  skx_credit: 'skx_credit',
+  squad_gold: 'squad_gold',
+  competition_entry: 'competition_entry',
 } as const;
 
 export interface UpdateStarProductBody {
   title?: string;
   /** @nullable */
+  titleAr?: string | null;
+  /** @nullable */
   description?: string | null;
+  /** @nullable */
+  descriptionAr?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   /** @minimum 1 */
@@ -540,6 +583,8 @@ export interface UpdateStarProductBody {
   sortOrder?: number;
   /** @nullable */
   benefitsBullets?: string | null;
+  /** @nullable */
+  benefitsBulletsAr?: string | null;
 }
 
 /**

@@ -152,19 +152,24 @@ export type UpdateSponsoredAdInput = Partial<{
 export type StarProductEffectType =
   | "points"
   | "energy_refill"
+  | "max_energy_boost"
   | "turbo_boost"
   | "premium_days"
   | "permanent_multiplier"
   | "badge"
   | "skin"
   | "mining_level_up"
+  | "farm_instant"
+  | "skx_credit"
   | "squad_gold"
   | "competition_entry";
 
 export type StarProduct = {
   id: number;
   title: string;
+  titleAr: string | null;
   description: string | null;
+  descriptionAr: string | null;
   imageUrl: string | null;
   priceStars: number;
   effectType: StarProductEffectType;
@@ -172,23 +177,29 @@ export type StarProduct = {
   isActive: boolean;
   sortOrder: number;
   benefitsBullets: string | null;
+  benefitsBulletsAr: string | null;
   createdAt: string;
 };
 
 export type CreateStarProductInput = {
   title: string;
+  titleAr?: string | null;
   description?: string | null;
+  descriptionAr?: string | null;
   imageUrl?: string | null;
   priceStars: number;
   effectType: StarProductEffectType;
   effectValue?: number | null;
   sortOrder?: number;
   benefitsBullets?: string | null;
+  benefitsBulletsAr?: string | null;
 };
 
 export type UpdateStarProductInput = Partial<{
   title: string;
+  titleAr: string | null;
   description: string | null;
+  descriptionAr: string | null;
   imageUrl: string | null;
   priceStars: number;
   effectType: StarProductEffectType;
@@ -196,6 +207,7 @@ export type UpdateStarProductInput = Partial<{
   isActive: boolean;
   sortOrder: number;
   benefitsBullets: string | null;
+  benefitsBulletsAr: string | null;
 }>;
 
 // ─── Analytics types ──────────────────────────────────────────────────────────

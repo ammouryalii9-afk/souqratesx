@@ -5,14 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Star, Power, Pencil, ChevronUp, ChevronDown } from "lucide-react";
 
 const EFFECT_LABELS: Record<StarProductEffectType, string> = {
-  points: "نقاط فورية",
+  points: "نقاط فورية (SKP)",
   energy_refill: "تعبئة الطاقة بالكامل",
+  max_energy_boost: "🔋 رفع الحد الأقصى للطاقة",
   turbo_boost: "تسريع التعدين (تربو)",
   premium_days: "اشتراك بريميوم (أيام)",
   permanent_multiplier: "مضاعف نقاط دائم (%)",
   badge: "شارة مميزة",
   skin: "سكن (شكل) مخصص",
   mining_level_up: "🚀 رفع مستوى التعدين",
+  farm_instant: "🌾 إنهاء الزراعة فوراً",
+  skx_credit: "💎 رصيد SKX مباشر",
   squad_gold: "✦ اسم فِرقة ذهبي",
   competition_entry: "🏆 تذكرة مسابقة",
 };
@@ -20,36 +23,45 @@ const EFFECT_LABELS: Record<StarProductEffectType, string> = {
 const EFFECT_VALUE_LABEL: Record<StarProductEffectType, string | null> = {
   points: "عدد النقاط الممنوحة",
   energy_refill: null,
+  max_energy_boost: "مقدار الزيادة في الطاقة (مثال: 500)",
   turbo_boost: "مدة التسريع بالثواني",
   premium_days: "عدد أيام البريميوم",
   permanent_multiplier: "نسبة الزيادة الدائمة % (مثال: 10)",
   badge: "رقم تعريف الشارة (Badge ID)",
   skin: "رقم تعريف السكن (Skin ID)",
   mining_level_up: "مستوى التعدين المستهدف (مثال: 5)",
+  farm_instant: null,
+  skx_credit: "مقدار SKX الممنوح",
   squad_gold: null,
   competition_entry: "رقم المسابقة (Competition ID)",
 };
 
 type FormState = {
   title: string;
+  titleAr: string;
   description: string;
+  descriptionAr: string;
   imageUrl: string;
   priceStars: string;
   effectType: StarProductEffectType;
   effectValue: string;
   sortOrder: string;
   benefitsBullets: string;
+  benefitsBulletsAr: string;
 };
 
 const EMPTY_FORM: FormState = {
   title: "",
+  titleAr: "",
   description: "",
+  descriptionAr: "",
   imageUrl: "",
   priceStars: "100",
   effectType: "points",
   effectValue: "1000",
   sortOrder: "0",
   benefitsBullets: "",
+  benefitsBulletsAr: "",
 };
 
 export function AdminStarStore() {
@@ -78,13 +90,16 @@ export function AdminStarStore() {
     setEditingId(product.id);
     setForm({
       title: product.title,
+      titleAr: product.titleAr ?? "",
       description: product.description ?? "",
+      descriptionAr: product.descriptionAr ?? "",
       imageUrl: product.imageUrl ?? "",
       priceStars: String(product.priceStars),
       effectType: product.effectType,
       effectValue: product.effectValue != null ? String(product.effectValue) : "",
       sortOrder: String(product.sortOrder),
       benefitsBullets: product.benefitsBullets ?? "",
+      benefitsBulletsAr: product.benefitsBulletsAr ?? "",
     });
     setError(null);
     setShowForm(true);
@@ -110,13 +125,16 @@ export function AdminStarStore() {
     try {
       const payload = {
         title: form.title.trim(),
+        titleAr: form.titleAr.trim() || null,
         description: form.description.trim() || null,
+        descriptionAr: form.descriptionAr.trim() || null,
         imageUrl: form.imageUrl.trim() || null,
         priceStars: Number(form.priceStars),
         effectType: form.effectType,
         effectValue: EFFECT_VALUE_LABEL[form.effectType] && form.effectValue ? Number(form.effectValue) : null,
         sortOrder: Number(form.sortOrder) || 0,
         benefitsBullets: form.benefitsBullets.trim() || null,
+        benefitsBulletsAr: form.benefitsBulletsAr.trim() || null,
       };
       if (editingId !== null) {
         await adminApi.updateStarProduct(editingId, payload);
@@ -183,23 +201,52 @@ export function AdminStarStore() {
       {showForm && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
           <p className="text-white text-xs font-bold">{editingId ? "تعديل المنتج" : "منتج جديد"}</p>
-          <Input placeholder="اسم المنتج *" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} data-testid="input-star-product-title" />
-          <textarea
-            placeholder="وصف قصير يظهر تحت الاسم (اختياري)"
-            value={form.description}
-            onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-            rows={2}
-            data-testid="input-star-product-description"
-            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-          />
-          <textarea
-            placeholder={"مزايا المنتج (سطر لكل ميزة) — تظهر في نافذة التأكيد قبل الدفع\nمثال:\n✅ 100 فيديو يومياً بدلاً من 50\n✅ شارة VIP على الليدربورد"}
-            value={form.benefitsBullets}
-            onChange={(e) => setForm(f => ({ ...f, benefitsBullets: e.target.value }))}
-            rows={4}
-            className="w-full rounded-lg bg-white/5 border border-amber-500/20 px-3 py-2 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500/50"
-          />
-          <p className="text-[10px] text-amber-400/70">⬆ هذه المزايا تظهر للمستخدم في نافذة تأكيد الشراء — اكتب كل ميزة في سطر منفصل</p>
+
+          {/* Title — EN + AR */}
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="اسم المنتج (English) *" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} data-testid="input-star-product-title" />
+            <Input placeholder="اسم المنتج بالعربي" value={form.titleAr} onChange={(e) => setForm(f => ({ ...f, titleAr: e.target.value }))} dir="rtl" />
+          </div>
+
+          {/* Description — EN + AR */}
+          <div className="grid grid-cols-2 gap-2">
+            <textarea
+              placeholder="Description (English)"
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              rows={2}
+              data-testid="input-star-product-description"
+              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+            />
+            <textarea
+              placeholder="الوصف بالعربي"
+              value={form.descriptionAr}
+              onChange={(e) => setForm(f => ({ ...f, descriptionAr: e.target.value }))}
+              rows={2}
+              dir="rtl"
+              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          {/* Benefits bullets — EN + AR */}
+          <div className="grid grid-cols-2 gap-2">
+            <textarea
+              placeholder={"Benefits (English)\nOne per line:\n✅ 100 daily videos\n✅ VIP badge"}
+              value={form.benefitsBullets}
+              onChange={(e) => setForm(f => ({ ...f, benefitsBullets: e.target.value }))}
+              rows={4}
+              className="w-full rounded-lg bg-white/5 border border-amber-500/20 px-3 py-2 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500/50"
+            />
+            <textarea
+              placeholder={"المزايا بالعربي\nسطر لكل ميزة:\n✅ 100 فيديو يومياً\n✅ شارة VIP"}
+              value={form.benefitsBulletsAr}
+              onChange={(e) => setForm(f => ({ ...f, benefitsBulletsAr: e.target.value }))}
+              rows={4}
+              dir="rtl"
+              className="w-full rounded-lg bg-white/5 border border-amber-500/20 px-3 py-2 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          <p className="text-[10px] text-amber-400/70">⬆ هذه المزايا تظهر في نافذة تأكيد الشراء — اكتب كل ميزة في سطر منفصل</p>
           <Input placeholder="رابط صورة (اختياري)" value={form.imageUrl} onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))} data-testid="input-star-product-image" />
           <div className="grid grid-cols-2 gap-2">
             <Input type="number" placeholder="السعر بالنجوم *" value={form.priceStars} onChange={(e) => setForm(f => ({ ...f, priceStars: e.target.value }))} data-testid="input-star-product-price" />

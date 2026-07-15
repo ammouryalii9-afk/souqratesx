@@ -42,8 +42,11 @@ function ProductCard({
   onBuy: (p: StarProduct) => void;
   buying: boolean;
 }) {
+  const { lang } = useLanguage();
   const meta = EFFECT_META[product.effectType] ?? EFFECT_META['points'];
   const Icon = meta.icon;
+  const displayTitle = lang === 'ar' && product.titleAr ? product.titleAr : product.title;
+  const displayDesc  = lang === 'ar' && product.descriptionAr ? product.descriptionAr : product.description;
 
   return (
     <button
@@ -57,8 +60,8 @@ function ProductCard({
           <Icon className={`w-6 h-6 ${meta.color}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-white leading-tight truncate">{product.title}</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">{product.description}</p>
+          <p className="text-sm font-bold text-white leading-tight truncate">{displayTitle}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">{displayDesc}</p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1">
           <span className="flex items-center gap-1 text-sm font-black text-yellow-300">
@@ -90,7 +93,9 @@ function ConfirmModal({
   const { lang } = useLanguage();
   const meta = EFFECT_META[product.effectType] ?? EFFECT_META['points'];
   const Icon = meta.icon;
-  const bullets = (product.benefitsBullets ?? '').split('\n').filter(Boolean);
+  const rawBullets = lang === 'ar' && product.benefitsBulletsAr ? product.benefitsBulletsAr : product.benefitsBullets;
+  const bullets = (rawBullets ?? '').split('\n').filter(Boolean);
+  const displayTitle = lang === 'ar' && product.titleAr ? product.titleAr : product.title;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -99,8 +104,8 @@ function ConfirmModal({
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${meta.bg} flex items-center justify-center mb-3`}>
             <Icon className={`w-8 h-8 ${meta.color}`} />
           </div>
-          <h3 className="text-lg font-black text-white">{product.title}</h3>
-          <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+          <h3 className="text-lg font-black text-white">{displayTitle}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{lang === 'ar' && product.descriptionAr ? product.descriptionAr : product.description}</p>
         </div>
         {bullets.length > 0 && (
           <div className="space-y-2 mb-5">

@@ -31,7 +31,9 @@ export const starProductEffectTypes = [
 export const starProductsTable = pgTable("star_products", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
+  titleAr: text("title_ar"),
   description: text("description"),
+  descriptionAr: text("description_ar"),
   imageUrl: text("image_url"),
   priceStars: integer("price_stars").notNull(),
   effectType: text("effect_type", { enum: starProductEffectTypes }).notNull(),
@@ -39,6 +41,7 @@ export const starProductsTable = pgTable("star_products", {
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   benefitsBullets: text("benefits_bullets"),
+  benefitsBulletsAr: text("benefits_bullets_ar"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

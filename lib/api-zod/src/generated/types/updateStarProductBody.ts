@@ -10,7 +10,11 @@ import type { UpdateStarProductBodyEffectType } from './updateStarProductBodyEff
 export interface UpdateStarProductBody {
   title?: string;
   /** @nullable */
+  titleAr?: string | null;
+  /** @nullable */
   description?: string | null;
+  /** @nullable */
+  descriptionAr?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   /** @minimum 1 */
@@ -22,4 +26,6 @@ export interface UpdateStarProductBody {
   sortOrder?: number;
   /** @nullable */
   benefitsBullets?: string | null;
+  /** @nullable */
+  benefitsBulletsAr?: string | null;
 }

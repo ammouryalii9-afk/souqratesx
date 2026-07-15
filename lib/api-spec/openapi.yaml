@@ -1822,15 +1822,21 @@ components:
           type: integer
         title:
           type: string
+        titleAr:
+          type: ["string", "null"]
+          description: "Arabic title shown to Arabic-language users."
         description:
           type: ["string", "null"]
+        descriptionAr:
+          type: ["string", "null"]
+          description: "Arabic description shown to Arabic-language users."
         imageUrl:
           type: ["string", "null"]
         priceStars:
           type: integer
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
+          enum: [points, energy_refill, max_energy_boost, turbo_boost, premium_days, permanent_multiplier, badge, skin, mining_level_up, farm_instant, skx_credit, squad_gold, competition_entry]
         effectValue:
           type: ["integer", "null"]
           description: "Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill."
@@ -1841,13 +1847,18 @@ components:
           description: "Display order — lower numbers appear first in the store."
         benefitsBullets:
           type: ["string", "null"]
-          description: "Newline-separated list of benefit bullet points shown in the purchase confirmation modal."
+          description: "Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal."
+        benefitsBulletsAr:
+          type: ["string", "null"]
+          description: "Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal."
         createdAt:
           type: string
       required:
         - id
         - title
+        - titleAr
         - description
+        - descriptionAr
         - imageUrl
         - priceStars
         - effectType
@@ -1855,6 +1866,7 @@ components:
         - isActive
         - sortOrder
         - benefitsBullets
+        - benefitsBulletsAr
         - createdAt
     StarProductList:
       type: array
@@ -1865,7 +1877,11 @@ components:
       properties:
         title:
           type: string
+        titleAr:
+          type: ["string", "null"]
         description:
+          type: ["string", "null"]
+        descriptionAr:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
@@ -1874,12 +1890,14 @@ components:
           minimum: 1
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
+          enum: [points, energy_refill, max_energy_boost, turbo_boost, premium_days, permanent_multiplier, badge, skin, mining_level_up, farm_instant, skx_credit, squad_gold, competition_entry]
         effectValue:
           type: ["integer", "null"]
         sortOrder:
           type: integer
         benefitsBullets:
+          type: ["string", "null"]
+        benefitsBulletsAr:
           type: ["string", "null"]
       required:
         - title
@@ -1890,7 +1908,11 @@ components:
       properties:
         title:
           type: string
+        titleAr:
+          type: ["string", "null"]
         description:
+          type: ["string", "null"]
+        descriptionAr:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
@@ -1899,7 +1921,7 @@ components:
           minimum: 1
         effectType:
           type: string
-          enum: [points, energy_refill, turbo_boost, premium_days, permanent_multiplier, badge, skin]
+          enum: [points, energy_refill, max_energy_boost, turbo_boost, premium_days, permanent_multiplier, badge, skin, mining_level_up, farm_instant, skx_credit, squad_gold, competition_entry]
         effectValue:
           type: ["integer", "null"]
         isActive:
@@ -1907,6 +1929,8 @@ components:
         sortOrder:
           type: integer
         benefitsBullets:
+          type: ["string", "null"]
+        benefitsBulletsAr:
           type: ["string", "null"]
     TelegramWebhookUpdate:
       type: object

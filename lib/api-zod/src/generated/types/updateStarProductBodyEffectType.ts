@@ -12,9 +12,15 @@ export type UpdateStarProductBodyEffectType = typeof UpdateStarProductBodyEffect
 export const UpdateStarProductBodyEffectType = {
   points: 'points',
   energy_refill: 'energy_refill',
+  max_energy_boost: 'max_energy_boost',
   turbo_boost: 'turbo_boost',
   premium_days: 'premium_days',
   permanent_multiplier: 'permanent_multiplier',
   badge: 'badge',
   skin: 'skin',
+  mining_level_up: 'mining_level_up',
+  farm_instant: 'farm_instant',
+  skx_credit: 'skx_credit',
+  squad_gold: 'squad_gold',
+  competition_entry: 'competition_entry',
 } as const;

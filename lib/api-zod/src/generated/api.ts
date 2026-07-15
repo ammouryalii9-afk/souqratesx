@@ -554,14 +554,17 @@ export const DeleteAdminAdResponse = zod.object({
 export const GetAdminStarProductsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "titleAr": zod.string().nullable().describe('Arabic title shown to Arabic-language users.'),
   "description": zod.string().nullable(),
+  "descriptionAr": zod.string().nullable().describe('Arabic description shown to Arabic-language users.'),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
-  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.'),
+  "benefitsBulletsAr": zod.string().nullable().describe('Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 export const GetAdminStarProductsResponse = zod.array(GetAdminStarProductsResponseItem)
@@ -575,26 +578,32 @@ export const GetAdminStarProductsResponse = zod.array(GetAdminStarProductsRespon
 
 export const CreateAdminStarProductBody = zod.object({
   "title": zod.string(),
+  "titleAr": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "descriptionAr": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "priceStars": zod.number().min(1),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']),
   "effectValue": zod.number().nullish(),
   "sortOrder": zod.number().optional(),
-  "benefitsBullets": zod.string().nullish()
+  "benefitsBullets": zod.string().nullish(),
+  "benefitsBulletsAr": zod.string().nullish()
 })
 
 export const CreateAdminStarProductResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "titleAr": zod.string().nullable().describe('Arabic title shown to Arabic-language users.'),
   "description": zod.string().nullable(),
+  "descriptionAr": zod.string().nullable().describe('Arabic description shown to Arabic-language users.'),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
-  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.'),
+  "benefitsBulletsAr": zod.string().nullable().describe('Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 
@@ -611,27 +620,33 @@ export const UpdateAdminStarProductParams = zod.object({
 
 export const UpdateAdminStarProductBody = zod.object({
   "title": zod.string().optional(),
+  "titleAr": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "descriptionAr": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "priceStars": zod.number().min(1).optional(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']).optional(),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']).optional(),
   "effectValue": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
   "sortOrder": zod.number().optional(),
-  "benefitsBullets": zod.string().nullish()
+  "benefitsBullets": zod.string().nullish(),
+  "benefitsBulletsAr": zod.string().nullish()
 })
 
 export const UpdateAdminStarProductResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "titleAr": zod.string().nullable().describe('Arabic title shown to Arabic-language users.'),
   "description": zod.string().nullable(),
+  "descriptionAr": zod.string().nullable().describe('Arabic description shown to Arabic-language users.'),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
-  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.'),
+  "benefitsBulletsAr": zod.string().nullable().describe('Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 
@@ -654,14 +669,17 @@ export const DeleteAdminStarProductResponse = zod.object({
 export const GetStoreProductsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
+  "titleAr": zod.string().nullable().describe('Arabic title shown to Arabic-language users.'),
   "description": zod.string().nullable(),
+  "descriptionAr": zod.string().nullable().describe('Arabic description shown to Arabic-language users.'),
   "imageUrl": zod.string().nullable(),
   "priceStars": zod.number(),
-  "effectType": zod.enum(['points', 'energy_refill', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin']),
+  "effectType": zod.enum(['points', 'energy_refill', 'max_energy_boost', 'turbo_boost', 'premium_days', 'permanent_multiplier', 'badge', 'skin', 'mining_level_up', 'farm_instant', 'skx_credit', 'squad_gold', 'competition_entry']),
   "effectValue": zod.number().nullable().describe('Meaning depends on effectType: points -> points granted, turbo_boost -> seconds, premium_days -> days, permanent_multiplier -> percent bonus added permanently, badge -> badge tier id, skin -> skin id. Unused (null) for energy_refill.'),
   "isActive": zod.boolean(),
   "sortOrder": zod.number().describe('Display order — lower numbers appear first in the store.'),
-  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points shown in the purchase confirmation modal.'),
+  "benefitsBullets": zod.string().nullable().describe('Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.'),
+  "benefitsBulletsAr": zod.string().nullable().describe('Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.'),
   "createdAt": zod.string()
 })
 export const GetStoreProductsResponse = zod.array(GetStoreProductsResponseItem)

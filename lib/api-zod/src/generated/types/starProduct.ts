@@ -10,8 +10,18 @@ import type { StarProductEffectType } from './starProductEffectType';
 export interface StarProduct {
   id: number;
   title: string;
+  /**
+     * Arabic title shown to Arabic-language users.
+     * @nullable
+     */
+  titleAr: string | null;
   /** @nullable */
   description: string | null;
+  /**
+     * Arabic description shown to Arabic-language users.
+     * @nullable
+     */
+  descriptionAr: string | null;
   /** @nullable */
   imageUrl: string | null;
   priceStars: number;
@@ -25,9 +35,14 @@ export interface StarProduct {
   /** Display order — lower numbers appear first in the store. */
   sortOrder: number;
   /**
-     * Newline-separated list of benefit bullet points shown in the purchase confirmation modal.
+     * Newline-separated list of benefit bullet points (English) shown in the purchase confirmation modal.
      * @nullable
      */
   benefitsBullets: string | null;
+  /**
+     * Newline-separated list of benefit bullet points (Arabic) shown in the purchase confirmation modal.
+     * @nullable
+     */
+  benefitsBulletsAr: string | null;
   createdAt: string;
 }

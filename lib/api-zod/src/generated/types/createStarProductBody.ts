@@ -10,7 +10,11 @@ import type { CreateStarProductBodyEffectType } from './createStarProductBodyEff
 export interface CreateStarProductBody {
   title: string;
   /** @nullable */
+  titleAr?: string | null;
+  /** @nullable */
   description?: string | null;
+  /** @nullable */
+  descriptionAr?: string | null;
   /** @nullable */
   imageUrl?: string | null;
   /** @minimum 1 */
@@ -21,4 +25,6 @@ export interface CreateStarProductBody {
   sortOrder?: number;
   /** @nullable */
   benefitsBullets?: string | null;
+  /** @nullable */
+  benefitsBulletsAr?: string | null;
 }

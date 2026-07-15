@@ -25,7 +25,9 @@ router.get("/store/products", async (req, res): Promise<void> => {
       rows.map((row) => ({
         id: row.id,
         title: row.title,
+        titleAr: row.titleAr,
         description: row.description,
+        descriptionAr: row.descriptionAr,
         imageUrl: row.imageUrl,
         priceStars: row.priceStars,
         effectType: row.effectType,
@@ -33,6 +35,7 @@ router.get("/store/products", async (req, res): Promise<void> => {
         isActive: row.isActive,
         sortOrder: row.sortOrder,
         benefitsBullets: row.benefitsBullets,
+        benefitsBulletsAr: row.benefitsBulletsAr,
         createdAt: row.createdAt.toISOString(),
       })),
     ),
