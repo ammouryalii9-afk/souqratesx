@@ -4,7 +4,7 @@ import { useVault } from '../context/VaultContext';
 import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette } from 'lucide-react';
+import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette, Rocket, Trophy, Target, ShoppingBag, CheckCircle2, ChevronRight } from 'lucide-react';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp, haptic } from '../lib/telegram';
@@ -866,19 +866,21 @@ export const TasksTab = () => {
 
       {/* Telegram Stars Store */}
       {(() => {
-        const STAR_META: Record<string, { emoji: string; label: string; color: string; glow: string; gradient: string }> = {
-          premium_days:         { emoji: '👑', label: 'PREMIUM', color: '#f59e0b', glow: 'rgba(245,158,11,0.28)',  gradient: 'linear-gradient(145deg, rgba(245,158,11,0.14) 0%, rgba(14,11,4,0.97) 100%)' },
-          turbo_boost:          { emoji: '🔥', label: 'BOOST',   color: '#f97316', glow: 'rgba(249,115,22,0.28)',  gradient: 'linear-gradient(145deg, rgba(249,115,22,0.14) 0%, rgba(14,7,3,0.97) 100%)' },
-          energy_refill:        { emoji: '⚡', label: 'ENERGY',  color: '#38bdf8', glow: 'rgba(56,189,248,0.28)',  gradient: 'linear-gradient(145deg, rgba(56,189,248,0.14) 0%, rgba(3,11,17,0.97) 100%)' },
-          permanent_multiplier: { emoji: '✨', label: 'POWER',   color: '#a78bfa', glow: 'rgba(167,139,250,0.28)', gradient: 'linear-gradient(145deg, rgba(167,139,250,0.14) 0%, rgba(9,7,17,0.97) 100%)' },
-          badge:                { emoji: '🏅', label: 'BADGE',   color: '#2dd4bf', glow: 'rgba(45,212,191,0.28)',  gradient: 'linear-gradient(145deg, rgba(45,212,191,0.14) 0%, rgba(3,13,13,0.97) 100%)' },
-          skin:                 { emoji: '🎨', label: 'SKIN',    color: '#f472b6', glow: 'rgba(244,114,182,0.28)', gradient: 'linear-gradient(145deg, rgba(244,114,182,0.14) 0%, rgba(14,4,11,0.97) 100%)' },
-          points:               { emoji: '💎', label: 'POINTS',  color: '#34d399', glow: 'rgba(52,211,153,0.28)',  gradient: 'linear-gradient(145deg, rgba(52,211,153,0.14) 0%, rgba(4,13,8,0.97) 100%)' },
-          mining_level_up:      { emoji: '🚀', label: 'UPGRADE', color: '#818cf8', glow: 'rgba(129,140,248,0.28)', gradient: 'linear-gradient(145deg, rgba(129,140,248,0.14) 0%, rgba(7,7,17,0.97) 100%)' },
-          squad_gold:           { emoji: '🏆', label: 'SQUAD',   color: '#fbbf24', glow: 'rgba(251,191,36,0.28)',  gradient: 'linear-gradient(145deg, rgba(251,191,36,0.14) 0%, rgba(14,12,3,0.97) 100%)' },
-          competition_entry:    { emoji: '🎯', label: 'CONTEST', color: '#fb7185', glow: 'rgba(251,113,133,0.28)', gradient: 'linear-gradient(145deg, rgba(251,113,133,0.14) 0%, rgba(14,4,7,0.97) 100%)' },
+        type StarMeta = { Icon: React.ElementType; label: string; color: string; glow: string; gradient: string };
+        const STAR_META: Record<string, StarMeta> = {
+          premium_days:         { Icon: Crown,     label: 'PREMIUM', color: '#f59e0b', glow: 'rgba(245,158,11,0.30)',  gradient: 'linear-gradient(160deg, rgba(245,158,11,0.12) 0%, rgba(8,6,1,0.98) 100%)' },
+          turbo_boost:          { Icon: Flame,     label: 'BOOST',   color: '#f97316', glow: 'rgba(249,115,22,0.30)',  gradient: 'linear-gradient(160deg, rgba(249,115,22,0.12) 0%, rgba(8,4,1,0.98) 100%)' },
+          energy_refill:        { Icon: Zap,       label: 'ENERGY',  color: '#38bdf8', glow: 'rgba(56,189,248,0.30)',  gradient: 'linear-gradient(160deg, rgba(56,189,248,0.12) 0%, rgba(1,7,12,0.98) 100%)' },
+          permanent_multiplier: { Icon: Sparkles,  label: 'POWER',   color: '#a78bfa', glow: 'rgba(167,139,250,0.30)', gradient: 'linear-gradient(160deg, rgba(167,139,250,0.12) 0%, rgba(5,4,12,0.98) 100%)' },
+          badge:                { Icon: Award,     label: 'BADGE',   color: '#2dd4bf', glow: 'rgba(45,212,191,0.30)',  gradient: 'linear-gradient(160deg, rgba(45,212,191,0.12) 0%, rgba(1,8,8,0.98) 100%)' },
+          skin:                 { Icon: Palette,   label: 'SKIN',    color: '#f472b6', glow: 'rgba(244,114,182,0.30)', gradient: 'linear-gradient(160deg, rgba(244,114,182,0.12) 0%, rgba(8,2,6,0.98) 100%)' },
+          points:               { Icon: Gem,       label: 'POINTS',  color: '#34d399', glow: 'rgba(52,211,153,0.30)',  gradient: 'linear-gradient(160deg, rgba(52,211,153,0.12) 0%, rgba(2,8,5,0.98) 100%)' },
+          mining_level_up:      { Icon: Rocket,    label: 'UPGRADE', color: '#818cf8', glow: 'rgba(129,140,248,0.30)', gradient: 'linear-gradient(160deg, rgba(129,140,248,0.12) 0%, rgba(4,4,12,0.98) 100%)' },
+          squad_gold:           { Icon: Trophy,    label: 'SQUAD',   color: '#fbbf24', glow: 'rgba(251,191,36,0.30)',  gradient: 'linear-gradient(160deg, rgba(251,191,36,0.12) 0%, rgba(8,7,1,0.98) 100%)' },
+          competition_entry:    { Icon: Target,    label: 'CONTEST', color: '#fb7185', glow: 'rgba(251,113,133,0.30)', gradient: 'linear-gradient(160deg, rgba(251,113,133,0.12) 0%, rgba(8,2,4,0.98) 100%)' },
         };
-        const getMeta = (type: string) => STAR_META[type] ?? { emoji: '💎', label: 'ITEM', color: '#34d399', glow: 'rgba(52,211,153,0.28)', gradient: 'linear-gradient(145deg, rgba(52,211,153,0.14) 0%, rgba(4,13,8,0.97) 100%)' };
+        const DEFAULT_META: StarMeta = { Icon: Gem, label: 'ITEM', color: '#34d399', glow: 'rgba(52,211,153,0.30)', gradient: 'linear-gradient(160deg, rgba(52,211,153,0.12) 0%, rgba(2,8,5,0.98) 100%)' };
+        const getMeta = (type: string): StarMeta => STAR_META[type] ?? DEFAULT_META;
 
         const CATEGORY_MAP: Record<string, string[]> = {
           'all':       [],
@@ -887,11 +889,11 @@ export const TasksTab = () => {
           'cosmetics': ['badge', 'skin', 'squad_gold', 'competition_entry'],
         };
 
-        const CATEGORIES = [
-          { id: 'all',       label: tr.tasks.storeCatAll,      emoji: '🛍️' },
-          { id: 'premium',   label: tr.tasks.storeCatPremium,  emoji: '👑' },
-          { id: 'boosts',    label: tr.tasks.storeCatBoosts,   emoji: '⚡' },
-          { id: 'cosmetics', label: tr.tasks.storeCatCosmetics,emoji: '🎨' },
+        const CATEGORIES: { id: string; label: string; Icon: React.ElementType }[] = [
+          { id: 'all',       label: tr.tasks.storeCatAll,       Icon: ShoppingBag },
+          { id: 'premium',   label: tr.tasks.storeCatPremium,   Icon: Crown },
+          { id: 'boosts',    label: tr.tasks.storeCatBoosts,    Icon: Zap },
+          { id: 'cosmetics', label: tr.tasks.storeCatCosmetics, Icon: Palette },
         ];
 
         const filtered = storeCategory === 'all'
@@ -902,57 +904,59 @@ export const TasksTab = () => {
           <section>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{
-                  background: 'linear-gradient(145deg, rgba(245,158,11,0.2) 0%, rgba(245,158,11,0.06) 100%)',
-                  border: '1px solid rgba(245,158,11,0.25)',
-                  boxShadow: '0 0 14px rgba(245,158,11,0.15)',
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{
+                  background: 'linear-gradient(145deg, rgba(245,158,11,0.18) 0%, rgba(245,158,11,0.04) 100%)',
+                  border: '1px solid rgba(245,158,11,0.22)',
+                  boxShadow: '0 0 18px rgba(245,158,11,0.12)',
                 }}>
-                  <span className="text-base leading-none">⭐</span>
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
                 </div>
                 <div className="flex flex-col">
-                  <h2 className="text-lg font-bold text-white leading-none">Stars Store</h2>
-                  <span className="text-[10px] text-amber-400/60 font-semibold uppercase tracking-wider mt-0.5">Telegram Stars</span>
+                  <h2 className="text-base font-black text-white leading-none tracking-tight">Stars Store</h2>
+                  <span className="text-[10px] text-amber-400/50 font-semibold uppercase tracking-widest mt-0.5">{tr.tasks.telegramStars}</span>
                 </div>
               </div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
-                {tr.tasks.storeExclusive}
-              </span>
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" strokeWidth={0} />
+                <span className="text-[10px] font-bold text-amber-400">{tr.tasks.storeExclusive.replace('⭐ ', '')}</span>
+              </div>
             </div>
 
             {!config?.stars.enabled ? (
-              <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span className="text-2xl mb-2 block">🔒</span>
-                <p className="text-xs text-muted-foreground">Not activated yet</p>
+              <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <Lock className="w-8 h-8 mx-auto mb-3 text-white/20" />
+                <p className="text-xs text-white/30 font-medium">{tr.tasks.notActivated}</p>
               </div>
             ) : starProducts.length === 0 ? (
-              <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span className="text-2xl mb-2 block">📭</span>
-                <p className="text-xs text-muted-foreground">No items available right now</p>
+              <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <ShoppingBag className="w-8 h-8 mx-auto mb-3 text-white/20" />
+                <p className="text-xs text-white/30 font-medium">{tr.tasks.noItems}</p>
               </div>
             ) : (
               <>
                 {/* Category tabs */}
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
+                <div className="flex gap-1.5 mb-4 overflow-x-auto pb-0.5 scrollbar-none">
                   {CATEGORIES.filter(cat => cat.id === 'all' || starProducts.some(p => CATEGORY_MAP[cat.id]?.includes(p.effectType))).map(cat => {
                     const isActive = storeCategory === cat.id;
+                    const CatIcon = cat.Icon;
                     return (
                       <button
                         key={cat.id}
                         onClick={() => setStoreCategory(cat.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all active:scale-95 shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all active:scale-95 shrink-0"
                         style={isActive ? {
-                          background: 'rgba(245,158,11,0.18)',
+                          background: 'rgba(245,158,11,0.14)',
                           color: '#f59e0b',
-                          border: '1px solid rgba(245,158,11,0.4)',
-                          boxShadow: '0 0 12px rgba(245,158,11,0.2)',
+                          border: '1px solid rgba(245,158,11,0.35)',
+                          boxShadow: '0 0 14px rgba(245,158,11,0.15)',
                         } : {
-                          background: 'rgba(255,255,255,0.04)',
-                          color: 'rgba(255,255,255,0.5)',
-                          border: '1px solid rgba(255,255,255,0.08)',
+                          background: 'rgba(255,255,255,0.03)',
+                          color: 'rgba(255,255,255,0.4)',
+                          border: '1px solid rgba(255,255,255,0.07)',
                         }}
                       >
-                        <span>{cat.emoji}</span>
+                        <CatIcon className="w-3 h-3 shrink-0" />
                         <span>{cat.label}</span>
                       </button>
                     );
@@ -961,8 +965,8 @@ export const TasksTab = () => {
 
                 {/* Products grid */}
                 {filtered.length === 0 ? (
-                  <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <p className="text-xs text-muted-foreground">{tr.tasks.storeCatEmpty}</p>
+                  <div className="rounded-2xl p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p className="text-xs text-white/30">{tr.tasks.storeCatEmpty}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
@@ -970,88 +974,94 @@ export const TasksTab = () => {
                       const meta = getMeta(product.effectType);
                       const isBuying = purchasingProduct === product.id;
                       const isFeatured = idx === 0 || product.sortOrder === 0;
+                      const ProductIcon = meta.Icon;
 
                       return (
                         <button
                           key={product.id}
                           onClick={() => handleBuyWithStars(product.id)}
                           disabled={isBuying}
-                          className="relative rounded-2xl overflow-hidden text-left flex flex-col transition-all duration-150 active:scale-[0.94] disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="relative rounded-2xl overflow-hidden text-left flex flex-col transition-all duration-200 active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
                             background: meta.gradient,
-                            border: `1.5px solid ${isFeatured ? meta.color + '88' : meta.color + '44'}`,
-                            boxShadow: isFeatured ? `0 4px 24px ${meta.glow}88` : `0 4px 16px ${meta.glow}44`,
+                            border: `1px solid ${isFeatured ? meta.color + '55' : meta.color + '28'}`,
+                            boxShadow: isFeatured ? `0 6px 28px ${meta.glow}70` : `0 3px 14px ${meta.glow}38`,
                           }}
                         >
-                          {/* Featured ribbon */}
-                          {isFeatured && (
-                            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${meta.color}, transparent)` }} />
-                          )}
+                          {/* Top accent line */}
+                          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg, transparent 0%, ${meta.color}88 50%, transparent 100%)` }} />
 
-                          {/* Type badge */}
-                          <div className="absolute top-2 right-2">
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full" style={{ color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}33` }}>
+                          {/* Type label */}
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md tracking-wider" style={{ color: meta.color, background: `${meta.color}14`, border: `1px solid ${meta.color}25` }}>
                               {meta.label}
                             </span>
                           </div>
 
-                          {/* Best value badge */}
+                          {/* Featured badge */}
                           {isFeatured && (
-                            <div className="absolute top-2 left-2">
-                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full" style={{ background: meta.color, color: '#000' }}>
-                                ★ TOP
-                              </span>
+                            <div className="absolute top-2.5 left-2.5">
+                              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md" style={{ background: meta.color, color: '#000' }}>
+                                <Star className="w-2 h-2 fill-black" strokeWidth={0} />
+                                <span className="text-[8px] font-black">TOP</span>
+                              </div>
                             </div>
                           )}
 
-                          {/* Emoji orb */}
-                          <div className="flex items-center justify-center pt-8 pb-2 px-4">
-                            <div className="relative flex items-center justify-center">
-                              <div className="absolute w-14 h-14 rounded-full opacity-25" style={{ background: `radial-gradient(circle, ${meta.color} 0%, transparent 70%)` }} />
-                              <div className="relative w-12 h-12 rounded-full flex items-center justify-center" style={{
-                                background: `radial-gradient(circle at 35% 35%, ${meta.color}cc 0%, ${meta.color}44 60%, transparent 100%)`,
-                                boxShadow: `0 0 18px ${meta.glow}, inset 0 1px 1px rgba(255,255,255,0.18)`,
+                          {/* Icon orb */}
+                          <div className="flex items-center justify-center pt-9 pb-3 px-4">
+                            <div className="relative">
+                              {/* Outer glow ring */}
+                              <div className="absolute inset-0 rounded-full scale-150 opacity-20" style={{ background: `radial-gradient(circle, ${meta.color} 0%, transparent 70%)` }} />
+                              {/* Orb */}
+                              <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center" style={{
+                                background: `linear-gradient(145deg, ${meta.color}30 0%, ${meta.color}10 100%)`,
+                                border: `1px solid ${meta.color}40`,
+                                boxShadow: `0 4px 20px ${meta.glow}80, inset 0 1px 0 rgba(255,255,255,0.1)`,
                               }}>
                                 {product.imageUrl
-                                  ? <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-lg object-cover" />
-                                  : <span className="text-2xl leading-none">{meta.emoji}</span>
+                                  ? <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-xl object-cover" />
+                                  : <ProductIcon className="w-6 h-6" style={{ color: meta.color }} strokeWidth={1.5} />
                                 }
                               </div>
                             </div>
                           </div>
 
-                          {/* Info */}
-                          <div className="px-3 pb-3 flex flex-col gap-1.5 flex-1">
-                            <div>
-                              <p className="text-sm font-bold text-white text-center leading-tight line-clamp-1">{product.title}</p>
+                          {/* Content */}
+                          <div className="px-3 pb-3 flex flex-col gap-2 flex-1">
+                            <div className="text-center">
+                              <p className="text-[13px] font-black text-white leading-tight line-clamp-1 tracking-tight">{product.title}</p>
                               {product.description && (
-                                <p className="text-[10px] text-muted-foreground text-center mt-0.5 line-clamp-2 leading-snug">{product.description}</p>
+                                <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{product.description}</p>
                               )}
                             </div>
 
-                            {/* Benefits preview (first 2 bullets) */}
+                            {/* Benefits preview */}
                             {product.benefitsBullets && (
-                              <div className="flex flex-col gap-0.5">
+                              <div className="flex flex-col gap-0.5 px-1">
                                 {product.benefitsBullets.split('\n').filter(Boolean).slice(0, 2).map((b, i) => (
-                                  <div key={i} className="flex items-center gap-1 text-[9px] text-white/60 leading-snug">
-                                    <span style={{ color: meta.color }} className="text-[8px] shrink-0">✦</span>
+                                  <div key={i} className="flex items-start gap-1 text-[9px] text-white/50 leading-snug">
+                                    <ChevronRight className="w-2.5 h-2.5 shrink-0 mt-px" style={{ color: meta.color }} />
                                     <span className="line-clamp-1">{b}</span>
                                   </div>
                                 ))}
                               </div>
                             )}
 
-                            {/* Price */}
-                            <div className="flex items-center justify-center gap-1 mt-auto pt-1">
-                              <span className="text-base font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
-                              <span className="text-base">⭐</span>
-                            </div>
-
-                            {/* Buy button */}
-                            <div className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-bold gap-1"
-                              style={{ background: `linear-gradient(135deg, ${meta.color} 0%, ${meta.color}bb 100%)`, color: '#000', boxShadow: `0 2px 10px ${meta.glow}` }}
-                            >
-                              {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>{tr.tasks.storeBuyBtn}</>}
+                            {/* Price + Buy */}
+                            <div className="mt-auto flex flex-col gap-1.5">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-base font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
+                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
+                              </div>
+                              <div
+                                className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-black gap-1 relative overflow-hidden"
+                                style={{ background: `linear-gradient(135deg, ${meta.color} 0%, ${meta.color}cc 100%)`, color: '#000', boxShadow: `0 2px 12px ${meta.glow}` }}
+                              >
+                                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite] pointer-events-none"
+                                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%)' }} />
+                                {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span className="relative z-10">{tr.tasks.storeBuyBtn}</span>}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -1131,78 +1141,94 @@ export const TasksTab = () => {
 
       {/* Stars Purchase Confirmation Modal */}
       {confirmProduct && (() => {
-        const CONFIRM_META: Record<string, { emoji: string; color: string; glow: string }> = {
-          premium_days:         { emoji: '👑', color: '#f59e0b', glow: 'rgba(245,158,11,0.30)' },
-          turbo_boost:          { emoji: '🔥', color: '#f97316', glow: 'rgba(249,115,22,0.30)' },
-          energy_refill:        { emoji: '⚡', color: '#38bdf8', glow: 'rgba(56,189,248,0.30)' },
-          permanent_multiplier: { emoji: '✨', color: '#a78bfa', glow: 'rgba(167,139,250,0.30)' },
-          badge:                { emoji: '🏅', color: '#2dd4bf', glow: 'rgba(45,212,191,0.30)' },
-          skin:                 { emoji: '🎨', color: '#f472b6', glow: 'rgba(244,114,182,0.30)' },
-          points:               { emoji: '💎', color: '#34d399', glow: 'rgba(52,211,153,0.30)' },
-          mining_level_up:      { emoji: '🚀', color: '#818cf8', glow: 'rgba(129,140,248,0.30)' },
-          squad_gold:           { emoji: '🏆', color: '#fbbf24', glow: 'rgba(251,191,36,0.30)'  },
-          competition_entry:    { emoji: '🎯', color: '#fb7185', glow: 'rgba(251,113,133,0.30)' },
+        type ConfirmMeta = { Icon: React.ElementType; color: string; glow: string };
+        const CONFIRM_META: Record<string, ConfirmMeta> = {
+          premium_days:         { Icon: Crown,    color: '#f59e0b', glow: 'rgba(245,158,11,0.35)' },
+          turbo_boost:          { Icon: Flame,    color: '#f97316', glow: 'rgba(249,115,22,0.35)' },
+          energy_refill:        { Icon: Zap,      color: '#38bdf8', glow: 'rgba(56,189,248,0.35)' },
+          permanent_multiplier: { Icon: Sparkles, color: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
+          badge:                { Icon: Award,    color: '#2dd4bf', glow: 'rgba(45,212,191,0.35)' },
+          skin:                 { Icon: Palette,  color: '#f472b6', glow: 'rgba(244,114,182,0.35)' },
+          points:               { Icon: Gem,      color: '#34d399', glow: 'rgba(52,211,153,0.35)' },
+          mining_level_up:      { Icon: Rocket,   color: '#818cf8', glow: 'rgba(129,140,248,0.35)' },
+          squad_gold:           { Icon: Trophy,   color: '#fbbf24', glow: 'rgba(251,191,36,0.35)'  },
+          competition_entry:    { Icon: Target,   color: '#fb7185', glow: 'rgba(251,113,133,0.35)' },
         };
-        const cm = CONFIRM_META[confirmProduct.effectType] ?? { emoji: '💎', color: '#34d399', glow: 'rgba(52,211,153,0.30)' };
+        const cm: ConfirmMeta = CONFIRM_META[confirmProduct.effectType] ?? { Icon: Gem, color: '#34d399', glow: 'rgba(52,211,153,0.35)' };
+        const ConfirmIcon = cm.Icon;
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-end justify-center sm:items-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)' }}>
             <div
-              className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300"
+              className="w-full max-w-sm rounded-3xl overflow-hidden animate-in zoom-in-90 duration-300"
               style={{
-                background: 'linear-gradient(180deg, hsl(224,71%,8%) 0%, hsl(224,71%,4%) 100%)',
-                border: `1.5px solid ${cm.color}33`,
-                boxShadow: `0 -12px 60px ${cm.glow}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
+                background: 'linear-gradient(180deg, hsl(224,71%,7%) 0%, hsl(224,71%,3%) 100%)',
+                border: `1px solid ${cm.color}30`,
+                boxShadow: `0 0 0 1px rgba(255,255,255,0.04) inset, 0 8px 60px ${cm.glow}60, 0 0 120px ${cm.glow}20`,
               }}
             >
-              {/* Top glow strip */}
-              <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, transparent 0%, ${cm.color} 50%, transparent 100%)` }} />
-
-              {/* Drag handle */}
-              <div className="flex justify-center pt-2 sm:hidden">
-                <div className="w-10 h-1 rounded-full bg-white/10" />
-              </div>
+              {/* Top accent */}
+              <div className="h-px w-full" style={{ background: `linear-gradient(90deg, transparent 5%, ${cm.color}cc 50%, transparent 95%)` }} />
 
               {/* Header */}
-              <div className="px-6 pt-4 pb-3 flex flex-col items-center text-center">
-                {/* Animated icon */}
-                <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4 relative animate-in zoom-in-75 duration-500" style={{
-                  background: `radial-gradient(circle at 35% 35%, ${cm.color}bb 0%, ${cm.color}33 60%, transparent 100%)`,
-                  border: `2px solid ${cm.color}55`,
-                  boxShadow: `0 0 32px ${cm.glow}, 0 0 64px ${cm.glow}55, inset 0 1px 1px rgba(255,255,255,0.2)`,
-                }}>
-                  {confirmProduct.imageUrl
-                    ? <img src={confirmProduct.imageUrl} alt={confirmProduct.title} className="w-12 h-12 rounded-2xl object-cover" />
-                    : <span className="text-4xl leading-none">{cm.emoji}</span>
-                  }
-                  {/* Shimmer ring */}
-                  <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
-                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_ease-in-out_infinite]"
-                      style={{ background: `linear-gradient(90deg, transparent 0%, ${cm.color}33 50%, transparent 100%)` }} />
+              <div className="px-6 pt-7 pb-4 flex flex-col items-center text-center gap-4">
+
+                {/* Icon — premium orb */}
+                <div className="relative">
+                  {/* Outer pulse ring */}
+                  <div className="absolute inset-0 rounded-3xl scale-[1.35] opacity-15 animate-pulse"
+                    style={{ background: `radial-gradient(circle, ${cm.color} 0%, transparent 70%)` }} />
+                  {/* Mid ring */}
+                  <div className="absolute inset-0 rounded-3xl scale-[1.15] opacity-10"
+                    style={{ border: `1px solid ${cm.color}`, borderRadius: '1.5rem' }} />
+                  {/* Orb */}
+                  <div
+                    className="relative w-24 h-24 rounded-3xl flex items-center justify-center animate-in zoom-in-75 duration-500"
+                    style={{
+                      background: `linear-gradient(145deg, ${cm.color}28 0%, ${cm.color}0a 100%)`,
+                      border: `1.5px solid ${cm.color}50`,
+                      boxShadow: `0 0 40px ${cm.glow}70, 0 0 80px ${cm.glow}25, inset 0 1px 0 rgba(255,255,255,0.12)`,
+                    }}
+                  >
+                    {/* Inner shimmer */}
+                    <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite]"
+                        style={{ background: `linear-gradient(90deg, transparent 0%, ${cm.color}20 50%, transparent 100%)` }} />
+                    </div>
+                    {confirmProduct.imageUrl
+                      ? <img src={confirmProduct.imageUrl} alt={confirmProduct.title} className="w-14 h-14 rounded-2xl object-cover relative z-10" />
+                      : <ConfirmIcon className="w-11 h-11 relative z-10" style={{ color: cm.color }} strokeWidth={1.25} />
+                    }
                   </div>
                 </div>
 
-                <h3 className="font-black text-white text-xl leading-tight mb-1">{confirmProduct.title}</h3>
-                {confirmProduct.description && (
-                  <p className="text-xs text-white/50 leading-relaxed">{confirmProduct.description}</p>
-                )}
+                {/* Title + description */}
+                <div>
+                  <h3 className="font-black text-white text-xl leading-tight tracking-tight">{confirmProduct.title}</h3>
+                  {confirmProduct.description && (
+                    <p className="text-xs text-white/40 leading-relaxed mt-1">{confirmProduct.description}</p>
+                  )}
+                </div>
 
                 {/* Price pill */}
-                <div className="flex items-center gap-2 mt-4 px-5 py-2.5 rounded-full" style={{ background: `${cm.color}15`, border: `1px solid ${cm.color}40` }}>
-                  <span className="text-2xl font-black text-white tabular-nums">{confirmProduct.priceStars.toLocaleString()}</span>
-                  <span className="text-2xl">⭐</span>
-                  <span className="text-xs text-white/40">Telegram Stars</span>
+                <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl" style={{ background: `${cm.color}10`, border: `1px solid ${cm.color}30` }}>
+                  <span className="text-2xl font-black text-white tabular-nums tracking-tight">{confirmProduct.priceStars.toLocaleString()}</span>
+                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" strokeWidth={0} />
+                  <span className="text-[11px] text-white/35 font-medium">{tr.tasks.telegramStars}</span>
                 </div>
               </div>
 
               {/* Benefits */}
               {confirmProduct.benefitsBullets && (
-                <div className="mx-5 mb-4 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${cm.color}20` }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: cm.color }}>{tr.tasks.confirmWhatYouGet}</p>
+                <div className="mx-5 mb-5 px-4 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${cm.color}18` }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1 h-3 rounded-full" style={{ background: cm.color }} />
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/60">{tr.tasks.confirmWhatYouGet}</p>
+                  </div>
                   <ul className="flex flex-col gap-2">
                     {confirmProduct.benefitsBullets.split('\n').filter(Boolean).map((bullet, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-white/80 leading-snug">
-                        <span className="flex-shrink-0 mt-0.5 text-[10px]" style={{ color: cm.color }}>✦</span>
+                      <li key={i} className="flex items-start gap-2.5 text-xs text-white/75 leading-snug">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-px" style={{ color: cm.color }} strokeWidth={2} />
                         <span>{bullet}</span>
                       </li>
                     ))}
@@ -1211,28 +1237,29 @@ export const TasksTab = () => {
               )}
 
               {/* Actions */}
-              <div className="px-5 pb-6 flex flex-col gap-2">
+              <div className="px-5 pb-7 flex flex-col gap-2.5">
                 <button
                   onClick={handleConfirmPurchase}
                   disabled={!!purchasingProduct}
-                  className="relative w-full h-13 h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 overflow-hidden"
+                  className="relative w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center transition-all active:scale-[0.97] disabled:opacity-50 overflow-hidden"
                   style={{
-                    background: `linear-gradient(135deg, ${cm.color} 0%, ${cm.color}bb 100%)`,
+                    background: `linear-gradient(135deg, ${cm.color} 0%, ${cm.color}cc 100%)`,
                     color: '#000',
-                    boxShadow: `0 4px 24px ${cm.glow}, 0 0 48px ${cm.glow}55`,
+                    boxShadow: `0 4px 28px ${cm.glow}80, 0 0 56px ${cm.glow}30`,
                   }}
                 >
-                  {/* Shimmer sweep on button */}
-                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_ease-in-out_infinite] pointer-events-none"
-                    style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)' }} />
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_ease-in-out_infinite] pointer-events-none"
+                    style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%)' }} />
                   {purchasingProduct
                     ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <span className="relative z-10">{tr.tasks.confirmPayBtn(confirmProduct.priceStars)}</span>
+                    : <span className="relative z-10 flex items-center gap-2">
+                        {tr.tasks.confirmPayBtn(confirmProduct.priceStars)}
+                      </span>
                   }
                 </button>
                 <button
                   onClick={() => { haptic('light'); setConfirmProduct(null); }}
-                  className="w-full h-10 rounded-xl text-sm font-medium text-white/40 active:text-white transition-colors"
+                  className="w-full h-10 rounded-xl text-xs font-semibold text-white/30 hover:text-white/60 active:text-white transition-colors tracking-wide uppercase"
                 >
                   {tr.squad.cancel}
                 </button>
