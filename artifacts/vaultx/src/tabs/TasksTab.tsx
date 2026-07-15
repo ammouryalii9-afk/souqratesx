@@ -5,7 +5,7 @@ import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Lock, Loader2, PlayCircle, ExternalLink, Cpu, Flame, Globe, Leaf, Star, Gem, Gift, Radio, Disc3, Zap, Crown, Sparkles, Award, Palette, Rocket, Trophy, Target, ShoppingBag, CheckCircle2, ChevronRight } from 'lucide-react';
-import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, createStarsInvoice, getStarProducts, getAds, startAd, claimAd, getPartnerTasks, verifyPartnerTask, getGroupChallenges, claimGroupChallenge, type PublicConfig, type SponsoredAdTask, type StarProduct, type PartnerTask, type GroupChallenge } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getTelegramWebApp, haptic } from '../lib/telegram';
 import { StarsPurchaseSuccess } from '../components/StarsPurchaseSuccess';
@@ -73,11 +73,19 @@ export const TasksTab = () => {
     getPartnerTasks().then(r => setPartnerTasks(r.tasks)).catch(() => setPartnerTasks([]));
   };
 
+  const [groupChallenges, setGroupChallenges] = useState<GroupChallenge[]>([]);
+  const [claimingChallengeId, setClaimingChallengeId] = useState<number | null>(null);
+
+  const loadGroupChallenges = () => {
+    getGroupChallenges().then(r => setGroupChallenges(r.challenges)).catch(() => setGroupChallenges([]));
+  };
+
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
     getStarProducts().then(setStarProducts).catch(() => setStarProducts([]));
     loadAds();
     loadPartnerTasks();
+    loadGroupChallenges();
   }, []);
 
   // Server is the source of truth for whether the watch condition is satisfied;
@@ -408,6 +416,33 @@ export const TasksTab = () => {
           setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
         }
       }
+    }
+  };
+
+  const handleClaimGroupChallenge = async (challenge: GroupChallenge) => {
+    if (challenge.completed || claimingChallengeId === challenge.id) return;
+    if ((challenge.currentInvites ?? 0) < challenge.requiredInvites) {
+      if (challenge.channelUrl) window.open(challenge.channelUrl, '_blank');
+      toast({ title: "أدعو أصدقاءك أولاً", description: `تحتاج ${challenge.requiredInvites} دعوة. لديك حالياً ${challenge.currentInvites ?? 0}.`, variant: "destructive" });
+      return;
+    }
+    setClaimingChallengeId(challenge.id);
+    try {
+      const result = await claimGroupChallenge(challenge.id);
+      if (result.ok) {
+        setGroupChallenges(prev => prev.map(c => c.id === challenge.id ? { ...c, completed: true } : c));
+        if (!result.alreadyClaimed && result.creditedPoints > 0) {
+          await refreshFromServer();
+          toast({ title: "تهانينا! 🎉", description: `+${result.creditedPoints.toLocaleString()} SKP أُضيفت إلى رصيدك.` });
+        } else {
+          toast({ title: "تم بالفعل", description: "لقد استلمت هذه المكافأة مسبقاً." });
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "خطأ";
+      toast({ title: "خطأ", description: msg, variant: "destructive" });
+    } finally {
+      setClaimingChallengeId(null);
     }
   };
 
@@ -1132,6 +1167,84 @@ export const TasksTab = () => {
                       {isVerifying && <Loader2 className="w-4 h-4 animate-spin" />}
                       {!isLoading && !isVerifying && (isVerify ? 'Verify ✓' : 'Join')}
                     </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Group Invite Challenges */}
+      {groupChallenges.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary/70">تحديات الدعوة</span>
+            <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent" />
+          </div>
+          <div className="space-y-3">
+            {groupChallenges.map(challenge => {
+              const current = challenge.currentInvites ?? 0;
+              const required = challenge.requiredInvites;
+              const progress = Math.min(1, current / required);
+              const canClaim = current >= required;
+              const isClaiming = claimingChallengeId === challenge.id;
+
+              return (
+                <div key={challenge.id} className="bg-card border border-white/5 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                      style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                      {challenge.iconEmoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-white text-sm leading-snug">{challenge.title}</h3>
+                      {challenge.description && <p className="text-xs text-muted-foreground mt-0.5">{challenge.description}</p>}
+                      <p className="text-xs font-bold text-purple-400 mt-0.5">+{challenge.rewardSkp.toLocaleString()} SKP</p>
+                    </div>
+                    {challenge.completed ? (
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Check className="w-5 h-5 text-emerald-500" />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleClaimGroupChallenge(challenge)}
+                        disabled={isClaiming || (!canClaim && !challenge.channelUrl)}
+                        className="min-w-[80px] h-9 text-xs font-bold rounded-lg flex items-center justify-center transition-all shrink-0"
+                        style={canClaim ? {
+                          background: 'hsl(270,76%,55%)',
+                          color: 'white',
+                          boxShadow: '0 0 12px rgba(168,85,247,0.35)',
+                        } : {
+                          background: 'rgba(255,255,255,0.08)',
+                          color: 'rgba(255,255,255,0.5)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                        }}
+                      >
+                        {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : canClaim ? 'استلام 🎁' : challenge.channelUrl ? 'انضم' : `${current}/${required}`}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Progress bar */}
+                  {!challenge.completed && (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-muted-foreground">الدعوات</span>
+                        <span className={canClaim ? 'text-purple-400 font-bold' : 'text-white/60'}>{current} / {required}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${progress * 100}%`,
+                            background: canClaim
+                              ? 'linear-gradient(90deg, hsl(270,76%,55%), hsl(290,76%,65%))'
+                              : 'linear-gradient(90deg, rgba(168,85,247,0.5), rgba(168,85,247,0.3))',
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               );

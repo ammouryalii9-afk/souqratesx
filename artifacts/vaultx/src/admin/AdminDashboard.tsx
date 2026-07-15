@@ -18,10 +18,11 @@ import { AdminPixels } from "./AdminPixels";
 import { AdminCompetitions } from "./AdminCompetitions";
 import { AdminLiveUsers } from "./AdminLiveUsers";
 import { AdminContract } from "./AdminContract";
+import { AdminGroupChallenges } from "./AdminGroupChallenges";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3, Radio } from "lucide-react";
+import { LayoutDashboard, Users, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3, Radio } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "group-challenges" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -47,8 +48,9 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "partner-tasks",   label: "مهام الشركاء",   icon: <ListTodo className="w-4 h-4" /> },
       { id: "announcements",   label: "الإشعارات",      icon: <Bell className="w-4 h-4" /> },
       { id: "withdrawals",     label: "السحوبات",       icon: <ArrowDownToLine className="w-4 h-4" /> },
-      { id: "contract",        label: "العقود",          icon: <ShieldCheck className="w-4 h-4" /> },
-      { id: "settings",        label: "الإعدادات",      icon: <SettingsIcon className="w-4 h-4" /> },
+      { id: "contract",          label: "العقود",          icon: <ShieldCheck className="w-4 h-4" /> },
+      { id: "group-challenges",  label: "تحديات الدعوة",   icon: <Users className="w-4 h-4" /> },
+      { id: "settings",          label: "الإعدادات",       icon: <SettingsIcon className="w-4 h-4" /> },
       { id: "log",        label: "السجل",         icon: <ScrollText className="w-4 h-4" /> },
     ],
   },
@@ -128,8 +130,9 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "partner-tasks"  && <AdminPartnerTasks />}
         {tab === "announcements"  && <AdminAnnouncements />}
         {tab === "withdrawals"    && <AdminWithdrawals />}
-        {tab === "contract"       && <AdminContract />}
-        {tab === "settings"       && <AdminSettings />}
+        {tab === "contract"         && <AdminContract />}
+        {tab === "group-challenges" && <AdminGroupChallenges />}
+        {tab === "settings"         && <AdminSettings />}
         {tab === "log"        && <AdminAuditLog />}
       </main>
     </div>

@@ -180,6 +180,30 @@ export function verifyPartnerTask(id: number): Promise<{ ok: boolean; alreadyCla
   return apiFetch(`/partner-tasks/${id}/verify`, { method: "POST" });
 }
 
+// ── Group Invite Challenges ───────────────────────────────────────────────
+
+export type GroupChallenge = {
+  id: number;
+  title: string;
+  description: string | null;
+  channelUrl: string;
+  requiredInvites: number;
+  rewardSkp: number;
+  iconEmoji: string;
+  isActive: boolean;
+  sortOrder: number;
+  completed: boolean;
+  currentInvites: number;
+};
+
+export function getGroupChallenges(): Promise<{ challenges: GroupChallenge[] }> {
+  return apiFetch<{ challenges: GroupChallenge[] }>("/group-challenges");
+}
+
+export function claimGroupChallenge(id: number): Promise<{ ok: boolean; alreadyClaimed: boolean; creditedPoints: number }> {
+  return apiFetch(`/group-challenges/${id}/claim`, { method: "POST" });
+}
+
 // ── Pixels (SKX investment cycles) ───────────────────────────────────────────
 
 export type PixelTier = { upTo: number; price: number };
