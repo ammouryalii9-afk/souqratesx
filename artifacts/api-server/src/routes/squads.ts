@@ -283,11 +283,10 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
         const bonusAmount = asNumber(milestoneSettings[m.settingKey], m.defaultBonus);
         if (bonusAmount <= 0) continue;
 
-        // Credit all current non-banned squad members
+        // Credit all current non-banned squad members with SKX (hard currency)
         await db.update(vaultUsersTable)
           .set({
-            pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${bonusAmount}`,
-            lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${bonusAmount}`,
+            skxBalance: sql`${vaultUsersTable.skxBalance} + ${bonusAmount}`,
           })
           .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)));
 
@@ -315,7 +314,7 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
                 ownerId,
                 `🏆 مبروك يا قائد فرقة "${squadName}"!\n\n` +
                 `فرقتك وصلت إلى ${m.threshold} عضو 🎉\n\n` +
-                `🎁 تم إضافة ${bonusAmount.toLocaleString("en-US")} نقطة لجميع أعضاء الفرقة!\n\n` +
+                `🎁 تم إضافة ${bonusAmount.toLocaleString("en-US")} SKX لجميع أعضاء الفرقة!\n\n` +
                 (m.threshold < 100
                   ? `💪 استمر — المكافأة القادمة عند ${m.threshold === 10 ? 25 : m.threshold === 25 ? 50 : 100} عضو!`
                   : `🌟 أنتم في القمة!`)
@@ -328,7 +327,7 @@ router.post("/squads/:id/join", rateLimit("squadJoin", 20, 60_000), async (req, 
               await sendPlainTelegramMessage(
                 member.telegramId,
                 `🎁 فرقة "${squadName}" وصلت إلى ${m.threshold} عضو!\n\n` +
-                `حصلت على ${bonusAmount.toLocaleString("en-US")} نقطة مكافأة — افتح التطبيق لترى رصيدك 🚀`
+                `حصلت على ${bonusAmount.toLocaleString("en-US")} SKX مكافأة — افتح التطبيق لترى رصيدك 🚀`
               ).catch(() => { /* skip users who blocked the bot */ });
             }
           } catch {
