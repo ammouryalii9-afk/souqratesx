@@ -26,8 +26,6 @@ import { MaintenancePage } from "./components/MaintenancePage";
 const LANG_OPTIONS: { code: Lang; flag: string; label: string; native: string }[] = [
   { code: 'en', flag: '🇺🇸', label: 'English',  native: 'English'  },
   { code: 'ar', flag: '🇸🇦', label: 'Arabic',   native: 'العربية'  },
-  { code: 'es', flag: '🇪🇸', label: 'Spanish',  native: 'Español'  },
-  { code: 'ru', flag: '🇷🇺', label: 'Russian',  native: 'Русский'  },
 ];
 
 function LangPicker() {
