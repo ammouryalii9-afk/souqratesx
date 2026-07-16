@@ -5,7 +5,7 @@ const LANG_KEY = 'souqratesx_lang';
 const en = {
   nav: {
     vault: 'Vault',
-    games: 'Games',
+    games: 'Mine',
     tasks: 'Tasks',
     squad: 'Squad',
     friends: 'Friends',
@@ -400,7 +400,7 @@ const en = {
 const ar: typeof en = {
   nav: {
     vault: 'الخزينة',
-    games: 'الألعاب',
+    games: 'المناجم',
     tasks: 'المهام',
     squad: 'الفريق',
     friends: 'الأصدقاء',

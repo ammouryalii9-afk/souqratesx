@@ -46,6 +46,38 @@ const SKIN_META: Record<number, {
     rarityBg: 'rgba(245,158,11,0.12)',
     cardGradient: 'linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(15,10,28,0.97) 100%)',
   },
+  5: {
+    emoji: '🔥',
+    rarity: 'Epic',
+    desc: 'Burning crimson fury',
+    rarityColor: '#f87171',
+    rarityBg: 'rgba(248,113,113,0.12)',
+    cardGradient: 'linear-gradient(135deg, rgba(248,113,113,0.18) 0%, rgba(28,10,10,0.97) 100%)',
+  },
+  6: {
+    emoji: '❄️',
+    rarity: 'Epic',
+    desc: 'Icy frost energy',
+    rarityColor: '#7dd3fc',
+    rarityBg: 'rgba(125,211,252,0.12)',
+    cardGradient: 'linear-gradient(135deg, rgba(125,211,252,0.16) 0%, rgba(8,14,26,0.97) 100%)',
+  },
+  7: {
+    emoji: '🌌',
+    rarity: 'Legendary',
+    desc: 'Cosmic galaxy power',
+    rarityColor: '#c084fc',
+    rarityBg: 'rgba(192,132,252,0.12)',
+    cardGradient: 'linear-gradient(135deg, rgba(192,132,252,0.18) 0%, rgba(14,8,26,0.97) 100%)',
+  },
+  8: {
+    emoji: '⚜️',
+    rarity: 'Legendary',
+    desc: 'Supreme sovereign dominance',
+    rarityColor: '#fbbf24',
+    rarityBg: 'rgba(251,191,36,0.15)',
+    cardGradient: 'linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(22,16,4,0.97) 100%)',
+  },
 };
 
 const RARITY_ORDER: Rarity[] = ['Common', 'Rare', 'Epic', 'Legendary'];

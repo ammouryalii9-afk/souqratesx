@@ -51,10 +51,14 @@ export const BADGES: Record<number, { label: string; color: string }> = {
 };
 
 export const SKINS: Record<number, { name: string; accent: string; glow: string; price: number }> = {
-  1: { name: 'Classic', accent: '#f5c518', glow: 'rgba(245,197,24,0.3)', price: 0 },
-  2: { name: 'Neon Blue', accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)', price: 50000 },
-  3: { name: 'Emerald', accent: '#34d399', glow: 'rgba(52,211,153,0.35)', price: 150000 },
-  4: { name: 'Royal Purple', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)', price: 500000 },
+  1: { name: 'Classic',      accent: '#f5c518', glow: 'rgba(245,197,24,0.3)',   price: 0 },
+  2: { name: 'Neon Blue',    accent: '#22d3ee', glow: 'rgba(34,211,238,0.35)',  price: 50_000 },
+  3: { name: 'Emerald',      accent: '#34d399', glow: 'rgba(52,211,153,0.35)',  price: 150_000 },
+  4: { name: 'Royal Purple', accent: '#a78bfa', glow: 'rgba(167,139,250,0.35)', price: 500_000 },
+  5: { name: 'Crimson',      accent: '#f87171', glow: 'rgba(248,113,113,0.35)', price: 1_000_000 },
+  6: { name: 'Frost',        accent: '#7dd3fc', glow: 'rgba(125,211,252,0.35)', price: 2_500_000 },
+  7: { name: 'Galaxy',       accent: '#c084fc', glow: 'rgba(192,132,252,0.35)', price: 5_000_000 },
+  8: { name: 'Sovereign',    accent: '#fbbf24', glow: 'rgba(251,191,36,0.4)',   price: 10_000_000 },
 };
 
 type VaultContextType = {

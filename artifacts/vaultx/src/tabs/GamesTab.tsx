@@ -213,10 +213,19 @@ const GAME_LIST: { id: GameId; name: string; desc: string; icon: typeof Gamepad2
   { id: 'lucky-wheel', name: 'Lucky Wheel', desc: '3 free spins a day, pure luck', icon: Sparkles, color: '#F472B6' },
 ];
 
+const CARD_COLORS: Record<string, { from: string; to: string; border: string; text: string; shadow: string }> = {
+  'mining-rig':   { from: 'rgba(245,158,11,0.14)', to: 'rgba(245,158,11,0.02)', border: 'rgba(245,158,11,0.22)', text: '#fbbf24', shadow: 'rgba(245,158,11,0.12)' },
+  'solar-farm':   { from: 'rgba(234,179,8,0.14)',  to: 'rgba(234,179,8,0.02)',  border: 'rgba(234,179,8,0.22)',  text: '#fde047', shadow: 'rgba(234,179,8,0.12)' },
+  'wind-turbine': { from: 'rgba(56,189,248,0.14)', to: 'rgba(56,189,248,0.02)', border: 'rgba(56,189,248,0.22)', text: '#38bdf8', shadow: 'rgba(56,189,248,0.12)' },
+  'data-center':  { from: 'rgba(139,92,246,0.14)', to: 'rgba(139,92,246,0.02)', border: 'rgba(139,92,246,0.22)', text: '#a78bfa', shadow: 'rgba(139,92,246,0.12)' },
+  'quantum-chip': { from: 'rgba(16,185,129,0.14)', to: 'rgba(16,185,129,0.02)', border: 'rgba(16,185,129,0.22)', text: '#34d399', shadow: 'rgba(16,185,129,0.12)' },
+  'black-hole':   { from: 'rgba(239,68,68,0.14)',  to: 'rgba(239,68,68,0.02)',  border: 'rgba(239,68,68,0.22)',  text: '#f87171', shadow: 'rgba(239,68,68,0.12)' },
+};
+
 export const GamesTab = () => {
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
 
-  const { tempMiningPoints, miningLevel, maxEnergy, upgradeMiningLevel, expandBattery, passiveCards, buyPassiveCard } = useVault();
+  const { tempMiningPoints, miningLevel, maxEnergy, upgradeMiningLevel, expandBattery, passiveCards, buyPassiveCard, profitPerHour } = useVault();
   const { toast } = useToast();
   const { tr } = useLanguage();
 
@@ -265,112 +274,121 @@ export const GamesTab = () => {
 
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-500">
-      <div className="px-4 pt-4">
-        <h2 className="text-lg font-bold text-white">{tr.games.title}</h2>
-        <p className="text-xs text-muted-foreground">{tr.games.subtitle}</p>
-      </div>
 
-      <div className="px-4 mt-3 grid grid-cols-2 gap-3">
-        {GAME_LIST.map((g) => {
-          const Icon = g.icon;
-          const plays = playsMap[g.id];
-          const playsLeft = plays?.playsLeft ?? FREE_PLAYS_PER_DAY;
-          const totalPlays = FREE_PLAYS_PER_DAY + (plays ? (FREE_PLAYS_PER_DAY + MAX_EXTRA_PLAYS_PER_DAY - plays.extraPlaysLeft) - FREE_PLAYS_PER_DAY : 0);
-          const noPlays = playsLeft <= 0;
-          return (
-            <button
-              key={g.id}
-              data-testid={`open-game-${g.id}`}
-              onClick={() => { haptic('select'); setActiveGame(g.id); }}
-              className="rounded-xl p-4 flex flex-col items-start gap-2 text-left active:scale-95 transition-transform relative"
-              style={{
-                background: noPlays
-                  ? 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%)'
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-                border: '1px solid rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(12px)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-              }}
-            >
-              {plays && (
-                <div className={`absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${noPlays ? 'bg-white/5 text-white/30' : 'bg-primary/15 text-primary'}`}>
-                  <PlayCircle className="w-2.5 h-2.5" />
-                  <span>{playsLeft}</span>
-                </div>
-              )}
-              <div style={{
-                background: `radial-gradient(circle at 30% 25%, ${g.color}${noPlays ? '10' : '22'} 0%, ${g.color}08 100%)`,
-                border: `1px solid ${g.color}20`,
-                boxShadow: `0 0 16px ${g.color}12, inset 0 1px 0 rgba(255,255,255,0.05)`,
-                width: '48px', height: '48px', borderRadius: '14px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: noPlays ? 0.4 : 1,
-              }}>
-                <Icon className="w-6 h-6" style={{ color: g.color, filter: `drop-shadow(0 0 6px ${g.color}50)` }} />
-              </div>
-              <h3 className={`font-semibold text-sm ${noPlays ? 'text-white/40' : 'text-white'}`}>{gameI18n[g.id]?.name ?? g.name}</h3>
-              <p className="text-xs text-muted-foreground leading-snug">{gameI18n[g.id]?.desc ?? g.desc}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Passive Income Cards */}
-      <div className="px-4 mt-6 space-y-4">
+      {/* ── Header ── */}
+      <div className="px-4 pt-5 pb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-white">{tr.games.passiveIncome}</h2>
-          <p className="text-xs text-muted-foreground">{tr.games.passiveSubtitle}</p>
+          <h2 className="text-xl font-black text-white tracking-tight">{tr.games.title}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{tr.games.subtitle}</p>
         </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20"
+          style={{ background: 'rgba(52,211,153,0.08)' }}>
+          <Zap className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-black text-primary">+{profitPerHour.toLocaleString()}/hr</span>
+        </div>
+      </div>
 
+      {/* ── Passive Income Cards ── */}
+      <div className="px-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Pickaxe className="w-3.5 h-3.5 text-primary/60" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary/60">{tr.games.passiveIncome}</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent" />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {PASSIVE_CARDS.map(def => {
-            const owned = passiveCards.find(c => c.id === def.id);
-            const level = owned ? owned.level : 0;
+            const ownedCard = passiveCards.find(c => c.id === def.id);
+            const level = ownedCard ? ownedCard.level : 0;
             const nextLevel = level + 1;
             const cost = def.levelCost(nextLevel);
-            const currentYield = owned ? owned.ptsPerHour : 0;
+            const currentYield = ownedCard ? ownedCard.ptsPerHour : 0;
             const nextYield = def.base * nextLevel;
             const Icon = def.icon;
+            const col = CARD_COLORS[def.id] ?? CARD_COLORS['mining-rig'];
+            const canAfford = tempMiningPoints >= cost;
 
             return (
-              <div key={def.id} className={`bg-card border ${owned ? 'border-primary/50 shadow-[0_0_10px_rgba(245,197,24,0.1)]' : 'border-white/5'} rounded-xl p-3 flex flex-col gap-2`}>
-                <div className="flex items-start justify-between">
-                  <div className={`p-2 rounded-lg ${owned ? 'bg-primary/20' : 'bg-white/5'}`}>
-                    <Icon className={`w-5 h-5 ${owned ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div key={def.id} className="relative rounded-[20px] overflow-hidden flex flex-col" style={{
+                background: `linear-gradient(145deg, ${col.from} 0%, ${col.to} 100%)`,
+                border: `1px solid ${col.border}`,
+                boxShadow: level > 0 ? `0 4px 24px ${col.shadow}` : 'none',
+              }}>
+                {/* Level badge */}
+                <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[9px] font-black" style={{
+                  background: level > 0 ? `${col.text}28` : 'rgba(255,255,255,0.07)',
+                  color: level > 0 ? col.text : 'rgba(255,255,255,0.3)',
+                  border: `1px solid ${level > 0 ? `${col.text}44` : 'rgba(255,255,255,0.08)'}`,
+                }}>Lv {level}</div>
+                {/* Icon */}
+                <div className="flex justify-center pt-6 pb-2">
+                  <div className="w-12 h-12 rounded-[16px] flex items-center justify-center" style={{
+                    background: `radial-gradient(circle at 40% 35%, ${col.text}30, ${col.text}10)`,
+                    border: `1px solid ${col.border}`,
+                    boxShadow: `0 0 20px ${col.shadow}`,
+                  }}>
+                    <Icon className="w-5 h-5" style={{ color: col.text, filter: `drop-shadow(0 0 6px ${col.text})` }} />
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground">{tr.games.lv} {level}</span>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white text-sm">{tr.games.passiveCards[def.id] ?? def.name}</h3>
-                  <p className="text-xs text-emerald-400 font-medium">+{currentYield.toLocaleString()} /hr</p>
+                {/* Name & Yield */}
+                <div className="px-3 pb-1 flex-1 text-center">
+                  <p className="text-[12px] font-bold text-white leading-tight">{tr.games.passiveCards[def.id] ?? def.name}</p>
+                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: level > 0 ? '#34d399' : 'rgba(255,255,255,0.3)' }}>
+                    +{currentYield.toLocaleString()}<span className="text-[9px] opacity-70">/hr</span>
+                  </p>
+                  {nextYield > currentYield && (
+                    <p className="text-[9px] mt-0.5" style={{ color: col.text, opacity: 0.65 }}>→ +{nextYield.toLocaleString()}/hr</p>
+                  )}
                 </div>
-                <button
-                  data-testid={`buy-passive-${def.id}`}
-                  onClick={() => { buyPassiveCard(def.id, cost, nextLevel, nextYield, def.name); haptic('light'); }}
-                  disabled={tempMiningPoints < cost}
-                  className="mt-1 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-1.5 rounded-lg disabled:opacity-40 transition-colors"
-                >
-                  {tr.games.buyLv}{nextLevel} ({cost.toLocaleString()})
-                </button>
+                {/* Upgrade Button */}
+                <div className="p-2.5 pt-2">
+                  <button
+                    data-testid={`buy-passive-${def.id}`}
+                    onClick={() => { buyPassiveCard(def.id, cost, nextLevel, nextYield, def.name); haptic('light'); }}
+                    disabled={!canAfford}
+                    className="w-full py-2 rounded-xl text-[11px] font-bold transition-all active:scale-[0.97] disabled:opacity-40"
+                    style={canAfford ? {
+                      background: `linear-gradient(135deg, ${col.text}, ${col.text}bb)`,
+                      color: '#000',
+                      boxShadow: `0 2px 12px ${col.shadow}`,
+                    } : {
+                      background: 'rgba(255,255,255,0.06)',
+                      color: 'rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    {tr.games.buyLv}{nextLevel} · {cost.toLocaleString()}
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="px-4 mt-6 space-y-4">
-        <h2 className="text-lg font-bold text-white">{tr.games.boosterUpgrades}</h2>
-
-        <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
-          <div className="bg-primary/10 p-3 rounded-xl border border-primary/20 shrink-0"><Zap className="w-5 h-5 text-primary" /></div>
+      {/* ── Booster Upgrades ── */}
+      <div className="px-4 mt-7 space-y-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-boost/60" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-boost/60">{tr.games.boosterUpgrades}</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-boost/20 to-transparent" />
+        </div>
+        <div className="rounded-[20px] p-4 flex items-center gap-4"
+          style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.1)' }}>
+          <div className="bg-primary/10 p-3 rounded-xl border border-primary/15 shrink-0">
+            <Zap className="w-5 h-5 text-primary" />
+          </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-white text-sm tracking-tight">{tr.games.laserDrill}</h3>
+            <h3 className="font-bold text-white text-sm">{tr.games.laserDrill}</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{tr.games.laserDrillDesc}</p>
-            <div className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-md inline-block mt-2 font-bold border border-primary/20">{tr.games.levelActive(miningLevel)}</div>
+            <div className="text-[10px] px-2 py-0.5 rounded-md inline-block mt-1.5 font-bold border border-primary/20"
+              style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399' }}>
+              {tr.games.levelActive(miningLevel)}
+            </div>
           </div>
           <div className="shrink-0">
             {miningLevel < 4 ? (
-              <button data-testid="button-buy-drill" onClick={handleBuyLevel} disabled={tempMiningPoints < (nextLevelCost || 0)} className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(52,211,153,0.3)] active:scale-[0.98] whitespace-nowrap">
+              <button data-testid="button-buy-drill" onClick={handleBuyLevel}
+                disabled={tempMiningPoints < (nextLevelCost || 0)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(52,211,153,0.25)] active:scale-[0.98] whitespace-nowrap">
                 {nextLevelCost?.toLocaleString()} pts
               </button>
             ) : (
@@ -378,18 +396,22 @@ export const GamesTab = () => {
             )}
           </div>
         </div>
-
-        <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
-          <div className="bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20 shrink-0"><Battery className="w-5 h-5 text-cyan-400" /></div>
+        <div className="rounded-[20px] p-4 flex items-center gap-4"
+          style={{ background: 'rgba(34,211,238,0.04)', border: '1px solid rgba(34,211,238,0.1)' }}>
+          <div className="bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/15 shrink-0">
+            <Battery className="w-5 h-5 text-cyan-400" />
+          </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-white text-sm tracking-tight">{tr.games.batteryExpansion}</h3>
+            <h3 className="font-bold text-white text-sm">{tr.games.batteryExpansion}</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{tr.games.batteryDesc}</p>
           </div>
           <div className="shrink-0">
             {hasBatteryUpgrade ? (
               <span className="text-xs text-cyan-400 font-bold px-3 bg-cyan-500/10 border border-cyan-500/20 py-2 rounded-xl">{tr.games.installed}</span>
             ) : (
-              <button data-testid="button-buy-battery" onClick={handleBuyBattery} disabled={tempMiningPoints < batteryCost} className="bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] active:scale-[0.98] whitespace-nowrap">
+              <button data-testid="button-buy-battery" onClick={handleBuyBattery}
+                disabled={tempMiningPoints < batteryCost}
+                className="bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-xs font-bold px-4 py-2.5 rounded-xl disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(34,211,238,0.25)] active:scale-[0.98] whitespace-nowrap">
                 {batteryCost.toLocaleString()} pts
               </button>
             )}
@@ -397,7 +419,45 @@ export const GamesTab = () => {
         </div>
       </div>
 
-      <div className="px-4 mt-6">
+      {/* ── Daily Games ── */}
+      <div className="px-4 mt-7">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-3.5 h-3.5 text-pink-400/60" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-pink-400/60">Daily Games</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-pink-400/20 to-transparent" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {GAME_LIST.map((g) => {
+            const Icon = g.icon;
+            const plays = playsMap[g.id];
+            const playsLeft = plays?.playsLeft ?? FREE_PLAYS_PER_DAY;
+            const noPlays = playsLeft <= 0;
+            return (
+              <button key={g.id} data-testid={`open-game-${g.id}`}
+                onClick={() => { haptic('select'); setActiveGame(g.id); }}
+                className="rounded-xl p-3 flex flex-col items-center gap-2 active:scale-95 transition-transform relative"
+                style={{ background: `${g.color}0a`, border: `1px solid ${g.color}22` }}>
+                {plays && (
+                  <div className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[9px] font-bold px-1"
+                    style={!noPlays ? { background: `${g.color}28`, color: g.color } : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}>
+                    {playsLeft}
+                  </div>
+                )}
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: `${g.color}18`, border: `1px solid ${g.color}22`, opacity: noPlays ? 0.4 : 1 }}>
+                  <Icon className="w-5 h-5" style={{ color: g.color }} />
+                </div>
+                <p className={`text-[10px] font-bold text-center leading-tight ${noPlays ? 'text-white/30' : 'text-white/80'}`}>
+                  {gameI18n[g.id]?.name ?? g.name}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Skins Shop ── */}
+      <div className="px-4 mt-7">
         <SkinsShop />
       </div>
 

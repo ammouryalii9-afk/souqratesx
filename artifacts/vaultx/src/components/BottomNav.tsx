@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Gamepad2, Target, Users, Shield, Grid3x3, Star } from 'lucide-react';
+import { Layers, Pickaxe, Target, Users, Shield, Grid3x3, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '../lib/i18n';
 
@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
 
   const tabs = [
     { id: 'vault',   label: tr.nav.vault,   icon: Layers },
-    { id: 'games',   label: tr.nav.games,   icon: Gamepad2 },
+    { id: 'games',   label: tr.nav.games,   icon: Pickaxe },
     { id: 'tasks',   label: tr.nav.tasks,   icon: Target },
     { id: 'stars',   label: tr.nav.stars,   icon: Star,   gold: true },
     { id: 'squad',   label: tr.nav.squad,   icon: Shield },

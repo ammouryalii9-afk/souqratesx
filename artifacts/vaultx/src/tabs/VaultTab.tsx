@@ -50,6 +50,9 @@ export const VaultTab = () => {
   }
   const { toast } = useToast();
   const skin = equippedSkinId !== null ? SKINS[equippedSkinId] : undefined;
+  const _skinGlowBase = (skin?.glow ?? 'rgba(52,211,153,0.35)').replace(/,\s*[\d.]+\)$/, ',');
+  const sg = (a: number) => `${_skinGlowBase}${a})`;
+  const skinAccent = skin?.accent ?? '#34d399';
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState(0);
@@ -282,15 +285,15 @@ export const VaultTab = () => {
 
       {/* Balance Card */}
       <div className="rounded-[28px] p-6 flex flex-col items-center relative overflow-hidden" style={{
-        background: 'linear-gradient(135deg, rgba(52,211,153,0.07) 0%, rgba(52,211,153,0.02) 60%, transparent 100%)',
+        background: `linear-gradient(135deg, ${sg(0.07)} 0%, ${sg(0.02)} 60%, transparent 100%)`,
         backdropFilter: 'blur(24px) saturate(160%)',
         WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-        border: '1px solid rgba(52,211,153,0.1)',
+        border: `1px solid ${sg(0.12)}`,
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 32px 64px rgba(0,0,0,0.4)',
       }}>
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
-        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-[50px] -mr-10 -mt-10" />
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-500/10 rounded-full blur-[50px] -ml-10 -mb-10" />
+        <div className="absolute inset-0 opacity-50" style={{ background: `linear-gradient(135deg, ${sg(0.1)}, transparent)` }} />
+        <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] -mr-10 -mt-10" style={{ background: sg(0.18) }} />
+        <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full blur-[50px] -ml-10 -mb-10" style={{ background: sg(0.08) }} />
         <h2 className="text-muted-foreground text-xs font-semibold mb-1 uppercase tracking-widest relative z-10">{tr.vault.totalBalance}</h2>
         <div className="flex items-end gap-3 mb-1 relative z-10">
           <div className="text-[40px] font-black text-white tracking-tighter drop-shadow-sm" style={{ textShadow: '0 2px 20px rgba(255,255,255,0.1)' }}>
@@ -344,6 +347,39 @@ export const VaultTab = () => {
         <div className="flex justify-between items-center text-xs font-bold bg-card/50 backdrop-blur-xl border border-white/5 rounded-xl px-4 py-3 shadow-inner">
           <span className="text-primary flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> +{profitPerHour.toLocaleString()} /hr</span>
         </div>
+        {/* League Progress Bar */}
+        {(() => {
+          const thresholds = [0, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000];
+          const labels = [
+            { icon: '🥉', name: 'Silver' }, { icon: '🥈', name: 'Gold' },
+            { icon: '🏆', name: 'Platinum' }, { icon: '💠', name: 'Diamond' },
+            { icon: '💎', name: 'Master' }, { icon: '👑', name: '' },
+          ];
+          let idx = thresholds.length - 1;
+          for (let i = thresholds.length - 1; i >= 0; i--) { if (lifetimePoints >= thresholds[i]) { idx = i; break; } }
+          const isMax = idx >= thresholds.length - 1;
+          const from = thresholds[idx], to = thresholds[Math.min(idx + 1, thresholds.length - 1)];
+          const pct = isMax ? 100 : Math.min(100, Math.round(((lifetimePoints - from) / (to - from)) * 100));
+          const needed = isMax ? 0 : to - lifetimePoints;
+          const next = labels[idx];
+          return (
+            <div className="bg-card/40 backdrop-blur-xl border border-white/5 rounded-xl px-4 py-2.5">
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">League Progress</span>
+                {!isMax && next && (
+                  <span className="text-[10px] font-semibold text-white/40">
+                    {needed.toLocaleString()} pts → {next.icon} {next.name}
+                  </span>
+                )}
+                {isMax && <span className="text-[10px] font-bold" style={{ color: skinAccent }}>MAX LEAGUE 👑</span>}
+              </div>
+              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${sg(0.7)}, ${skinAccent})` }} />
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── TAP TO MINE CORE ── */}
@@ -375,26 +411,26 @@ export const VaultTab = () => {
         >
           {/* Layer 1: Outer glow */}
           <div className="absolute inset-0 rounded-full" style={{ 
-            background: 'radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 65%)',
+            background: `radial-gradient(circle, ${sg(0.08)} 0%, transparent 65%)`,
             animation: energy > 0 ? 'vaultPulse 3s ease-in-out infinite' : 'none'
           }} />
 
           {/* Layer 2: Rotating ring */}
-          <div className="absolute inset-0 rounded-full border border-primary/10" style={{ animation: energy > 0 ? 'spin 14s linear infinite' : 'none' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
-            <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
-            <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full" />
+          <div className="absolute inset-0 rounded-full" style={{ border: `1px solid ${sg(0.2)}`, animation: energy > 0 ? 'spin 14s linear infinite' : 'none' }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" style={{ background: skinAccent, boxShadow: `0 0 6px ${skinAccent}` }} />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
+            <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
+            <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
           </div>
 
           {/* Layer 3: Inner reverse ring */}
-          <div className="absolute inset-4 rounded-full border border-primary/5" style={{ animation: energy > 0 ? 'spin 8s linear infinite reverse' : 'none' }} />
+          <div className="absolute inset-4 rounded-full" style={{ border: `1px solid ${sg(0.12)}`, animation: energy > 0 ? 'spin 8s linear infinite reverse' : 'none' }} />
 
           {/* Layer 4: Main body */}
           <div className="absolute inset-7 rounded-full flex flex-col items-center justify-center overflow-hidden" style={{
-            background: 'radial-gradient(circle at 35% 25%, rgba(52,211,153,0.12) 0%, rgba(52,211,153,0.03) 40%, transparent 70%), linear-gradient(160deg, hsl(224,50%,9%) 0%, hsl(224,71%,4%) 100%)',
-            boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.06), inset 0 -3px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(52,211,153,0.1)',
-            border: '1px solid rgba(52,211,153,0.08)',
+            background: `radial-gradient(circle at 35% 25%, ${sg(0.14)} 0%, ${sg(0.04)} 40%, transparent 70%), linear-gradient(160deg, hsl(224,50%,9%) 0%, hsl(224,71%,4%) 100%)`,
+            boxShadow: `inset 0 2px 0 rgba(255,255,255,0.06), inset 0 -3px 12px rgba(0,0,0,0.6), 0 0 0 1px ${sg(0.15)}, 0 0 30px ${sg(0.12)}`,
+            border: `1px solid ${sg(0.1)}`,
           }}>
             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
             
@@ -402,7 +438,7 @@ export const VaultTab = () => {
             
             <span className="text-[9px] text-primary/50 font-bold uppercase tracking-[0.3em] mb-1 relative z-10">{tr.vault.mined}</span>
             
-            <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: '0 0 30px rgba(52,211,153,0.25)' }}>
+            <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: `0 0 30px ${sg(0.3)}` }}>
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
             
