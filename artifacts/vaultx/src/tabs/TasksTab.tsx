@@ -101,13 +101,13 @@ export const TasksTab = () => {
         const result: Record<number, string> = {};
         raceComps.forEach(c => {
           const ms = new Date(c.endAt).getTime() - Date.now();
-          if (ms <= 0) { result[c.id] = lang === 'en' ? 'Ended' : 'انتهت'; return; }
+          if (ms <= 0) { result[c.id] = tr.games.ended; return; }
           const d = Math.floor(ms / 86400000);
           const h = Math.floor((ms % 86400000) / 3600000);
           const m = Math.floor((ms % 3600000) / 60000);
           const s = Math.floor((ms % 60000) / 1000);
           if (d > 0) {
-            result[c.id] = lang === 'en' ? `${d}d ${h}h ${m}m` : `${d}ي ${h}س ${m}د`;
+            result[c.id] = `${d}${tr.games.timeDay} ${h}${tr.games.timeHour} ${m}${tr.games.timeMin}`;
           } else {
             result[c.id] = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
           }
@@ -163,7 +163,7 @@ export const TasksTab = () => {
         window.open(ad.linkUrl, '_blank');
         setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, startedAt, minWatchSeconds } : a));
       } catch (err) {
-        toast({ title: 'Could not open ad', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+        toast({ title: tr.tasks.couldNotOpenAd, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
       }
       return;
     }
@@ -178,9 +178,9 @@ export const TasksTab = () => {
       // optimistic credit — it would double-count via the debounced sync.
       await refreshFromServer();
       setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, claimed: true } : a));
-      toast({ title: 'Reward Claimed!', description: `+${result.creditedPoints.toLocaleString()} points` });
+      toast({ title: tr.tasks.rewardClaimed, description: tr.tasks.adWatchedDesc(result.creditedPoints) });
     } catch (err) {
-      toast({ title: 'Could not claim reward', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+      toast({ title: tr.tasks.couldNotClaimReward, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
     } finally {
       setClaimingAdId(null);
     }
@@ -200,9 +200,9 @@ export const TasksTab = () => {
       // Reward lands server-side in pending_bonus_points; the refresh folds it
       // into the balance and triggers the reward popup — no local credit needed.
       void refreshFromServer();
-      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+      toast({ title: tr.tasks.adWatched, description: tr.tasks.adWatchedDesc(result.creditedPoints) });
     } catch (err) {
-      toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+      toast({ title: tr.tasks.couldNotOpenAd, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
     } finally {
       setAdLoading(false);
     }
@@ -292,14 +292,14 @@ export const TasksTab = () => {
             setSuccessProduct(product);
             setTimeout(() => refreshFromServer(), 1500);
           } else if (status === 'failed') {
-            toast({ title: 'Payment failed', variant: 'destructive' });
+            toast({ title: tr.tasks.paymentFailed, variant: 'destructive' });
           }
         });
       } else {
         window.open(invoiceUrl, '_blank');
       }
     } catch (err) {
-      toast({ title: 'Could not start purchase', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
+      toast({ title: tr.tasks.couldNotStartPurchase, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
     } finally {
       setPurchasingProduct(null);
     }
@@ -341,12 +341,12 @@ export const TasksTab = () => {
       setCipherSolved(true);
       localStorage.setItem('dailyCipherDate', todayStr);
       localStorage.setItem('dailyCipherSolved', 'true');
-      toast({ title: "Cipher Solved!", description: "+15,000 pts" });
+      toast({ title: tr.tasks.taskComplete, description: '+15,000 pts' });
       setCipherError(false);
     } else {
       setCipherError(true);
       setTimeout(() => setCipherError(false), 500);
-      toast({ title: "Wrong Guess", description: "Try again!", variant: "destructive" });
+      toast({ title: tr.tasks.wrongGuess, description: tr.tasks.wrongGuessDesc, variant: "destructive" });
     }
   };
 
@@ -442,18 +442,18 @@ export const TasksTab = () => {
           if (!result.alreadyClaimed && result.creditedPoints > 0) {
             // Server-side pending credit — refresh folds it in and shows the popup.
             await refreshFromServer();
-            toast({ title: "Task Complete! ✅", description: `+${result.creditedPoints.toLocaleString()} points added.` });
+            toast({ title: tr.tasks.taskComplete, description: tr.tasks.taskCompleteDesc(result.creditedPoints) });
           } else {
-            toast({ title: "Already Claimed", description: "You already completed this task." });
+            toast({ title: tr.tasks.alreadyClaimed, description: tr.tasks.alreadyClaimedDesc });
           }
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Verification failed";
+        const msg = err instanceof Error ? err.message : tr.tasks.tryAgainLater;
         if (msg.includes("not_joined")) {
-          toast({ title: "Not Joined Yet", description: "Please join the channel first, then tap Verify.", variant: "destructive" });
+          toast({ title: tr.tasks.notJoinedYet, description: tr.tasks.notJoinedYetDesc, variant: "destructive" });
           setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
         } else {
-          toast({ title: "Error", description: msg, variant: "destructive" });
+          toast({ title: tr.tasks.wrongGuess, description: msg, variant: "destructive" });
           setPartnerTaskStates(prev => ({ ...prev, [task.id]: 'verify' }));
         }
       }
@@ -467,16 +467,16 @@ export const TasksTab = () => {
       const result = await joinReferralRace(comp.id);
       if (result.ok) {
         if (result.alreadyJoined) {
-          toast({ title: lang === 'en' ? 'Already joined' : 'أنت مسجل بالفعل!', description: lang === 'en' ? 'Share your link to move up.' : 'شارك رابطك وادعو أصدقاءك.' });
+          toast({ title: tr.tasks.raceAlreadyJoined, description: tr.tasks.raceAlreadyJoinedDesc });
         } else {
           haptic('success');
-          toast({ title: lang === 'en' ? 'You joined the race! 🔥' : 'انضممت للسباق! 🔥', description: lang === 'en' ? 'Share your referral link now!' : 'ابدأ بمشاركة رابط الدعوة الآن!' });
+          toast({ title: tr.tasks.raceJoined, description: tr.tasks.raceJoinedDesc });
           setRaceComps(prev => prev.map(c => c.id === comp.id ? { ...c, entered: true } : c));
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "خطأ";
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : tr.tasks.tryAgainLater;
+      toast({ title: tr.tasks.wrongGuess, description: msg, variant: "destructive" });
     } finally {
       setJoiningRaceId(null);
     }
@@ -486,7 +486,7 @@ export const TasksTab = () => {
     if (challenge.completed || claimingChallengeId === challenge.id) return;
     if ((challenge.currentInvites ?? 0) < challenge.requiredInvites) {
       if (challenge.channelUrl) window.open(challenge.channelUrl, '_blank');
-      toast({ title: "أدعو أصدقاءك أولاً", description: `تحتاج ${challenge.requiredInvites} دعوة. لديك حالياً ${challenge.currentInvites ?? 0}.`, variant: "destructive" });
+      toast({ title: tr.tasks.inviteFriendsFirst, description: tr.tasks.inviteFriendsFirstDesc(challenge.requiredInvites, challenge.currentInvites ?? 0), variant: "destructive" });
       return;
     }
     setClaimingChallengeId(challenge.id);
@@ -496,14 +496,14 @@ export const TasksTab = () => {
         setGroupChallenges(prev => prev.map(c => c.id === challenge.id ? { ...c, completed: true } : c));
         if (!result.alreadyClaimed && result.creditedPoints > 0) {
           await refreshFromServer();
-          toast({ title: "تهانينا! 🎉", description: `+${result.creditedPoints.toLocaleString()} SKP أُضيفت إلى رصيدك.` });
+          toast({ title: tr.tasks.challengeCongrats, description: tr.tasks.challengeCongratsDesc(result.creditedPoints) });
         } else {
-          toast({ title: "تم بالفعل", description: "لقد استلمت هذه المكافأة مسبقاً." });
+          toast({ title: tr.tasks.alreadyClaimed, description: tr.tasks.challengeAlreadyClaimedDesc });
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "خطأ";
-      toast({ title: "خطأ", description: msg, variant: "destructive" });
+      const msg = err instanceof Error ? err.message : tr.tasks.tryAgainLater;
+      toast({ title: tr.tasks.wrongGuess, description: msg, variant: "destructive" });
     } finally {
       setClaimingChallengeId(null);
     }
@@ -531,7 +531,7 @@ export const TasksTab = () => {
           setTempMiningPoints(prev => prev + reward);
           addLifetimePoints(reward);
         }
-        toast({ title: "Task Complete", description: `+${reward?.toLocaleString()} points` });
+        toast({ title: tr.tasks.taskCompleteSimple, description: `+${reward?.toLocaleString()} points` });
       }, 3000);
     }
   };
@@ -542,7 +542,7 @@ export const TasksTab = () => {
     addLifetimePoints(pts);
     setClaimedTasks(prev => [...prev, 't3']);
     setShowSurveyModal(false);
-    toast({ title: "Survey Complete", description: `+${pts.toLocaleString()} points earned from Monlix.` });
+    toast({ title: tr.tasks.surveyComplete, description: tr.tasks.surveyCompleteDesc(pts) });
   };
 
   const toggleCombo = (id: string) => {

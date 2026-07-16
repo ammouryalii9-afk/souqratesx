@@ -28,13 +28,13 @@ type CompetitionEntry = {
   myProgress: number;
 };
 
-function formatTimeLeft(endAt: string): string {
+function formatTimeLeft(endAt: string, tr: ReturnType<typeof import('../lib/i18n').useLanguage>['tr']): string {
   const ms = new Date(endAt).getTime() - Date.now();
-  if (ms <= 0) return 'Ended';
+  if (ms <= 0) return tr.games.ended;
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
-  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
-  return `${h}h ${m}m`;
+  if (h >= 24) return `${Math.floor(h / 24)}${tr.games.timeDay} ${h % 24}${tr.games.timeHour}`;
+  return `${h}${tr.games.timeHour} ${m}${tr.games.timeMin}`;
 }
 
 function CompetitionsSection() {
@@ -43,6 +43,7 @@ function CompetitionsSection() {
   const [loading, setLoading] = useState(true);
   const [entering, setEntering] = useState<number | null>(null);
   const { toast } = useToast();
+  const { tr } = useLanguage();
 
   async function load() {
     try {
@@ -59,7 +60,7 @@ function CompetitionsSection() {
 
   async function handleEnter(comp: CompetitionEntry) {
     if (!isTelegramUser) {
-      toast({ title: 'Telegram Only', description: 'Open this app inside Telegram to enter competitions.', variant: 'destructive' });
+      toast({ title: tr.games.telegramOnlyTitle, description: tr.games.telegramOnlyDesc, variant: 'destructive' });
       return;
     }
     setEntering(comp.id);
@@ -67,20 +68,20 @@ function CompetitionsSection() {
       const r = await fetch(`/api/competitions/${comp.id}/invoice`, { method: 'POST', credentials: 'include' });
       const data = await r.json() as { invoiceUrl?: string; error?: string };
       if (!r.ok) {
-        toast({ title: 'Error', description: data.error ?? 'Failed to create invoice', variant: 'destructive' });
+        toast({ title: tr.games.failedToOpenPayment, description: data.error, variant: 'destructive' });
         return;
       }
       const webApp = (window as { Telegram?: { WebApp?: { openInvoice?: (url: string, cb: (s: string) => void) => void } } }).Telegram?.WebApp;
       if (webApp?.openInvoice && data.invoiceUrl) {
         webApp.openInvoice(data.invoiceUrl, (status) => {
           if (status === 'paid') {
-            toast({ title: '🏆 Entered!', description: 'You\'re now competing. Good luck!' });
+            toast({ title: tr.games.enteredTitle, description: tr.games.enteredDesc });
             setTimeout(() => void load(), 1500);
           }
         });
       }
     } catch {
-      toast({ title: 'Error', description: 'Failed to open payment', variant: 'destructive' });
+      toast({ title: tr.games.failedToOpenPayment, variant: 'destructive' });
     } finally {
       setEntering(null);
     }
@@ -91,7 +92,7 @@ function CompetitionsSection() {
   return (
     <div className="px-4 mt-6">
       <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-        <Trophy className="w-5 h-5 text-yellow-400" /> Competitions
+        <Trophy className="w-5 h-5 text-yellow-400" /> {tr.games.competitions}
       </h2>
       <div className="space-y-3">
         {comps.map(c => (
@@ -102,13 +103,13 @@ function CompetitionsSection() {
                 <h3 className="font-bold text-white text-sm tracking-tight">{c.title}</h3>
                 {c.description && <p className="text-[11px] text-muted-foreground mt-1">{c.description}</p>}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-yellow-400" /> {c.prizePoints.toLocaleString()} pts prize</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatTimeLeft(c.endAt)}</span>
-                  {c.maxEntries && <span className="flex items-center gap-1"><Users className="w-3 h-3" /> max {c.maxEntries}</span>}
+                  <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-yellow-400" /> {tr.games.ptsPrize(c.prizePoints.toLocaleString())}</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatTimeLeft(c.endAt, tr)}</span>
+                  {c.maxEntries && <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {tr.games.maxEntries(c.maxEntries)}</span>}
                 </div>
                 {c.entered && (
                   <div className="mt-2 text-[11px] bg-primary/10 text-primary px-2 py-1 rounded-lg inline-block border border-primary/20 font-bold">
-                    ✓ Entered · +{(c.myProgress ?? 0).toLocaleString()} pts gained
+                    {tr.games.enteredStatus((c.myProgress ?? 0).toLocaleString())}
                   </div>
                 )}
               </div>
@@ -121,7 +122,7 @@ function CompetitionsSection() {
                   {entering === c.id ? '...' : `${c.entryFeeStars} ⭐`}
                 </button>
               ) : (
-                <span className="shrink-0 text-primary text-xs font-bold">✓ In</span>
+                <span className="shrink-0 text-primary text-xs font-bold">{tr.games.enteredShort}</span>
               )}
             </div>
           </div>

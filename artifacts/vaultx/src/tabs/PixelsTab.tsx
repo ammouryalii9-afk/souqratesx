@@ -121,11 +121,11 @@ function PixelsTabInner() {
     try {
       await requestPixelUsdWithdrawal();
       haptic('medium');
-      toast({ title: 'Withdrawal Requested ✅', description: 'Your request has been submitted. You will be notified once approved.' });
+      toast({ title: tr.pixels.withdrawalRequested, description: tr.pixels.withdrawalRequestedDesc });
       setPixelUsdCents(0);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      toast({ title: msg || 'Withdrawal failed', variant: 'destructive' });
+      toast({ title: msg || tr.pixels.withdrawalFailed, variant: 'destructive' });
     } finally {
       setWithdrawing(false);
     }
@@ -199,14 +199,14 @@ function PixelsTabInner() {
               <DollarSign className="w-5 h-5 text-yellow-400" />
             </div>
             <div>
-              <p className="text-[10px] text-yellow-400/70 font-semibold uppercase tracking-wide">Pixel Dollar Balance</p>
+              <p className="text-[10px] text-yellow-400/70 font-semibold uppercase tracking-wide">{tr.pixels.pixelDollarBalance}</p>
               <p className="text-2xl font-black text-yellow-300 leading-tight">
                 ${(pixelUsdCents / 100).toFixed(2)}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {pixelUsdCents >= 5000
-                  ? '✅ Ready to withdraw'
-                  : `$${((5000 - pixelUsdCents) / 100).toFixed(2)} more to reach $50 minimum`}
+                  ? tr.pixels.readyToWithdraw
+                  : tr.pixels.moreToMinimum(((5000 - pixelUsdCents) / 100).toFixed(2))}
               </p>
             </div>
           </div>
@@ -224,7 +224,7 @@ function PixelsTabInner() {
               {withdrawing
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 : <ArrowDownToLine className="w-3.5 h-3.5" />}
-              {withdrawing ? 'Processing…' : 'Withdraw'}
+              {withdrawing ? tr.pixels.processing : tr.pixels.withdrawBtn}
             </button>
           )}
         </div>
