@@ -280,7 +280,7 @@ export function AdminCompetitions() {
                             )}
                           </p>
                           <p className="text-[10px] text-white/30">
-                            {isReferral ? `${p.current} إجمالي · كان ${p.atEntry}` : `${p.current.toLocaleString()} نقطة`}
+                            {isReferral ? `إجمالي: ${p.current} · عند الانضمام: ${p.atEntry}` : `${p.current.toLocaleString()} نقطة`}
                           </p>
                         </div>
                       </div>
