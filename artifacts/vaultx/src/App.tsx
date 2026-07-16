@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultContext";
-import { useLanguage } from "./lib/i18n";
+import { useLanguage, type Lang } from "./lib/i18n";
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
 import { AdBanner } from "./components/AdBanner";
@@ -23,9 +23,96 @@ import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 import { MaintenancePage } from "./components/MaintenancePage";
 
+const LANG_OPTIONS: { code: Lang; flag: string; label: string; native: string }[] = [
+  { code: 'en', flag: '🇺🇸', label: 'English',  native: 'English'  },
+  { code: 'ar', flag: '🇸🇦', label: 'Arabic',   native: 'العربية'  },
+  { code: 'es', flag: '🇪🇸', label: 'Spanish',  native: 'Español'  },
+  { code: 'ru', flag: '🇷🇺', label: 'Russian',  native: 'Русский'  },
+];
+
+function LangPicker() {
+  const { lang, setLang } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const current = LANG_OPTIONS.find(o => o.code === lang) ?? LANG_OPTIONS[0];
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        aria-label="Select language"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all active:scale-95"
+      >
+        <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span className="text-[11px] font-bold text-white/80">{current.code.toUpperCase()}</span>
+        <svg className={`w-3 h-3 text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full mt-2 right-0 z-50 rounded-2xl overflow-hidden shadow-2xl"
+          style={{
+            background: 'linear-gradient(145deg, rgba(20,22,26,0.98) 0%, rgba(12,14,18,0.99) 100%)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            backdropFilter: 'blur(20px)',
+            minWidth: '160px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)',
+          }}
+        >
+          <div className="px-3 pt-3 pb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Language</p>
+          </div>
+          <div className="p-1.5 flex flex-col gap-0.5">
+            {LANG_OPTIONS.map(opt => {
+              const active = opt.code === lang;
+              return (
+                <button
+                  key={opt.code}
+                  onClick={() => { setLang(opt.code); setOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all ${
+                    active
+                      ? 'bg-primary/20 text-white'
+                      : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className="text-base leading-none">{opt.flag}</span>
+                  <div className="flex flex-col gap-0 flex-1">
+                    <span className="text-[12px] font-semibold leading-tight">{opt.native}</span>
+                    <span className="text-[10px] text-white/30 leading-tight">{opt.label}</span>
+                  </div>
+                  {active && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Header() {
   const { tempMiningPoints, skxBalance, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
-  const { lang, toggleLang, tr } = useLanguage();
+  const { tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   const [pointsPerDollar, setPointsPerDollar] = useState(2_000_000);
@@ -67,13 +154,7 @@ function Header() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={toggleLang}
-          className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all active:scale-95"
-          title={lang === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
-        >
-          {tr.header.langToggle}
-        </button>
+        <LangPicker />
         <div className="flex flex-col items-end gap-1">
           {/* SKP row */}
           <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 relative overflow-hidden group" style={{

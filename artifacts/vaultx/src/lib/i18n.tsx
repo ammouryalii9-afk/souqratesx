@@ -1003,18 +1003,20 @@ const LANG_CYCLE: Record<Lang, Lang> = { en: 'ar', ar: 'es', es: 'ru', ru: 'en' 
 
 interface LangCtx {
   lang: Lang;
+  setLang: (l: Lang) => void;
   toggleLang: () => void;
   tr: Tr;
 }
 
 const LanguageContext = createContext<LangCtx>({
   lang: 'en',
+  setLang: () => {},
   toggleLang: () => {},
   tr: en,
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(() => {
+  const [lang, setLangState] = useState<Lang>(() => {
     try {
       const saved = localStorage.getItem(LANG_KEY);
       const valid: Lang[] = ['en', 'ar', 'es', 'ru'];
@@ -1030,11 +1032,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(LANG_KEY, lang); } catch {}
   }, [lang]);
 
-  const toggleLang = () => setLang(l => LANG_CYCLE[l]);
+  const setLang = (l: Lang) => setLangState(l);
+  const toggleLang = () => setLangState(l => LANG_CYCLE[l]);
   const tr = translations[lang] as Tr;
 
   return (
-    <LanguageContext.Provider value={{ lang, toggleLang, tr }}>
+    <LanguageContext.Provider value={{ lang, setLang, toggleLang, tr }}>
       {children}
     </LanguageContext.Provider>
   );
