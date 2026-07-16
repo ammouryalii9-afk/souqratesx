@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { adminApi, type BroadcastJob } from "./adminApi";
+import { adminApi, type BroadcastJob, type LangStat } from "./adminApi";
 import { Button } from "@/components/ui/button";
-import { Send, Bell } from "lucide-react";
+import { Send, Bell, Globe } from "lucide-react";
 
 const AUDIENCE_LABELS: Record<string, string> = {
   all: "جميع المستخدمين",
@@ -22,6 +22,8 @@ const DEFAULT_REMINDER =
 export function AdminBroadcast() {
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<"all" | "premium" | "active">("all");
+  const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
+  const [langStats, setLangStats] = useState<LangStat[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<BroadcastJob[]>([]);
@@ -37,20 +39,29 @@ export function AdminBroadcast() {
     adminApi.broadcasts().then(setJobs).catch(() => {});
   }
 
+  function toggleLang(code: string) {
+    setSelectedLangs(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  }
+
   useEffect(() => {
     loadJobs();
+    adminApi.broadcastLangStats().then(setLangStats).catch(() => {});
     const interval = setInterval(loadJobs, 4000);
     return () => clearInterval(interval);
   }, []);
 
   async function handleSend() {
     if (!message.trim()) return;
-    if (!confirm(`إرسال هذه الرسالة إلى ${AUDIENCE_LABELS[audience]}؟`)) return;
+    const langNote = selectedLangs.length > 0 ? ` (لغات: ${selectedLangs.join(", ")})` : "";
+    if (!confirm(`إرسال هذه الرسالة إلى ${AUDIENCE_LABELS[audience]}${langNote}؟`)) return;
     setSending(true);
     setError(null);
     try {
-      await adminApi.createBroadcast(message.trim(), audience);
+      await adminApi.createBroadcast(message.trim(), audience, selectedLangs.length > 0 ? selectedLangs : undefined);
       setMessage("");
+      setSelectedLangs([]);
       loadJobs();
     } catch {
       setError("فشل إرسال الرسالة الجماعية");
@@ -164,6 +175,41 @@ export function AdminBroadcast() {
             ))}
           </select>
         </div>
+
+        {/* ── Language Filter ─────────────────────────────────── */}
+        {langStats.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground text-xs">تصفية حسب لغة المستخدم (اتركها فارغة لجميع اللغات)</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {langStats.map(({ langCode, count }) => {
+                const selected = selectedLangs.includes(langCode);
+                return (
+                  <button
+                    key={langCode}
+                    type="button"
+                    onClick={() => toggleLang(langCode)}
+                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-all ${
+                      selected
+                        ? "bg-primary/30 border-primary text-white"
+                        : "bg-white/5 border-white/10 text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {langCode} <span className="opacity-60">({count.toLocaleString()})</span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedLangs.length > 0 && (
+              <p className="text-xs text-primary">
+                ✓ سيصل الإشعار فقط لمستخدمي: {selectedLangs.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+
         {error && <p className="text-red-400 text-xs">{error}</p>}
         <Button disabled={sending || !message.trim()} onClick={handleSend} data-testid="button-send-broadcast">
           <Send className="w-4 h-4 mr-1" /> {sending ? "جار الإرسال..." : "إرسال"}
@@ -194,6 +240,11 @@ export function AdminBroadcast() {
               تم الإرسال إلى {job.sentCount}/{job.totalUsers} {job.failedCount > 0 && `(فشل: ${job.failedCount})`}
             </div>
             <div className="text-muted-foreground">{new Date(job.createdAt).toLocaleString("ar-EG")}</div>
+            {job.langFilter && (
+              <div className="text-[10px] bg-blue-400/10 text-blue-300 border border-blue-400/20 px-2 py-0.5 rounded-full inline-block mt-1">
+                🌍 لغات: {job.langFilter}
+              </div>
+            )}
           {job.isSponsored === 1 && (
             <div className="text-[10px] bg-yellow-400/10 text-yellow-300 border border-yellow-400/20 px-2 py-0.5 rounded-full inline-block mt-1">
               📢 حملة إعلانية مدفوعة{job.sponsorName ? ` — ${job.sponsorName}` : ''}

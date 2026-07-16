@@ -127,9 +127,12 @@ export type BroadcastJob = {
   sponsorName: string | null;
   sponsorUrl: string | null;
   isSponsored: number;
+  langFilter: string | null;
   createdAt: string;
   completedAt: string | null;
 };
+
+export type LangStat = { langCode: string; count: number };
 
 export type SponsoredAd = {
   id: number;
@@ -329,8 +332,9 @@ export const adminApi = {
   userActivity: (telegramId: string) => adminFetch<UserActivityEntry[]>(`/admin/users/${telegramId}/activity`),
   userStats: (telegramId: string) => adminFetch<UserDeepStats>(`/admin/users/${telegramId}/stats`),
   broadcasts: () => adminFetch<BroadcastJob[]>("/admin/broadcast"),
-  createBroadcast: (message: string, audience: string) =>
-    adminFetch<BroadcastJob>("/admin/broadcast", { method: "POST", body: JSON.stringify({ message, audience }) }),
+  broadcastLangStats: () => adminFetch<LangStat[]>("/admin/broadcast/lang-stats"),
+  createBroadcast: (message: string, audience: string, langCodes?: string[]) =>
+    adminFetch<BroadcastJob>("/admin/broadcast", { method: "POST", body: JSON.stringify({ message, audience, langCodes }) }),
   broadcast: (id: number) => adminFetch<BroadcastJob>(`/admin/broadcast/${id}`),
   ads: () => adminFetch<SponsoredAd[]>("/admin/ads"),
   createAd: (input: CreateSponsoredAdInput) =>

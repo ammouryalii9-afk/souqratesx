@@ -752,6 +752,20 @@ router.delete("/admin/star-products/:id", async (req, res): Promise<void> => {
   res.json(AdminLogoutResponse.parse({ authenticated: true }));
 });
 
+router.get("/admin/broadcast/lang-stats", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+  const rows = await db
+    .select({ langCode: vaultUsersTable.telegramLangCode, count: count() })
+    .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.isBanned, false))
+    .groupBy(vaultUsersTable.telegramLangCode)
+    .orderBy(desc(count()));
+  res.json(rows.map(r => ({ langCode: r.langCode ?? "unknown", count: Number(r.count) })));
+});
+
 router.get("/admin/broadcast", async (req, res): Promise<void> => {
   if (!requireAdmin(req)) {
     res.status(401).json({ error: "Not authenticated as admin" });
@@ -791,13 +805,19 @@ function toBroadcastJob(row: typeof broadcastJobsTable.$inferSelect) {
   };
 }
 
-async function runBroadcastJob(jobId: number, message: string, audience: string): Promise<void> {
-  const whereClause =
+async function runBroadcastJob(jobId: number, message: string, audience: string, langFilter?: string): Promise<void> {
+  const langCodes = langFilter ? langFilter.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+  const baseClause =
     audience === "premium"
       ? and(eq(vaultUsersTable.isBanned, false), eq(vaultUsersTable.isPremium, true))
       : audience === "active"
         ? and(eq(vaultUsersTable.isBanned, false), sql`${vaultUsersTable.updatedAt} >= now() - interval '7 days'`)
         : eq(vaultUsersTable.isBanned, false);
+
+  const whereClause = langCodes.length > 0
+    ? and(baseClause, inArray(vaultUsersTable.telegramLangCode, langCodes))
+    : baseClause;
 
   const users = await db.select({ telegramId: vaultUsersTable.telegramId }).from(vaultUsersTable).where(whereClause);
 
@@ -852,9 +872,14 @@ router.post("/admin/broadcast", async (req, res): Promise<void> => {
   }
 
   const audience = parsed.data.audience ?? "all";
+  const rawLangCodes: unknown = (req.body as Record<string, unknown>).langCodes;
+  const langFilter = Array.isArray(rawLangCodes) && rawLangCodes.length > 0
+    ? (rawLangCodes as string[]).map(String).join(",")
+    : null;
+
   const [job] = await db
     .insert(broadcastJobsTable)
-    .values({ message: parsed.data.message, audience, status: "pending" })
+    .values({ message: parsed.data.message, audience, status: "pending", langFilter })
     .returning();
 
   if (!job) {
@@ -862,9 +887,9 @@ router.post("/admin/broadcast", async (req, res): Promise<void> => {
     return;
   }
 
-  await logAdminAction("create_broadcast", null, { jobId: job.id, audience, message: parsed.data.message });
+  await logAdminAction("create_broadcast", null, { jobId: job.id, audience, langFilter, message: parsed.data.message });
 
-  runBroadcastJob(job.id, parsed.data.message, audience).catch((err) => {
+  runBroadcastJob(job.id, parsed.data.message, audience, langFilter ?? undefined).catch((err) => {
     logger.error({ err, jobId: job.id }, "Broadcast job failed");
   });
 

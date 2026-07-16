@@ -72,7 +72,7 @@ function useCountdown(endAt: string) {
 function RaceCard({ comp, onJoined }: { comp: RaceCompetition; onJoined: (id: number) => void }) {
   const { toast } = useToast();
   const { lang } = useLanguage();
-  const t = T[lang];
+  const t = lang === 'ar' ? T.ar : T.en;
   const countdown = useCountdown(comp.endAt);
   const [joining, setJoining] = useState(false);
   const [expanded, setExpanded] = useState(false);
