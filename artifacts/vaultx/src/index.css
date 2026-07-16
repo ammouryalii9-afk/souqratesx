@@ -2,101 +2,111 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
 @plugin "@tailwindcss/typography";
-
 @custom-variant dark (&:is(.dark *));
 
+/* ─── DESIGN TOKENS ─────────────────────────────────────────────────────── */
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-background:           hsl(var(--background));
+  --color-foreground:           hsl(var(--foreground));
+  --color-border:               hsl(var(--border));
+  --color-input:                hsl(var(--input));
+  --color-ring:                 hsl(var(--ring));
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-card-border: hsl(var(--card-border));
+  --color-card:                 hsl(var(--card));
+  --color-card-foreground:      hsl(var(--card-foreground));
+  --color-card-border:          hsl(var(--card-border));
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-popover-border: hsl(var(--popover-border));
+  --color-popover:              hsl(var(--popover));
+  --color-popover-foreground:   hsl(var(--popover-foreground));
+  --color-popover-border:       hsl(var(--popover-border));
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-primary-border: var(--primary-border);
+  --color-primary:              hsl(var(--primary));
+  --color-primary-foreground:   hsl(var(--primary-foreground));
+  --color-primary-border:       hsl(var(--primary));
 
-  --color-secondary: hsl(var(--secondary));
+  /* Gold — single canonical token, replaces all #FFD700 / amber-* variants */
+  --color-gold:                 hsl(var(--gold));
+  --color-gold-foreground:      hsl(43 96% 8%);
+  --color-gold-border:          hsl(var(--gold));
+
+  /* Boost — for turbo/speed features, NOT competing with primary */
+  --color-boost:                hsl(var(--boost));
+  --color-boost-foreground:     hsl(195 100% 95%);
+
+  --color-secondary:            hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-secondary-border: var(--secondary-border);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-muted-border: var(--muted-border);
+  --color-muted:                hsl(var(--muted));
+  --color-muted-foreground:     hsl(var(--muted-foreground));
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-accent-border: var(--accent-border);
+  --color-accent:               hsl(var(--accent));
+  --color-accent-foreground:    hsl(var(--accent-foreground));
 
-  --color-destructive: hsl(var(--destructive));
+  --color-destructive:          hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-destructive-border: var(--destructive-border);
 
   --font-sans: 'Outfit', sans-serif;
-  
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
 
-:root {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  
-  --card: 224 71% 7%;
-  --card-foreground: 213 31% 91%;
-  --card-border: 216 34% 17%;
-  
-  --popover: 224 71% 7%;
-  --popover-foreground: 213 31% 91%;
-  --popover-border: 216 34% 17%;
-  
-  --primary: 152 76% 55%;
-  --primary-foreground: 152 76% 10%;
-  --primary-border: 152 76% 55%;
-  
-  --secondary: 217 91% 60%;
-  --secondary-foreground: 210 40% 98%;
-  --secondary-border: 217 91% 60%;
-  
-  --muted: 223 47% 11%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --muted-border: 223 47% 11%;
-  
-  --accent: 217 91% 60%;
-  --accent-foreground: 210 40% 98%;
-  --accent-border: 217 91% 60%;
-  
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --destructive-border: 0 84% 60%;
-  
-  --border: 216 34% 17%;
-  --input: 216 34% 17%;
-  --ring: 152 76% 55%;
-  
+  /* Unified radius scale — 3 levels only */
+  --radius-sm:  12px;
+  --radius-md:  16px;
+  --radius-lg:  20px;
+  --radius-xl:  24px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
   --radius: 16px;
 }
 
+/* ─── BASE PALETTE ─────────────────────────────────────────────────────── */
+:root {
+  --background:           224 71% 4%;
+  --foreground:           213 31% 91%;
+
+  --card:                 224 60% 7%;
+  --card-foreground:      213 31% 91%;
+  --card-border:          216 34% 15%;
+
+  --popover:              224 60% 7%;
+  --popover-foreground:   213 31% 91%;
+  --popover-border:       216 34% 15%;
+
+  --primary:              152 72% 52%;
+  --primary-foreground:   152 72% 8%;
+
+  /* Gold — canonical. Use text-gold / bg-gold / border-gold everywhere */
+  --gold:                 43 96% 56%;
+
+  /* Boost — turbo/speed only. Teal/cyan, semantically different from primary */
+  --boost:                188 90% 52%;
+
+  /* Secondary = subtle surface variant, NOT a competing hero color */
+  --secondary:            224 40% 14%;
+  --secondary-foreground: 213 31% 80%;
+
+  --muted:                223 47% 10%;
+  --muted-foreground:     215 16% 55%;
+
+  --accent:               224 40% 14%;
+  --accent-foreground:    213 31% 80%;
+
+  --destructive:          0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border:               216 30% 14%;
+  --input:                216 30% 14%;
+  --ring:                 152 72% 52%;
+
+  /* Glow shortcuts used by utility classes below */
+  --glow-primary:         rgba(52, 211, 153, VAR_ALPHA);
+  --glow-gold:            rgba(245, 197, 24, VAR_ALPHA);
+  --glow-boost:           rgba(34, 211, 238, VAR_ALPHA);
+}
+
+/* ─── BASE LAYER ───────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border;
-  }
-  
+  * { @apply border-border; }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
     touch-action: none;
@@ -104,15 +114,59 @@
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
   }
-
-  @keyframes vaultPulse {
-    0%, 100% { box-shadow: 0 0 40px rgba(52,211,153,0.15), 0 0 80px rgba(52,211,153,0.05); }
-    50% { box-shadow: 0 0 60px rgba(52,211,153,0.25), 0 0 120px rgba(52,211,153,0.1); }
-  }
-  @keyframes floatUp {
-    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-    50%  { opacity: 1; transform: translate(-50%, calc(-50% - 35px)) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, calc(-50% - 65px)) scale(0.8); }
-  }
-  .vault-pulse { animation: vaultPulse 3s ease-in-out infinite; }
 }
+
+/* ─── ANIMATIONS ────────────────────────────────────────────────────────── */
+@keyframes vaultPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(52,211,153,0.12), 0 0 80px rgba(52,211,153,0.05); }
+  50%       { box-shadow: 0 0 60px rgba(52,211,153,0.22), 0 0 120px rgba(52,211,153,0.10); }
+}
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(245,197,24,0.15), 0 0 60px rgba(245,197,24,0.05); }
+  50%       { box-shadow: 0 0 50px rgba(245,197,24,0.28), 0 0 100px rgba(245,197,24,0.10); }
+}
+@keyframes floatUp {
+  0%   { opacity: 1;  transform: translate(-50%, -50%) scale(1.1); }
+  50%  { opacity: 1;  transform: translate(-50%, calc(-50% - 35px)) scale(1); }
+  100% { opacity: 0;  transform: translate(-50%, calc(-50% - 65px)) scale(0.8); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes subtleFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── UTILITY CLASSES ──────────────────────────────────────────────────── */
+
+/* Glass card — single authoritative card style */
+.glass-card {
+  background: linear-gradient(145deg, hsl(224 60% 9% / 0.9), hsl(224 71% 5% / 0.95));
+  border: 1px solid hsl(216 30% 14% / 0.8);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Primary glow badge surface */
+.surface-primary {
+  background: linear-gradient(135deg, hsl(152 72% 52% / 0.08), hsl(152 72% 52% / 0.03));
+  border: 1px solid hsl(152 72% 52% / 0.14);
+}
+
+/* Gold surface */
+.surface-gold {
+  background: linear-gradient(135deg, hsl(43 96% 56% / 0.10), hsl(43 96% 56% / 0.04));
+  border: 1px solid hsl(43 96% 56% / 0.18);
+}
+
+/* Boost (turbo) surface */
+.surface-boost {
+  background: linear-gradient(135deg, hsl(188 90% 52% / 0.10), hsl(188 90% 52% / 0.04));
+  border: 1px solid hsl(188 90% 52% / 0.18);
+}
+
+/* Vault pulse animation class */
+.vault-pulse { animation: vaultPulse 3s ease-in-out infinite; }
+.gold-pulse  { animation: goldPulse  3s ease-in-out infinite; }

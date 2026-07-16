@@ -155,26 +155,19 @@ function Header() {
         <LangPicker />
         <div className="flex flex-col items-end gap-1">
           {/* SKP row */}
-          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 relative overflow-hidden group" style={{
-            background: 'linear-gradient(135deg, rgba(52,211,153,0.08) 0%, rgba(52,211,153,0.03) 100%)',
-            border: '1px solid rgba(52,211,153,0.15)',
-          }}>
-            <span className="text-[9px] text-primary/70 font-bold uppercase tracking-wider">SKP</span>
+          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 surface-primary">
+            <span className="text-[9px] text-primary/60 font-bold uppercase tracking-wider">SKP</span>
             <span className="text-sm font-black text-white tabular-nums tracking-tight leading-none">{Math.floor(tempMiningPoints).toLocaleString()}</span>
-            <div className="w-1 h-1 rounded-full bg-primary animate-pulse"></div>
-            <span className="text-[9px] text-primary/70 font-semibold tabular-nums">+{profitPerHour}/hr</span>
+            <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+            <span className="text-[9px] text-primary/60 font-semibold tabular-nums">+{profitPerHour}/hr</span>
           </div>
           {/* SKX row */}
-          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5" style={{
-            background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(251,191,36,0.03) 100%)',
-            border: '1px solid rgba(251,191,36,0.15)',
-          }}>
-            <span className="text-[9px] text-amber-400/70 font-bold uppercase tracking-wider">SKX</span>
-            <span className="text-sm font-black text-amber-300 tabular-nums tracking-tight leading-none">{skxBalance.toLocaleString()}</span>
-            <span className="text-[9px] text-amber-400/60 font-semibold tabular-nums">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
+          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 surface-gold">
+            <span className="text-[9px] text-gold/60 font-bold uppercase tracking-wider">SKX</span>
+            <span className="text-sm font-black text-gold tabular-nums tracking-tight leading-none">{skxBalance.toLocaleString()}</span>
+            <span className="text-[9px] text-gold/50 font-semibold tabular-nums">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
             {dollarBonus > 0 && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full tabular-nums"
-                style={{ background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full text-gold tabular-nums surface-gold">
                 +${dollarBonus.toFixed(2)}
               </span>
             )}

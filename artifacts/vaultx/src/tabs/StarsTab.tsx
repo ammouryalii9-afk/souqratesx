@@ -23,14 +23,14 @@ const EFFECT_META: Record<string, { icon: React.ElementType; color: string; bg: 
 };
 
 const CATEGORY_LABELS: Record<string, { en: string; ar: string }> = {
-  boost:    { en: '⚡ Turbo Boosts',        ar: '⚡ تسريع التعدين' },
-  energy:   { en: '🔋 Energy Upgrades',     ar: '🔋 ترقية الطاقة' },
-  farm:     { en: '🌾 Farming',             ar: '🌾 الزراعة' },
-  skx:      { en: '💎 SKX Direct',          ar: '💎 شراء SKX مباشر' },
-  upgrade:  { en: '🚀 Upgrades',            ar: '🚀 ترقيات التعدين' },
-  premium:  { en: '👑 Premium',             ar: '👑 حساب مميز' },
-  points:   { en: '⛏️ SKP Packs',           ar: '⛏️ حزم نقاط SKP' },
-  cosmetic: { en: '🎨 Cosmetics',           ar: '🎨 مظاهر' },
+  boost:    { en: 'Turbo Boosts',       ar: 'تسريع التعدين' },
+  energy:   { en: 'Energy Upgrades',   ar: 'ترقية الطاقة' },
+  farm:     { en: 'Farming',           ar: 'الزراعة' },
+  skx:      { en: 'SKX Direct',        ar: 'شراء SKX مباشر' },
+  upgrade:  { en: 'Upgrades',          ar: 'ترقيات التعدين' },
+  premium:  { en: 'Premium',           ar: 'حساب مميز' },
+  points:   { en: 'SKP Packs',         ar: 'حزم نقاط SKP' },
+  cosmetic: { en: 'Cosmetics',         ar: 'مظاهر' },
 };
 
 function ProductCard({
@@ -64,8 +64,8 @@ function ProductCard({
           <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">{displayDesc}</p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1">
-          <span className="flex items-center gap-1 text-sm font-black text-yellow-300">
-            <Star className="w-3.5 h-3.5 fill-yellow-300 text-yellow-300" />
+          <span className="flex items-center gap-1 text-sm font-black text-gold">
+            <Star className="w-3.5 h-3.5 fill-gold text-gold" />
             {product.priceStars}
           </span>
           {buying ? (
@@ -98,8 +98,9 @@ function ConfirmModal({
   const displayTitle = lang === 'ar' && product.titleAr ? product.titleAr : product.title;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-[380px] rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1a24] to-[#0e0e14] p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+      <div className="w-full max-w-[380px] rounded-[24px] glass-card p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+        style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px hsl(216 30% 14% / 0.6)' }}>
         <div className="flex flex-col items-center text-center mb-5">
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${meta.bg} flex items-center justify-center mb-3`}>
             <Icon className={`w-8 h-8 ${meta.color}`} />
@@ -117,24 +118,25 @@ function ConfirmModal({
             ))}
           </div>
         )}
-        <div className="flex items-center justify-center gap-2 mb-5 py-3 rounded-xl bg-yellow-400/10 border border-yellow-400/20">
-          <Star className="w-5 h-5 fill-yellow-300 text-yellow-300" />
-          <span className="text-xl font-black text-yellow-300">{product.priceStars} {lang === 'ar' ? 'نجمة' : 'Stars'}</span>
+        <div className="flex items-center justify-center gap-2 mb-5 py-3 rounded-xl surface-gold">
+          <Star className="w-5 h-5 fill-gold text-gold" />
+          <span className="text-xl font-black text-gold">{product.priceStars} {lang === 'ar' ? 'نجمة' : 'Stars'}</span>
         </div>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 py-3 rounded-xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5 transition-all"
+            className="flex-1 py-3 rounded-xl border border-white/10 text-white/60 font-bold text-sm hover:bg-white/5 transition-all"
           >
             {lang === 'ar' ? 'إلغاء' : 'Cancel'}
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-black text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl font-black text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2 text-gold-foreground"
+            style={{ background: 'linear-gradient(135deg, hsl(43 96% 60%), hsl(43 96% 50%))' }}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4 fill-black" />}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4 fill-current" />}
             {lang === 'ar' ? 'شراء الآن' : 'Buy Now'}
           </button>
         </div>
@@ -205,10 +207,9 @@ export function StarsTab() {
     <div className="pb-28 pt-4 px-4 space-y-6 min-h-screen">
       {/* Header */}
       <div className="text-center pb-2">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl mb-3"
-          style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(251,191,36,0.05) 100%)', border: '1px solid rgba(251,191,36,0.2)' }}>
-          <Star className="w-5 h-5 fill-yellow-300 text-yellow-300" />
-          <span className="font-black text-yellow-300 text-base">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl mb-3 surface-gold">
+          <Star className="w-5 h-5 fill-gold text-gold" />
+          <span className="font-black text-gold text-base">
             {lang === 'ar' ? 'متجر النجوم' : 'Stars Store'}
           </span>
         </div>

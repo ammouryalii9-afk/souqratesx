@@ -210,17 +210,17 @@ export const SquadTab = () => {
                     {mine && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />}
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-inner shrink-0 ${
-                        s.rank === 1 ? 'bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40' :
-                        s.rank === 2 ? 'bg-[#C0C0C0]/20 text-[#C0C0C0] border border-[#C0C0C0]/40' :
-                        s.rank === 3 ? 'bg-[#CD7F32]/20 text-[#CD7F32] border border-[#CD7F32]/40' :
+                        s.rank === 1 ? 'surface-gold text-gold' :
+                        s.rank === 2 ? 'bg-white/10 text-white/80 border border-white/20' :
+                        s.rank === 3 ? 'bg-amber-900/30 text-amber-600 border border-amber-700/40' :
                         'bg-white/5 text-muted-foreground border border-white/10'
                       }`}>
                         {s.rank}
                       </div>
                       <span className="text-2xl shrink-0">{s.emoji}</span>
                       <div className="flex flex-col min-w-0">
-                        <span className={`text-sm font-bold tracking-tight truncate flex items-center gap-1 ${mine ? 'text-primary' : s.isGold ? 'text-[#FFD700]' : 'text-white'}`}>
-                          {s.isGold && <span className="text-[#FFD700] text-xs">✦</span>}
+                        <span className={`text-sm font-bold tracking-tight truncate flex items-center gap-1 ${mine ? 'text-primary' : s.isGold ? 'text-gold' : 'text-white'}`}>
+                          {s.isGold && <span className="text-gold text-xs">✦</span>}
                           {s.name}{mine ? ` ${tr.squad.yours}` : ''}
                         </span>
                         <span className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
@@ -267,13 +267,14 @@ function MySquadCard({
   const { tr } = useLanguage();
   return (
     <section>
-      <div className={`bg-card/60 backdrop-blur-xl border rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden ${squad.isGold ? 'border-[#FFD700]/40 shadow-[0_0_30px_rgba(255,215,0,0.1)]' : 'border-white/10'}`}>
-        <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] pointer-events-none ${squad.isGold ? 'bg-[#FFD700]/10' : 'bg-primary/10'}`} />
+      <div className={`glass-card rounded-[24px] p-6 mb-4 relative overflow-hidden ${squad.isGold ? 'gold-pulse' : ''}`}
+        style={squad.isGold ? { borderColor: 'hsl(43 96% 56% / 0.35)' } : undefined}>
+        <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] pointer-events-none ${squad.isGold ? 'bg-gold/10' : 'bg-primary/10'}`} />
         <div className="flex items-center gap-4 mb-5 relative z-10">
-          <div className={`w-16 h-16 rounded-2xl bg-black/40 border flex items-center justify-center text-4xl shadow-inner ${squad.isGold ? 'border-[#FFD700]/30' : 'border-white/10'}`}>
+          <div className={`w-16 h-16 rounded-2xl bg-black/40 flex items-center justify-center text-4xl shadow-inner border ${squad.isGold ? 'border-gold/25' : 'border-white/10'}`}>
             {squad.emoji}
           </div>
-          {squad.isGold && <div className="absolute -top-2 right-4 text-[#FFD700] text-xs font-bold bg-[#FFD700]/10 border border-[#FFD700]/30 rounded-full px-2 py-0.5 flex items-center gap-1">✦ Gold</div>}
+          {squad.isGold && <div className="absolute -top-2 right-4 text-gold text-xs font-bold surface-gold rounded-full px-2 py-0.5 flex items-center gap-1">✦ Gold</div>}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xl font-black text-white tracking-tight truncate">{squad.name}</span>

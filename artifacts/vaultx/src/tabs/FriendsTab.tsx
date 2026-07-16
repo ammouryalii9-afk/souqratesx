@@ -115,14 +115,14 @@ export const FriendsTab = () => {
       {/* Referral Center */}
       <section>
         <div className="flex items-center gap-3 mb-4">
-          <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20 shadow-inner">
-            <Users className="w-5 h-5 text-cyan-400" />
+          <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 shadow-inner">
+            <Users className="w-5 h-5 text-primary" />
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">{tr.friends.referralCenter}</h2>
         </div>
 
-        <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] p-6 mb-4 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none" />
+        <div className="glass-card rounded-[24px] p-6 mb-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/8 rounded-full blur-[40px] pointer-events-none" />
           <p className="text-sm text-muted-foreground mb-4 leading-relaxed relative z-10">{tr.friends.referralDesc}</p>
 
           <div className="flex items-center gap-2 bg-black/60 p-2 rounded-xl border border-white/10 shadow-inner relative z-10">
@@ -143,18 +143,18 @@ export const FriendsTab = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 flex flex-col relative overflow-hidden shadow-sm">
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-[30px] pointer-events-none" />
-            <div className="bg-cyan-500/10 w-10 h-10 rounded-xl flex items-center justify-center mb-3 border border-cyan-500/20 shadow-inner">
-              <Users className="w-5 h-5 text-cyan-400" />
+          <div className="glass-card rounded-[20px] p-5 flex flex-col relative overflow-hidden">
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/8 rounded-full blur-[30px] pointer-events-none" />
+            <div className="bg-primary/10 w-10 h-10 rounded-xl flex items-center justify-center mb-3 border border-primary/20 shadow-inner">
+              <Users className="w-5 h-5 text-primary" />
             </div>
             <span className="text-3xl font-black text-white tracking-tight tabular-nums">{totalReferrals}</span>
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">{tr.friends.totalReferrals}</span>
           </div>
-          <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 flex flex-col relative overflow-hidden shadow-sm">
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-[30px] pointer-events-none" />
-            <div className="bg-emerald-500/10 w-10 h-10 rounded-xl flex items-center justify-center mb-3 border border-emerald-500/20 shadow-inner">
-              <Coins className="w-5 h-5 text-emerald-400" />
+          <div className="glass-card rounded-[20px] p-5 flex flex-col relative overflow-hidden">
+            <div className="absolute bottom-0 right-0 w-24 h-24 bg-gold/8 rounded-full blur-[30px] pointer-events-none" />
+            <div className="surface-gold w-10 h-10 rounded-xl flex items-center justify-center mb-3 shadow-inner">
+              <Coins className="w-5 h-5 text-gold" />
             </div>
             <span className="text-3xl font-black text-white tracking-tight tabular-nums">{Math.floor(referralEarnings).toLocaleString()}</span>
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">{tr.friends.referralEarnings}</span>
@@ -162,7 +162,7 @@ export const FriendsTab = () => {
         </div>
 
         {/* Referral milestones */}
-        <div className="mt-3 bg-card/60 backdrop-blur-xl border border-white/10 rounded-[20px] p-5 relative overflow-hidden shadow-sm" data-testid="card-referral-milestones">
+        <div className="mt-3 glass-card rounded-[20px] p-5 relative overflow-hidden" data-testid="card-referral-milestones">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-white flex items-center gap-2">
               <Trophy className="w-4 h-4 text-amber-400" /> {tr.friends.milestonesTitle}
@@ -222,7 +222,7 @@ export const FriendsTab = () => {
           ))}
         </div>
 
-        <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
+        <div className="glass-card rounded-[24px] overflow-hidden">
           <div className="p-3.5 bg-primary/10 text-center text-sm text-primary font-bold border-b border-white/5 shadow-inner">
             {myRow ? (
               <>{tr.friends.yourRank}: <span className="text-white">#{myRow.rank}</span> {mode === 'all' ? tr.friends.globally : tr.friends.thisWeekLabel}</>
@@ -248,9 +248,9 @@ export const FriendsTab = () => {
                     {user.isCurrentUser && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />}
                     <div className="flex items-center gap-4">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${
-                        user.rank === 1 ? 'bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40' :
-                        user.rank === 2 ? 'bg-[#C0C0C0]/20 text-[#C0C0C0] border border-[#C0C0C0]/40' :
-                        user.rank === 3 ? 'bg-[#CD7F32]/20 text-[#CD7F32] border border-[#CD7F32]/40' :
+                        user.rank === 1 ? 'surface-gold text-gold' :
+                        user.rank === 2 ? 'bg-white/10 text-white/80 border border-white/20' :
+                        user.rank === 3 ? 'bg-amber-900/30 text-amber-600 border border-amber-700/40' :
                         user.isCurrentUser ? 'bg-primary/20 text-primary border border-primary/40' :
                         'bg-white/5 text-muted-foreground border border-white/10'
                       }`}>
@@ -277,7 +277,7 @@ export const FriendsTab = () => {
       {/* Withdrawal history */}
       <section>
         <h2 className="text-xl font-bold text-white tracking-tight mb-4 mt-2">{tr.friends.withdrawHistory}</h2>
-        <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
+        <div className="glass-card rounded-[24px] overflow-hidden">
           {history.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               {tr.friends.noHistory}

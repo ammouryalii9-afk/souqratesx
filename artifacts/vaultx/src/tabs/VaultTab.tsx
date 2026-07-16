@@ -13,7 +13,7 @@ import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check } from 'lucide-react';
+import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check, ArrowLeftRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
@@ -409,14 +409,14 @@ export const VaultTab = () => {
             <span className="text-[11px] text-primary/70 font-semibold mt-1 relative z-10">{tr.vault.skp}</span>
             
             <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.12)' }}>
-              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`} />
-              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-cyan-400' : 'text-primary'}`}>
+              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-boost' : 'text-primary'}`} />
+              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-boost' : 'text-primary'}`}>
                 +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} {tr.vault.perTap}
               </span>
             </div>
             
             {activeTurbo && (
-              <span className="absolute bottom-6 text-[10px] font-bold text-cyan-400 animate-pulse bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-400/30">TURBO ({turboRemaining}s)</span>
+              <span className="absolute bottom-6 text-[10px] font-bold text-boost animate-pulse surface-boost px-2 py-0.5 rounded-full">TURBO ({turboRemaining}s)</span>
             )}
           </div>
 
@@ -440,8 +440,8 @@ export const VaultTab = () => {
           ))}
         </button>
 
-        <div className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.15)' }}>
-          <span className="text-[10px] font-bold text-primary/60">💱</span>
+        <div className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full surface-primary">
+          <ArrowLeftRight className="w-3 h-3 text-primary/60" />
           <span className="text-[10px] font-semibold text-primary/70 tracking-wide">{tr.vault.convertRateNote(config?.features?.skpToSkxConversionRate ?? 5)}</span>
         </div>
 
@@ -480,8 +480,8 @@ export const VaultTab = () => {
           disabled={turboAdLoading || activeTurbo}
           className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
         >
-          <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20">
-            <FastForward className="w-5 h-5 text-cyan-400" />
+          <div className="surface-boost p-2.5 rounded-xl">
+            <FastForward className="w-5 h-5 text-boost" />
           </div>
           <div className="flex flex-col items-start">
             <span className="text-sm font-bold text-white leading-tight">{turboAdLoading ? tr.vault.watching : tr.vault.watch3Ads}</span>
@@ -498,8 +498,8 @@ export const VaultTab = () => {
           disabled={turboUsesToday >= 3 || activeTurbo}
           className="bg-card/40 backdrop-blur-md border border-white/5 p-3.5 rounded-[16px] flex items-center gap-3 hover:bg-white/5 transition-all disabled:opacity-50 active:scale-[0.98]"
         >
-          <div className="bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20">
-            <FastForward className="w-5 h-5 text-cyan-400" />
+          <div className="surface-boost p-2.5 rounded-xl">
+            <FastForward className="w-5 h-5 text-boost" />
           </div>
           <div className="flex flex-col items-start">
             <span className="text-sm font-bold text-white leading-tight">{tr.vault.turbo}</span>
