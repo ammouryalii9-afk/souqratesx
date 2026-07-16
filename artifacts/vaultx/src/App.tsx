@@ -178,10 +178,20 @@ function Header() {
   );
 }
 
+const ALL_TABS = ['vault', 'games', 'tasks', 'squad', 'pixels', 'friends', 'stars'] as const;
+type TabId = typeof ALL_TABS[number];
+
 function MainLayout() {
-  const [activeTab, setActiveTab] = useState('vault');
+  const [activeTab, setActiveTab] = useState<TabId>('vault');
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(new Set(['vault']));
   const [bannerBlockId, setBannerBlockId] = useState<string | null>(null);
   const { isTelegramUser } = useVault();
+
+  const handleSetActiveTab = (tab: string) => {
+    const t = tab as TabId;
+    setMountedTabs(prev => prev.has(t) ? prev : new Set([...prev, t]));
+    setActiveTab(t);
+  };
 
   useEffect(() => {
     getPublicConfig()
@@ -209,19 +219,19 @@ function MainLayout() {
       <BonusRewardModal />
 
       <main className="flex-1 overflow-x-hidden relative">
-        <div className="absolute inset-0 transition-opacity duration-300">
-          {activeTab === 'vault' && <VaultTab />}
-          {activeTab === 'games' && <GamesTab />}
-          {activeTab === 'tasks' && <TasksTab />}
-          {activeTab === 'squad' && <SquadTab />}
-          {activeTab === 'pixels' && <PixelsTab />}
-          {activeTab === 'friends' && <FriendsTab />}
-          {activeTab === 'stars' && <StarsTab />}
+        <div className="absolute inset-0">
+          {mountedTabs.has('vault') && <div className={activeTab !== 'vault' ? 'hidden' : ''}><VaultTab /></div>}
+          {mountedTabs.has('games') && <div className={activeTab !== 'games' ? 'hidden' : ''}><GamesTab /></div>}
+          {mountedTabs.has('tasks') && <div className={activeTab !== 'tasks' ? 'hidden' : ''}><TasksTab /></div>}
+          {mountedTabs.has('squad') && <div className={activeTab !== 'squad' ? 'hidden' : ''}><SquadTab /></div>}
+          {mountedTabs.has('pixels') && <div className={activeTab !== 'pixels' ? 'hidden' : ''}><PixelsTab /></div>}
+          {mountedTabs.has('friends') && <div className={activeTab !== 'friends' ? 'hidden' : ''}><FriendsTab /></div>}
+          {mountedTabs.has('stars') && <div className={activeTab !== 'stars' ? 'hidden' : ''}><StarsTab /></div>}
         </div>
       </main>
 
       <AdBanner bannerBlockId={bannerBlockId} />
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={handleSetActiveTab} />
     </div>
   );
 }
