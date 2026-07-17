@@ -540,25 +540,20 @@ function ClaimDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
     >
       <div
         className="w-full max-w-md flex flex-col"
         style={{
           background: "#0a1628",
-          borderRadius: "24px 24px 0 0",
-          borderTop: `2px solid ${r.color}50`,
+          borderRadius: "24px",
+          border: `2px solid ${r.color}50`,
           maxHeight: "78vh",
         }}
       >
-        {/* Handle */}
-        <div className="flex-shrink-0 flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
-        </div>
-
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-3">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-3">
           <div className="flex items-center gap-3 mb-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
