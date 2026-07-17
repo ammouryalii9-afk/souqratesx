@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
-import { SkinsShop } from '../components/SkinsShop';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
 
@@ -441,11 +440,6 @@ export const GamesTab = () => {
             );
           })}
         </div>
-      </div>
-
-      {/* ── Skins Shop ── */}
-      <div className="px-4 mt-7">
-        <SkinsShop />
       </div>
 
       <CompetitionsSection />

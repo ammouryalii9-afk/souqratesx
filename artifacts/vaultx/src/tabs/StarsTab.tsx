@@ -193,13 +193,15 @@ export function StarsTab() {
     }
   };
 
-  // Group products by category
-  const grouped = products.reduce<Record<string, StarProduct[]>>((acc, p) => {
-    const cat = EFFECT_META[p.effectType]?.category ?? 'points';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(p);
-    return acc;
-  }, {});
+  // Group products by category — hide skin effectType
+  const grouped = products
+    .filter(p => p.effectType !== 'skin')
+    .reduce<Record<string, StarProduct[]>>((acc, p) => {
+      const cat = EFFECT_META[p.effectType]?.category ?? 'points';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(p);
+      return acc;
+    }, {});
 
   const categoryOrder = ['boost', 'energy', 'farm', 'skx', 'upgrade', 'premium', 'points', 'cosmetic'];
 

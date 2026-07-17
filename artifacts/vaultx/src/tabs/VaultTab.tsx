@@ -7,7 +7,7 @@
 // [Sentry.io SDK] — error tracking and performance monitoring
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useVault, getLeague, SKINS, type SkinType } from '../context/VaultContext';
+import { useVault, getLeague } from '../context/VaultContext';
 import { getEngageStatus, type EngageStatus } from '../lib/engageApi';
 import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
@@ -29,143 +29,8 @@ interface FloatingPoint {
 
 let floatId = 0;
 
-// Per-skin base hues for the orb interior
-const SKIN_INNER: Record<SkinType, [string, string]> = {
-  golden:   ['hsl(38,55%,8%)',  'hsl(38,60%,4%)'],
-  electric: ['hsl(200,70%,7%)', 'hsl(200,80%,3%)'],
-  nature:   ['hsl(150,55%,7%)', 'hsl(150,60%,3%)'],
-  mystic:   ['hsl(270,55%,7%)', 'hsl(270,60%,3%)'],
-  fire:     ['hsl(18,65%,8%)',  'hsl(18,70%,4%)'],
-  ice:      ['hsl(198,50%,9%)', 'hsl(198,55%,5%)'],
-  cosmic:   ['hsl(245,50%,5%)', 'hsl(245,55%,2%)'],
-  sovereign:['hsl(42,50%,7%)',  'hsl(42,55%,3%)'],
-};
-
-function SkinAura({ type, accent }: { type: SkinType; accent: string }) {
-  const a = accent;
-  // Sits as the first absolute child of the button; extends 60px outside via negative inset
-  const wrap: React.CSSProperties = {
-    position: 'absolute', inset: '-60px', borderRadius: '50%', pointerEvents: 'none', zIndex: 0, overflow: 'visible',
-  };
-
-  if (type === 'golden') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:'-10px', borderRadius:'50%', background:`radial-gradient(circle,${a}20 0%,transparent 62%)`, animation:'skinPulse 3s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}30`, animation:'spin 22s linear infinite' }}>
-        {[0,45,90,135,180,225,270,315].map(ang => (
-          <div key={ang} style={{ position:'absolute', width:'7px', height:'7px', borderRadius:'50%', background:a, boxShadow:`0 0 10px ${a},0 0 20px ${a}55`, left:`${50+49.3*Math.cos(ang*Math.PI/180)}%`, top:`${50+49.3*Math.sin(ang*Math.PI/180)}%`, transform:'translate(-50%,-50%)' }} />
-        ))}
-      </div>
-      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`1px dashed ${a}20`, animation:'spin 12s linear infinite reverse' }} />
-      {[0,45,90,135,180,225,270,315].map((deg, i) => (
-        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
-          <div style={{ position:'absolute', left:'50%', top:'50%', width:'2px', height:'100px', marginLeft:'-1px', marginTop:'-100px', background:`linear-gradient(to top,transparent,${a}60,transparent)`, animation:`skinRay 4s ease-in-out ${i*0.35}s infinite` }} />
-        </div>
-      ))}
-    </div>
-  );
-
-  if (type === 'electric') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 62%)`, animation:'skinPulse 1.8s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', boxShadow:`0 0 0 1.5px ${a}40,0 0 28px ${a}25`, animation:'skinPulse 1.4s ease-in-out infinite' }} />
-      {[22,50,78].map((pct,i) => (
-        <div key={i} style={{ position:'absolute', left:0, right:0, top:`${pct}%`, height:'1.5px', background:`linear-gradient(90deg,transparent,${a}80,transparent)`, animation:`skinFlicker 2.6s ease-in-out ${i*0.75}s infinite` }} />
-      ))}
-      {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([sx,sy],i) => (
-        <div key={i} style={{ position:'absolute', width:'44px', height:'44px', left:`calc(50% - 22px + ${sx*75}px)`, top:`calc(50% - 22px + ${sy*75}px)`, border:`1.5px solid ${a}65`, borderRadius:'50%', animation:`skinFlicker 1.7s ease-in-out ${i*0.42}s infinite` }} />
-      ))}
-      <div style={{ position:'absolute', inset:'22px', borderRadius:'50%', border:`2px dashed ${a}22`, animation:'spin 5s linear infinite' }} />
-    </div>
-  );
-
-  if (type === 'nature') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}12 0%,transparent 62%)`, animation:'skinPulse 5s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}28`, animation:'spin 28s linear infinite' }} />
-      {Array.from({length:9},(_,i) => (
-        <div key={i} style={{ position:'absolute', left:`${12+i*9}%`, bottom:'12%', width:`${9+(i%3)*5}px`, height:`${9+(i%3)*5}px`, borderRadius:'50%', background:`radial-gradient(circle,${a}70 0%,${a}25 60%,transparent 100%)`, boxShadow:`0 0 10px ${a}35`, animation:`skinFloat ${2.4+i*0.35}s ease-in-out ${i*0.45}s infinite` }} />
-      ))}
-      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`1px solid ${a}18`, animation:'spin 18s linear infinite reverse' }} />
-    </div>
-  );
-
-  if (type === 'mystic') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:'-8px', borderRadius:'50%', background:`radial-gradient(circle,${a}18 0%,transparent 62%)`, animation:'skinPulse 4s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}22`, animation:'spin 16s linear infinite' }} />
-      {[0,72,144,216,288].map((_,i) => (
-        <div key={`o${i}`} style={{ position:'absolute', inset:0, animation:`spin 9s linear ${-i*1.8}s infinite` }}>
-          <div style={{ position:'absolute', left:'50%', top:'2.5%', width:'9px', height:'9px', borderRadius:'50%', background:a, boxShadow:`0 0 12px ${a},0 0 24px ${a}55`, transform:'translate(-50%,0)' }} />
-        </div>
-      ))}
-      {[0,120,240].map((_,i) => (
-        <div key={`i${i}`} style={{ position:'absolute', inset:'18px', animation:`spin 5.5s linear ${-i*1.83}s infinite` }}>
-          <div style={{ position:'absolute', left:'50%', top:'3%', width:'5px', height:'5px', borderRadius:'50%', background:`${a}cc`, boxShadow:`0 0 8px ${a}`, transform:'translate(-50%,0)' }} />
-        </div>
-      ))}
-      <div style={{ position:'absolute', inset:'30px', borderRadius:'50%', border:`1px dashed ${a}30`, animation:'spin 9s linear infinite reverse' }} />
-    </div>
-  );
-
-  if (type === 'fire') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(ellipse at 50% 88%,${a}35 0%,transparent 58%)`, animation:'skinPulse 1.4s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', boxShadow:`0 0 0 1px ${a}22`, animation:'skinPulse 2s ease-in-out infinite' }} />
-      {Array.from({length:8},(_,i) => (
-        <div key={i} style={{ position:'absolute', left:`${14+i*10}%`, bottom:'7%', width:`${7+(i%3)*4}px`, height:`${40+(i%4)*18}px`, borderRadius:'50% 50% 35% 35%', background:`linear-gradient(to top,${a}cc,${a}40,transparent)`, boxShadow:`0 0 12px ${a}60`, animation:`skinFloat ${1.1+i*0.22}s ease-in-out ${i*0.25}s infinite`, transformOrigin:'bottom center' }} />
-      ))}
-      <div style={{ position:'absolute', inset:'20px', borderRadius:'50%', border:`1px solid ${a}18`, animation:'spin 6s linear infinite reverse' }} />
-    </div>
-  );
-
-  if (type === 'ice') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 62%)`, animation:'skinPulse 4.5s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1.5px solid ${a}40`, boxShadow:`0 0 18px ${a}22,inset 0 0 18px ${a}10`, animation:'skinPulse 3s ease-in-out infinite' }} />
-      {[0,45,90,135,180,225,270,315].map((deg,i) => (
-        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
-          <div style={{ position:'absolute', left:'50%', top:'50%', width:'4px', height:'62px', marginLeft:'-2px', marginTop:'-62px', background:`linear-gradient(to top,${a}80 0%,${a}cc 65%,white 100%)`, borderRadius:'3px 3px 0 0', boxShadow:`0 0 8px ${a}70`, animation:`skinRay 3.2s ease-in-out ${i*0.28}s infinite` }} />
-        </div>
-      ))}
-      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`2px solid ${a}22`, animation:'spin 22s linear infinite' }} />
-    </div>
-  );
-
-  if (type === 'cosmic') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 70%)`, animation:'skinPulse 6s ease-in-out infinite' }} />
-      {Array.from({length:28},(_,i) => {
-        const s=i*7+3; const x=(s*37)%100; const y=(s*53)%100; const sz=1+(i%3); const dur=1.1+(i%8)*0.28; const del=(i*0.19)%2.8;
-        return <div key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, width:`${sz}px`, height:`${sz}px`, borderRadius:'50%', background:a, boxShadow:`0 0 ${sz*4}px ${a}`, animation:`skinTwinkle ${dur}s ease-in-out ${del}s infinite` }} />;
-      })}
-      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px dashed ${a}22`, animation:'spin 45s linear infinite' }} />
-      <div style={{ position:'absolute', inset:'24px', borderRadius:'50%', border:`1px dotted ${a}16`, animation:'spin 28s linear infinite reverse' }} />
-    </div>
-  );
-
-  if (type === 'sovereign') return (
-    <div style={wrap}>
-      <div style={{ position:'absolute', inset:'-14px', borderRadius:'50%', background:`radial-gradient(circle,${a}25 0%,transparent 58%)`, animation:'skinPulse 2.5s ease-in-out infinite' }} />
-      <div style={{ position:'absolute', inset:0, borderRadius:'50%', border:`2px solid ${a}40`, boxShadow:`0 0 30px ${a}30`, animation:'skinPulse 3s ease-in-out infinite' }} />
-      {[0,60,120,180,240,300].map((deg,i) => (
-        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
-          <div style={{ position:'absolute', left:'50%', top:'50%', width:'3px', height:'118px', marginLeft:'-1.5px', marginTop:'-118px', background:`linear-gradient(to top,transparent 0%,${a}65 40%,${a}95 80%,${a}50 100%)`, boxShadow:`0 0 10px ${a}55`, animation:`skinRay 2.8s ease-in-out ${i*0.28}s infinite` }} />
-          <div style={{ position:'absolute', left:'50%', top:'50%', width:'9px', height:'9px', marginLeft:'-4.5px', marginTop:'-124px', background:a, boxShadow:`0 0 14px ${a}`, transform:'rotate(45deg)', animation:`skinRay 2.8s ease-in-out ${i*0.28}s infinite` }} />
-        </div>
-      ))}
-      {[30,90,150,210,270,330].map((deg,i) => (
-        <div key={`s${deg}`} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
-          <div style={{ position:'absolute', left:'50%', top:'50%', width:'1.5px', height:'70px', marginLeft:'-0.75px', marginTop:'-70px', background:`linear-gradient(to top,transparent,${a}45,transparent)`, animation:`skinRay 2.8s ease-in-out ${i*0.28+0.14}s infinite` }} />
-        </div>
-      ))}
-      <div style={{ position:'absolute', inset:'12px', borderRadius:'50%', border:`1.5px solid ${a}32`, animation:'spin 14s linear infinite' }} />
-      <div style={{ position:'absolute', inset:'26px', borderRadius:'50%', border:`1px dashed ${a}22`, animation:'spin 9s linear infinite reverse' }} />
-    </div>
-  );
-
-  return null;
-}
+const sg = (a: number) => `rgba(52,211,153,${a})`;
+const ACCENT = '#34d399';
 
 export const VaultTab = () => {
   const { 
@@ -174,7 +39,7 @@ export const VaultTab = () => {
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
     rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
-    lifetimePoints, availablePoints, profitPerHour, equippedSkinId, addBonusPoints
+    lifetimePoints, availablePoints, profitPerHour, addBonusPoints
   } = useVault();
 
   const { tr } = useLanguage();
@@ -187,10 +52,6 @@ export const VaultTab = () => {
     });
   }
   const { toast } = useToast();
-  const skin = equippedSkinId !== null ? SKINS[equippedSkinId] : undefined;
-  const _skinGlowBase = (skin?.glow ?? 'rgba(52,211,153,0.35)').replace(/,\s*[\d.]+\)$/, ',');
-  const sg = (a: number) => `${_skinGlowBase}${a})`;
-  const skinAccent = skin?.accent ?? '#34d399';
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState(0);
@@ -418,18 +279,11 @@ export const VaultTab = () => {
     }
   };
 
-  const skinBg = skin?.bg ?? ['rgba(52,211,153,0.10)', 'rgba(52,211,153,0.04)'];
-
   return (
     <div
       className="flex flex-col space-y-5 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative"
-      style={{ '--skin-accent': skinAccent } as React.CSSProperties}
+      style={{ '--skin-accent': ACCENT } as React.CSSProperties}
     >
-      {/* Full-tab skin background wash */}
-      <div className="pointer-events-none absolute inset-0 z-0" style={{
-        background: `radial-gradient(ellipse 120% 60% at 50% 0%, ${skinBg[0]} 0%, ${skinBg[1]} 50%, transparent 80%)`,
-        transition: 'background 0.6s ease',
-      }} />
 
       {/* Balance Card */}
       <div className="rounded-[28px] p-6 flex flex-col items-center relative overflow-hidden" style={{
@@ -519,11 +373,11 @@ export const VaultTab = () => {
                     {needed.toLocaleString()} pts → {next.icon} {next.name}
                   </span>
                 )}
-                {isMax && <span className="text-[10px] font-bold" style={{ color: skinAccent }}>MAX LEAGUE 👑</span>}
+                {isMax && <span className="text-[10px] font-bold" style={{ color: ACCENT }}>MAX LEAGUE 👑</span>}
               </div>
               <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${sg(0.7)}, ${skinAccent})` }} />
+                  style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${sg(0.7)}, ${ACCENT})` }} />
               </div>
             </div>
           );
@@ -557,9 +411,6 @@ export const VaultTab = () => {
           className="relative w-64 h-64 rounded-full focus:outline-none disabled:cursor-not-allowed group"
           style={{ transform: isTapping ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
-          {/* Skin ambient aura — extends OUTSIDE the orb boundary */}
-          {skin && <SkinAura type={skin.type} accent={skinAccent} />}
-
           {/* Layer 1: Outer glow */}
           <div className="absolute inset-0 rounded-full" style={{ 
             background: `radial-gradient(circle, ${sg(0.08)} 0%, transparent 65%)`,
@@ -568,7 +419,7 @@ export const VaultTab = () => {
 
           {/* Layer 2: Rotating ring */}
           <div className="absolute inset-0 rounded-full" style={{ border: `1px solid ${sg(0.2)}`, animation: energy > 0 ? 'spin 14s linear infinite' : 'none' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" style={{ background: skinAccent, boxShadow: `0 0 6px ${skinAccent}` }} />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" style={{ background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
             <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
             <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full" style={{ background: sg(0.5) }} />
@@ -578,11 +429,8 @@ export const VaultTab = () => {
           <div className="absolute inset-4 rounded-full" style={{ border: `1px solid ${sg(0.12)}`, animation: energy > 0 ? 'spin 8s linear infinite reverse' : 'none' }} />
 
           {/* Layer 4: Main body */}
-          {(() => {
-            const [b1, b2] = skin ? SKIN_INNER[skin.type] : ['hsl(224,50%,9%)', 'hsl(224,71%,4%)'];
-            return (
           <div className="absolute inset-7 rounded-full flex flex-col items-center justify-center overflow-hidden" style={{
-            background: `radial-gradient(circle at 35% 25%, ${sg(0.18)} 0%, ${sg(0.06)} 40%, transparent 70%), linear-gradient(160deg, ${b1} 0%, ${b2} 100%)`,
+            background: `radial-gradient(circle at 35% 25%, ${sg(0.18)} 0%, ${sg(0.06)} 40%, transparent 70%), linear-gradient(160deg, hsl(224,50%,9%) 0%, hsl(224,71%,4%) 100%)`,
             boxShadow: `inset 0 2px 0 rgba(255,255,255,0.07), inset 0 -3px 12px rgba(0,0,0,0.7), 0 0 0 1px ${sg(0.18)}, 0 0 40px ${sg(0.18)}`,
             border: `1px solid ${sg(0.14)}`,
           }}>
@@ -590,17 +438,17 @@ export const VaultTab = () => {
 
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
 
-            <span className="text-[9px] font-bold uppercase tracking-[0.3em] mb-1 relative z-10" style={{ color: `${skinAccent}99` }}>{tr.vault.mined}</span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] mb-1 relative z-10" style={{ color: `${ACCENT}99` }}>{tr.vault.mined}</span>
 
             <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: `0 0 30px ${sg(0.3)}` }}>
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
 
-            <span className="text-[11px] font-semibold mt-1 relative z-10" style={{ color: `${skinAccent}bb` }}>{tr.vault.skp}</span>
+            <span className="text-[11px] font-semibold mt-1 relative z-10" style={{ color: `${ACCENT}bb` }}>{tr.vault.skp}</span>
 
-            <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: `${skinBg[0]}`, border: `1px solid ${sg(0.18)}` }}>
-              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: skinAccent }} />
-              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: skinAccent }}>
+            <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: sg(0.10), border: `1px solid ${sg(0.18)}` }}>
+              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: ACCENT }} />
+              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: ACCENT }}>
                 +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} {tr.vault.perTap}
               </span>
             </div>
@@ -609,8 +457,6 @@ export const VaultTab = () => {
               <span className="absolute bottom-6 text-[10px] font-bold text-boost animate-pulse surface-boost px-2 py-0.5 rounded-full">TURBO ({turboRemaining}s)</span>
             )}
           </div>
-            );
-          })()}
 
           {floatingPoints.map(fp => (
             <div
@@ -620,7 +466,7 @@ export const VaultTab = () => {
             >
               <span
                 className="font-black text-xl tracking-tighter absolute drop-shadow-md"
-                style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards', color: skinAccent, textShadow: `0 0 12px ${skinAccent}88` }}
+                style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards', color: ACCENT, textShadow: `0 0 12px ${ACCENT}88` }}
               >
                 +{fp.value}
               </span>
@@ -646,7 +492,7 @@ export const VaultTab = () => {
               {energy} <span className="text-muted-foreground">/ {maxEnergy}</span>
             </span>
           </div>
-          <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" indicatorStyle={{ background: `linear-gradient(90deg, ${sg(0.6)}, ${skinAccent})`, boxShadow: `0 0 12px ${sg(0.5)}` }} />
+          <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" indicatorStyle={{ background: `linear-gradient(90deg, ${sg(0.6)}, ${ACCENT})`, boxShadow: `0 0 12px ${sg(0.5)}` }} />
         </div>
       </div>
 
@@ -802,29 +648,6 @@ export const VaultTab = () => {
         @keyframes burst3 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(-18px,28px) scale(0)} }
         @keyframes burst4 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(28px,28px) scale(0)} }
 
-        /* ── Skin aura keyframes ── */
-        @keyframes skinPulse {
-          0%,100% { opacity:.12; transform:scale(.92); }
-          50%      { opacity:.55; transform:scale(1.08); }
-        }
-        @keyframes skinRay {
-          0%,100% { opacity:0; }
-          50%     { opacity:.7; }
-        }
-        @keyframes skinFloat {
-          0%       { opacity:0; transform:translateY(0) scale(.75); }
-          20%,65%  { opacity:.8; }
-          100%     { opacity:0; transform:translateY(-110px) scale(1.1); }
-        }
-        @keyframes skinFlicker {
-          0%,100%  { opacity:0; }
-          28%,38%  { opacity:.85; }
-          62%,72%  { opacity:.45; }
-        }
-        @keyframes skinTwinkle {
-          0%,100% { opacity:.08; transform:scale(.5); }
-          50%     { opacity:1;   transform:scale(1.8); }
-        }
       `}</style>
 
       {showWithdraw && <WithdrawModal onClose={() => setShowWithdraw(false)} />}
