@@ -1840,6 +1840,20 @@ function ArcadeTabInner() {
     }
   }, [toast, refreshFromServer, tr]);
 
+  // Used by GridView — updates status data WITHOUT resetting the phase.
+  // loadStatus resets phase based on hasTicket (which is false after ticket consumed),
+  // sending the user back to "gate" mid-session. This callback avoids that reset.
+  const refreshGridStatus = useCallback(async () => {
+    try {
+      const data = await apiGet<ArcadeStatus>("/arcade/status");
+      setStatus(data);
+      if (data.wonSessionsAwarded > 0) {
+        toast({ title: tr.arcade.wonPoints(data.wonSessionsAwarded), description: tr.arcade.wonPointsDesc });
+        refreshFromServer();
+      }
+    } catch { /* ignore — grid stays open */ }
+  }, [toast, refreshFromServer, tr]);
+
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
   // ── Watch real ad ──────────────────────────────────────────────────────────
@@ -1938,7 +1952,7 @@ function ArcadeTabInner() {
         room={selectedRoom}
         status={status}
         onBack={() => setPhase("rooms")}
-        onStatusRefresh={loadStatus}
+        onStatusRefresh={refreshGridStatus}
       />
     );
   }
