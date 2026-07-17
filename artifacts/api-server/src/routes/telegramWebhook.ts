@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable, competitionsTable, arcadeTicketsTable } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
+import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable, competitionsTable, arcadeTicketsTable, arcadeSessionsTable, arcadePurchasesTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, sendStartMessage, answerCallbackQuery, sendCallbackReply, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 import { getSettingsMap, asString } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
@@ -348,6 +348,45 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
               target: [arcadeTicketsTable.telegramId, arcadeTicketsTable.dayKey],
               set: { ticketGranted: true, entryMethod: "stars" as const, grantedAt: new Date() },
             });
+        } else if (payload.effect === "arcade_shop") {
+          // Apply arcade shop item purchased via real Telegram Stars
+          const shopPayload = payload as { itemType?: string; sessionId?: number | null };
+          const { itemType, sessionId } = shopPayload;
+          if (itemType) {
+            const now = new Date();
+            if ((itemType === "shield_3h" || itemType === "shield_full") && sessionId) {
+              const duration = itemType === "shield_3h" ? 3 * 3_600_000 : 24 * 3_600_000;
+              await db
+                .update(arcadeSessionsTable)
+                .set({ shieldExpiresAt: new Date(now.getTime() + duration) })
+                .where(
+                  and(
+                    eq(arcadeSessionsTable.id, sessionId),
+                    eq(arcadeSessionsTable.telegramId, telegramId),
+                  ),
+                );
+            } else if (itemType === "decoy" && sessionId) {
+              await db
+                .update(arcadeSessionsTable)
+                .set({ isDecoy: true })
+                .where(
+                  and(
+                    eq(arcadeSessionsTable.id, sessionId),
+                    eq(arcadeSessionsTable.telegramId, telegramId),
+                  ),
+                );
+            }
+            // radar and multi_strike are handled client-side; just record the purchase
+            await db
+              .insert(arcadePurchasesTable)
+              .values({
+                telegramId,
+                sessionId: sessionId ?? null,
+                itemType,
+                starsSpent: payment.total_amount,
+              })
+              .onConflictDoNothing();
+          }
         } else {
           await db
             .update(vaultUsersTable)

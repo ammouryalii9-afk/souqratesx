@@ -238,6 +238,53 @@ router.post(
   },
 );
 
+// ── POST /arcade/shop/invoice ────────────────────────────────────────────────────
+// Creates a REAL Telegram Stars invoice for a shop item.
+// The webhook (successful_payment) applies the item effect after payment.
+const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
+  shield_3h:    { stars: 20, label: "🛡️ Shield 3h",       desc: "Protect your cell for 3 hours" },
+  shield_full:  { stars: 80, label: "🔰 Full Shield",      desc: "Shield lasts the entire session" },
+  decoy:        { stars: 50, label: "💥 Decoy Trap",       desc: "Next attacker gets penalised" },
+  radar:        { stars: 15, label: "📡 Radar Scan",       desc: "Reveal enemies in a 3×3 area" },
+  multi_strike: { stars: 30, label: "⚡ Multi-Strike ×5",  desc: "Claim 5 cells simultaneously" },
+};
+
+router.post(
+  "/arcade/shop/invoice",
+  rateLimit("arcade:shop-invoice", 10, 60_000),
+  async (req, res): Promise<void> => {
+    const telegramId = getSessionTelegramId(req);
+    if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    const { itemType, sessionId } = req.body as { itemType: string; sessionId?: number };
+    const item = ARCADE_SHOP_CATALOG[itemType];
+    if (!item) { res.status(400).json({ error: "Unknown item" }); return; }
+
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) { res.status(503).json({ error: "Bot not configured" }); return; }
+
+    const payload = JSON.stringify({ effect: "arcade_shop", telegramId, itemType, sessionId: sessionId ?? null });
+    const tgRes = await fetch(`https://api.telegram.org/bot${token}/createInvoiceLink`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: item.label,
+        description: item.desc,
+        payload,
+        currency: "XTR",
+        prices: [{ label: item.label, amount: item.stars }],
+      }),
+    });
+    const tgData = await tgRes.json() as { ok: boolean; result?: string; description?: string };
+    if (!tgData.ok) {
+      logger.error({ tgData }, "Failed to create arcade shop invoice link");
+      res.status(503).json({ error: "Failed to create invoice" });
+      return;
+    }
+    res.json({ invoiceUrl: tgData.result });
+  },
+);
+
 // ── POST /arcade/ticket/stars ────────────────────────────────────────────────────
 // Called by frontend after Stars payment confirmed via Telegram openInvoice callback
 // The webhook will grant the ticket; this endpoint just creates the invoice link

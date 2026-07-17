@@ -643,59 +643,76 @@ function ClaimDialog({
 }
 
 // ── ShopModal ─────────────────────────────────────────────────────────────────
+// Uses REAL Telegram Stars payments via openInvoice() — no internal balance,
+// no scroll needed (compact 2-col grid fits on any phone without scrolling).
 
 function ShopModal({
-  starsBalance,
   activeSessions,
-  onBuy,
   onClose,
-  loading,
+  onPurchased,
 }: {
-  starsBalance: number;
   activeSessions: ActiveSession[];
-  onBuy: (itemType: string, sessionId?: number) => void;
   onClose: () => void;
-  loading: boolean;
+  onPurchased: (itemType: string) => void;
 }) {
   const { tr } = useLanguage();
+  const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
+  const [loadingItem, setLoadingItem] = useState<string | null>(null);
 
-  // The app's index.css has `body { touch-action: none }` which kills ALL native
-  // touch-scroll everywhere. Fix: lift it to "pan-y" while this modal is mounted
-  // so the scrollable list gets native scroll. Body has overflow:hidden so it won't
-  // actually scroll — only the overflow-y:auto child will.
-  useEffect(() => {
-    const prev = document.body.style.touchAction;
-    document.body.style.touchAction = "pan-y";
-    return () => { document.body.style.touchAction = prev; };
-  }, []);
+  async function buyItem(itemType: string) {
+    type TgWebApp = { openInvoice?: (url: string, cb: (s: string) => void) => void };
+    const tg = (window as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp;
+    if (!tg?.openInvoice) {
+      toast({ title: tr.arcade.openInTelegram, description: tr.arcade.starsRequireTelegram, variant: "destructive" });
+      return;
+    }
+    const needsSession = itemType.startsWith("shield") || itemType === "decoy";
+    const sid = needsSession ? selectedSession : undefined;
+    if (needsSession && !sid) {
+      toast({ title: tr.arcade.buyFailed, description: tr.arcade.applyTo, variant: "destructive" });
+      return;
+    }
+    setLoadingItem(itemType);
+    try {
+      const { invoiceUrl } = await apiPost<{ invoiceUrl: string }>("/arcade/shop/invoice", { itemType, sessionId: sid });
+      tg.openInvoice(invoiceUrl, (status: string) => {
+        setLoadingItem(null);
+        if (status === "paid") {
+          haptic("success");
+          onPurchased(itemType);
+          onClose();
+        } else if (status !== "cancelled") {
+          toast({ title: tr.arcade.buyFailed, variant: "destructive" });
+        }
+      });
+    } catch (err: unknown) {
+      setLoadingItem(null);
+      haptic("error");
+      toast({ title: tr.arcade.buyFailed, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
+    }
+  }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl"
-        style={{
-          background: "#0a1628",
-          borderTop: "2px solid rgba(245,158,11,0.35)",
-          maxHeight: "82dvh",
-          display: "flex",
-          flexDirection: "column",
-        }}
+        className="w-full max-w-md rounded-t-3xl px-5 pt-3 pb-8"
+        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)" }}
       >
         {/* Handle */}
-        <div className="flex-shrink-0 flex justify-center pt-2.5 pb-1">
+        <div className="flex justify-center mb-3">
           <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
         </div>
 
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-2 pb-3">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-black text-white text-base">{tr.arcade.shopTitle}</h3>
-            <p className="text-xs font-bold text-yellow-400">{tr.arcade.shopBalance(starsBalance)} ⭐</p>
+            <p className="text-[11px] font-bold" style={{ color: "rgba(245,158,11,0.8)" }}>Real Telegram Stars · Instant effect</p>
           </div>
           <button
             onClick={onClose}
@@ -706,63 +723,60 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Scrollable list — native CSS scroll, works now that body touch-action is pan-y */}
-        <div
-          className="px-5 pb-10"
-          style={{ overflowY: "auto", flex: "1 1 0", minHeight: 0, WebkitOverflowScrolling: "touch" }}
-        >
-          {activeSessions.length > 0 && (
-            <div className="mb-4">
-              <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
-              <div className="flex flex-wrap gap-2">
-                {activeSessions.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSession(s.id)}
-                    className="px-3 py-1.5 rounded-xl text-[10px] font-black transition-all"
-                    style={{
-                      background: selectedSession === s.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)",
-                      border: selectedSession === s.id ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.08)",
-                      color: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.5)",
-                    }}
-                  >
-                    ({s.gridX},{s.gridY})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2.5">
-            {SHOP_ITEMS.map((item) => {
-              const needsSession = item.type.startsWith("shield") || item.type === "decoy";
-              const canBuy = starsBalance >= item.stars && (!needsSession || selectedSession !== null);
-              return (
-                <div
-                  key={item.type}
-                  className="flex items-center gap-3 p-3.5 rounded-2xl"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+        {/* Session picker — only when multiple sessions exist */}
+        {activeSessions.length > 1 && (
+          <div className="mb-4">
+            <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
+            <div className="flex flex-wrap gap-2">
+              {activeSessions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedSession(s.id)}
+                  className="px-3 py-1.5 rounded-xl text-[10px] font-black transition-all"
+                  style={{
+                    background: selectedSession === s.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)",
+                    border: selectedSession === s.id ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.08)",
+                    color: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.5)",
+                  }}
                 >
-                  <span className="text-2xl w-9 text-center">{item.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-white">{shopItemLabel(item.type, tr)}</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>{shopItemDesc(item.type, tr)}</p>
-                  </div>
-                  <button
-                    onClick={() => onBuy(item.type, needsSession ? selectedSession ?? undefined : undefined)}
-                    disabled={!canBuy || loading}
-                    className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all active:scale-95 disabled:opacity-35"
-                    style={{
-                      background: canBuy ? "linear-gradient(135deg,#b45309,#f59e0b)" : "rgba(255,255,255,0.06)",
-                      color: canBuy ? "#000" : "rgba(255,255,255,0.3)",
-                    }}
-                  >
-                    {item.stars} ⭐
-                  </button>
-                </div>
-              );
-            })}
+                  ({s.gridX},{s.gridY})
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Items — compact 2-col grid, no scroll needed */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {SHOP_ITEMS.map((item, i) => {
+            const isLast = i === SHOP_ITEMS.length - 1;
+            const isLoading = loadingItem === item.type;
+            const isBusy = loadingItem !== null;
+            return (
+              <button
+                key={item.type}
+                onClick={() => buyItem(item.type)}
+                disabled={isBusy}
+                className={`flex flex-col items-center gap-1.5 p-3.5 rounded-2xl active:scale-95 transition-all disabled:opacity-50${isLast && SHOP_ITEMS.length % 2 !== 0 ? " col-span-2" : ""}`}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+              >
+                <span style={{ fontSize: 28, lineHeight: 1 }}>{item.icon}</span>
+                <p className="text-xs font-black text-white text-center leading-tight">{shopItemLabel(item.type, tr)}</p>
+                <p className="text-[9px] text-center leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  {shopItemDesc(item.type, tr)}
+                </p>
+                <div
+                  className="mt-1 px-3 py-1.5 rounded-xl text-xs font-black"
+                  style={{
+                    background: isLoading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#b45309,#f59e0b)",
+                    color: isLoading ? "rgba(255,255,255,0.4)" : "#000",
+                  }}
+                >
+                  {isLoading ? "⏳" : `${item.stars} ⭐`}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1078,26 +1092,14 @@ function GridView({
     }
   }
 
-  async function handleShopBuy(itemType: string, sessionId?: number) {
-    setLoading(true);
-    try {
-      await apiPost("/arcade/shop/buy", { itemType, sessionId });
-      haptic("success");
-      toast({ title: tr.arcade.buySuccess, description: shopItemLabel(itemType, tr) });
-      setShopOpen(false);
-      // Activate special modes that are handled client-side
-      if (itemType === "radar") {
-        setSpecialMode({ type: "radar" });
-      } else if (itemType === "multi_strike") {
-        setSpecialMode({ type: "multi_strike", remaining: 5 });
-      }
-      await Promise.all([loadGrid(), onStatusRefresh()]);
-    } catch (err: unknown) {
-      haptic("error");
-      toast({ title: tr.arcade.buyFailed, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+  // Called by ShopModal after openInvoice() confirms "paid"
+  async function handlePurchased(itemType: string) {
+    toast({ title: tr.arcade.buySuccess, description: shopItemLabel(itemType, tr) });
+    // Activate client-side special modes
+    if (itemType === "radar") setSpecialMode({ type: "radar" });
+    else if (itemType === "multi_strike") setSpecialMode({ type: "multi_strike", remaining: 5 });
+    // Refresh grid + status from server (webhook already applied DB effect)
+    await Promise.all([loadGrid(), onStatusRefresh()]);
   }
 
   function pan(dx: number, dy: number) {
@@ -1368,11 +1370,9 @@ function GridView({
       )}
       {shopOpen && (
         <ShopModal
-          starsBalance={status.starsBalance}
           activeSessions={status.activeSessions}
-          onBuy={handleShopBuy}
           onClose={() => setShopOpen(false)}
-          loading={loading}
+          onPurchased={handlePurchased}
         />
       )}
     </div>
