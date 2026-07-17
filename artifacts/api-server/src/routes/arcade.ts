@@ -153,10 +153,18 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
   const ticket = await getTodayTicket(telegramId);
   const activeSessions = await getUserActiveSessions(telegramId);
 
+  // Fetch Telegram Stars balance so the frontend shows the correct value in the shop
+  const [userRow] = await db
+    .select({ starsBalance: vaultUsersTable.starsBalance })
+    .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.telegramId, telegramId))
+    .limit(1);
+
   res.json({
     hasTicket: ticket?.ticketGranted ?? false,
     adsWatched: ticket?.adsWatched ?? 0,
     adsNeeded: ADS_NEEDED,
+    starsBalance: userRow?.starsBalance ?? 0,
     todayKey: todayKey(),
     activeSessions: activeSessions.map((s) => ({
       id: s.id,

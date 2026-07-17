@@ -20,6 +20,7 @@ interface ArcadeStatus {
   hasTicket: boolean;
   adsWatched: number;
   adsNeeded: number;
+  starsBalance: number;
   activeSessions: ActiveSession[];
   wonSessionsAwarded: number;
 }
@@ -649,16 +650,23 @@ function ShopModal({
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
+      {/* min-h-0 on parent ensures flex-1 child can scroll properly */}
       <div
-        className="w-full max-w-md rounded-t-3xl flex flex-col"
+        className="w-full max-w-md rounded-t-3xl flex flex-col min-h-0"
         style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)", maxHeight: "82vh" }}
       >
+        {/* Handle */}
+        <div className="flex-shrink-0 flex justify-center pt-2.5 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+        </div>
+
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-2 pb-3">
           <div>
             <h3 className="font-black text-white text-base">{tr.arcade.shopTitle}</h3>
-            <p className="text-xs font-bold text-yellow-400">{tr.arcade.shopBalance(starsBalance)}</p>
+            <p className="text-xs font-bold text-yellow-400">{tr.arcade.shopBalance(starsBalance)} ⭐</p>
           </div>
           <button
             onClick={onClose}
@@ -669,8 +677,8 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Scrollable items */}
-        <div className="flex-1 overflow-y-auto px-5 pb-8">
+        {/* Scrollable items — min-h-0 is critical for overflow-y-auto inside flex */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-10">
           {activeSessions.length > 0 && (
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
@@ -731,6 +739,11 @@ function ShopModal({
 
 // ── GridView ──────────────────────────────────────────────────────────────────
 
+type SpecialMode =
+  | { type: "radar" }
+  | { type: "multi_strike"; remaining: number }
+  | null;
+
 function GridView({
   room,
   status,
@@ -742,7 +755,6 @@ function GridView({
   onBack: () => void;
   onStatusRefresh: () => void;
 }) {
-  const { skxBalance } = useVault();
   const { toast } = useToast();
   const { tr } = useLanguage();
   const r = ROOMS[room];
@@ -751,12 +763,13 @@ function GridView({
   const [viewOx, setViewOx] = useState(0);
   const [viewOy, setViewOy] = useState(0);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  // Keys of cells briefly "revealed" during auto-strike discovery
+  // Keys of cells briefly "revealed" during auto-strike discovery / radar scan
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [claimCell, setClaimCell] = useState<{ x: number; y: number } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
+  const [specialMode, setSpecialMode] = useState<SpecialMode>(null);
 
   const vp = r.viewportCols;
   const gridSize = r.size;
@@ -793,9 +806,112 @@ function GridView({
   const cellMap = new Map<string, GridCell>();
   gridData?.cells.forEach((c) => cellMap.set(`${c.x},${c.y}`, c));
 
+  // ── Radar scan ────────────────────────────────────────────────────────────────
+  async function handleRadarScan(cx: number, cy: number) {
+    setLoading(true);
+    haptic("light");
+    // Highlight the 3×3 area
+    const scanKeys = new Set<string>();
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+          scanKeys.add(`${nx},${ny}`);
+        }
+      }
+    }
+    setRevealedKeys(scanKeys);
+    try {
+      const result = await apiPost<{ activeCount: number }>("/arcade/grid/radar", { room, cx, cy });
+      haptic(result.activeCount > 0 ? "warning" : "success");
+      toast({
+        title: result.activeCount > 0
+          ? `📡 ${result.activeCount} ${tr.arcade.radarHit ?? "active cells nearby!"}`
+          : `📡 ${tr.arcade.radarClear ?? "Area clear — no active cells"}`,
+        description: `(${cx}, ${cy}) ± 1`,
+      });
+    } catch (err) {
+      toast({ title: "📡 Radar failed", description: err instanceof Error ? err.message : "", variant: "destructive" });
+    } finally {
+      setLoading(false);
+      setSpecialMode(null);
+      await new Promise((r) => setTimeout(r, 1200));
+      setRevealedKeys(new Set());
+    }
+  }
+
+  // ── Multi-Strike ─────────────────────────────────────────────────────────────
+  async function handleMultiStrike(cx: number, cy: number) {
+    const targets: { x: number; y: number }[] = [
+      { x: cx, y: cy },
+      { x: cx, y: cy - 1 },
+      { x: cx, y: cy + 1 },
+      { x: cx - 1, y: cy },
+      { x: cx + 1, y: cy },
+    ].filter((t) => t.x >= 0 && t.x < gridSize && t.y >= 0 && t.y < gridSize);
+
+    setLoading(true);
+    haptic("medium");
+
+    // Flash all target cells
+    const flashKeys = new Set(targets.map((t) => `${t.x},${t.y}`));
+    setRevealedKeys(flashKeys);
+
+    let hits = 0;
+    let totalReward = 0;
+    let totalPenalty = 0;
+
+    for (const t of targets) {
+      try {
+        const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number }>(
+          "/arcade/grid/strike",
+          { room, x: t.x, y: t.y },
+        );
+        if (result.result === "destroyed") {
+          hits++;
+          totalReward += result.strikerReward ?? 0;
+        } else if (result.result === "decoy_trap") {
+          totalPenalty += result.penalty ?? 0;
+        }
+      } catch {
+        // cell was empty — skip
+      }
+      await new Promise((r) => setTimeout(r, 180));
+    }
+
+    const remaining = (specialMode as { type: "multi_strike"; remaining: number }).remaining - 1;
+    setSpecialMode(remaining > 0 ? { type: "multi_strike", remaining } : null);
+
+    haptic(hits > 0 ? "success" : "warning");
+    toast({
+      title: hits > 0 ? `⚡ ${hits} ${tr.arcade.multiStrikeHit ?? "hit(s)!"}` : `⚡ ${tr.arcade.multiStrikeMiss ?? "No enemies in range"}`,
+      description: totalReward > 0
+        ? `+${totalReward.toLocaleString()} ${tr.arcade.ptsLabel}`
+        : totalPenalty > 0
+          ? `−${totalPenalty.toLocaleString()} ${tr.arcade.ptsLabel} (decoy!)`
+          : undefined,
+    });
+
+    setLoading(false);
+    await Promise.all([loadGrid(), onStatusRefresh()]);
+    await new Promise((r) => setTimeout(r, 900));
+    setRevealedKeys(new Set());
+  }
+
   function onCellTap(absX: number, absY: number) {
     const key = `${absX},${absY}`;
     const cell = cellMap.get(key);
+
+    // Special modes intercept all taps
+    if (specialMode?.type === "radar") {
+      void handleRadarScan(absX, absY);
+      return;
+    }
+    if (specialMode?.type === "multi_strike") {
+      void handleMultiStrike(absX, absY);
+      return;
+    }
 
     if (cell?.owner === "me") {
       // Tap own cell → open shop to manage it
@@ -890,6 +1006,12 @@ function GridView({
       haptic("success");
       toast({ title: tr.arcade.buySuccess, description: shopItemLabel(itemType, tr) });
       setShopOpen(false);
+      // Activate special modes that are handled client-side
+      if (itemType === "radar") {
+        setSpecialMode({ type: "radar" });
+      } else if (itemType === "multi_strike") {
+        setSpecialMode({ type: "multi_strike", remaining: 5 });
+      }
       await Promise.all([loadGrid(), onStatusRefresh()]);
     } catch (err: unknown) {
       haptic("error");
@@ -941,6 +1063,33 @@ function GridView({
           <Star className="w-4 h-4 text-yellow-400" />
         </button>
       </div>
+
+      {/* Special mode banner */}
+      {specialMode && (
+        <div
+          className="shrink-0 flex items-center justify-between px-4 py-2"
+          style={{
+            background: specialMode.type === "radar" ? "rgba(34,211,238,0.12)" : "rgba(245,158,11,0.12)",
+            borderBottom: `1px solid ${specialMode.type === "radar" ? "rgba(34,211,238,0.3)" : "rgba(245,158,11,0.3)"}`,
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">{specialMode.type === "radar" ? "📡" : "⚡"}</span>
+            <p className="text-xs font-black" style={{ color: specialMode.type === "radar" ? "#22d3ee" : "#f59e0b" }}>
+              {specialMode.type === "radar"
+                ? (tr.arcade.radarMode ?? "RADAR MODE — tap any cell to scan 3×3")
+                : `MULTI-STRIKE ×${specialMode.remaining} — ${tr.arcade.multiStrikeMode ?? "tap any cell to strike 5 adjacent"}`}
+            </p>
+          </div>
+          <button
+            onClick={() => setSpecialMode(null)}
+            className="text-xs px-2.5 py-1 rounded-lg font-bold"
+            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Grid area */}
       <div className="flex-1 flex flex-col items-center justify-center px-2 py-2 gap-1.5 min-h-0">
@@ -1103,7 +1252,7 @@ function GridView({
       )}
       {shopOpen && (
         <ShopModal
-          starsBalance={skxBalance ?? 0}
+          starsBalance={status.starsBalance}
           activeSessions={status.activeSessions}
           onBuy={handleShopBuy}
           onClose={() => setShopOpen(false)}
