@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Lock, Target } from "lucide-react";
 import { useVault } from "../context/VaultContext";
 import { haptic } from "../lib/telegram";
@@ -12,6 +12,14 @@ import {
   type PublicConfig,
 } from "../lib/gameApi";
 import { watchRewardedAdWithFallback } from "../lib/adFallback";
+import {
+  arcadeSound,
+  screenFlash,
+  spawnFloatingText,
+  particleExplosion,
+  particleClaim,
+  particleWin,
+} from "../lib/arcadeEffects";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -203,59 +211,65 @@ function getCellStyle(
   cell: GridCell | undefined,
   isHovered: boolean,
   isRevealed: boolean,
-): { background: string; border: string; boxShadow?: string } {
-  // My cell — always fully colored
+): { background: string; border: string; boxShadow?: string; transform?: string } {
   if (cell?.owner === "me") {
     if (cell.isDecoy) {
       return {
-        background: isHovered ? "#fbbf24" : "#d97706",
+        background: isHovered
+          ? "linear-gradient(135deg,#fbbf24,#f97316)"
+          : "linear-gradient(135deg,#d97706,#b45309)",
         border: `1.5px solid ${isHovered ? "#fde68a" : "#fbbf24"}`,
-        boxShadow: isHovered ? "0 0 8px #fbbf2480" : undefined,
+        boxShadow: isHovered ? "0 0 12px #fbbf2490, inset 0 0 6px rgba(255,255,255,0.1)" : "0 0 5px #d9770640",
+        transform: isHovered ? "scale(1.08)" : undefined,
       };
     }
     if (cell.hasShield) {
       return {
-        background: isHovered ? "#22d3ee" : "#0e7490",
+        background: isHovered
+          ? "linear-gradient(135deg,#22d3ee,#0891b2)"
+          : "linear-gradient(135deg,#0e7490,#164e63)",
         border: `1.5px solid ${isHovered ? "#67e8f9" : "#22d3ee"}`,
-        boxShadow: isHovered ? "0 0 8px #22d3ee80" : undefined,
+        boxShadow: isHovered ? "0 0 14px #22d3ee90, inset 0 0 6px rgba(255,255,255,0.12)" : "0 0 6px #0e749050",
+        transform: isHovered ? "scale(1.08)" : undefined,
       };
     }
     return {
-      background: isHovered ? "#4ade80" : "#16a34a",
+      background: isHovered
+        ? "linear-gradient(135deg,#4ade80,#16a34a)"
+        : "linear-gradient(135deg,#16a34a,#166534)",
       border: `2px solid ${isHovered ? "#86efac" : "#4ade80"}`,
-      boxShadow: isHovered ? "0 0 8px #22c55e80" : "0 0 3px #22c55e30",
+      boxShadow: isHovered ? "0 0 14px #22c55e90, inset 0 0 6px rgba(255,255,255,0.1)" : "0 0 5px #22c55e40",
+      transform: isHovered ? "scale(1.08)" : undefined,
     };
   }
 
-  // Enemy cell — HIDDEN from grid display (same as empty)
-  // But if temporarily revealed (right after discovery), flash red
-  if (cell?.owner === "other") {
-    if (isRevealed) {
-      return {
-        background: "#7f1d1d",
-        border: "2px solid #ef4444",
-        boxShadow: "0 0 10px #ef444490",
-      };
-    }
-    // Looks exactly like empty — the game's core mystery
+  // Enemy — hidden (same as empty), revealed = red flash
+  if (cell?.owner === "other" && isRevealed) {
     return {
-      background: isHovered ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-      border: isHovered ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+      background: "linear-gradient(135deg,#991b1b,#7f1d1d)",
+      border: "2px solid #ef4444",
+      boxShadow: "0 0 16px #ef444499, inset 0 0 8px rgba(239,68,68,0.3)",
+      transform: "scale(1.12)",
     };
   }
 
-  // Empty cell
+  // Empty / hidden enemy — identical
   return {
-    background: isHovered ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-    border: isHovered ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+    background: isHovered
+      ? "rgba(255,255,255,0.10)"
+      : "rgba(255,255,255,0.025)",
+    border: isHovered
+      ? "1px solid rgba(255,255,255,0.22)"
+      : "1px solid rgba(255,255,255,0.055)",
+    boxShadow: isHovered ? "inset 0 0 4px rgba(255,255,255,0.06)" : undefined,
   };
 }
 
 function getCellIcon(cell: GridCell | undefined) {
   if (!cell || cell.owner !== "me") return null;
-  if (cell.isDecoy) return <span className="text-[8px]">💥</span>;
-  if (cell.hasShield) return <span className="text-[8px]">🛡</span>;
-  return <div className="w-1.5 h-1.5 rounded-full bg-white/60" />;
+  if (cell.isDecoy) return <span style={{ fontSize: "9px", lineHeight: 1 }}>💥</span>;
+  if (cell.hasShield) return <span style={{ fontSize: "9px", lineHeight: 1 }}>🛡</span>;
+  return <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.75)", boxShadow: "0 0 4px #fff" }} />;
 }
 
 // ── EntryGate ────────────────────────────────────────────────────────────────
@@ -772,13 +786,27 @@ function GridView({
   const [viewOx, setViewOx] = useState(0);
   const [viewOy, setViewOy] = useState(0);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  // Keys of cells briefly "revealed" during auto-strike discovery / radar scan
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [claimCell, setClaimCell] = useState<{ x: number; y: number } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
   const [specialMode, setSpecialMode] = useState<SpecialMode>(null);
+  // Combo system
+  const [combo, setCombo] = useState(0);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // cell button refs for effect anchoring
+  const cellRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  function bumpCombo() {
+    setCombo((c) => {
+      const next = c + 1;
+      arcadeSound.combo(Math.min(next, 6));
+      return next;
+    });
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    comboTimerRef.current = setTimeout(() => setCombo(0), 3500);
+  }
 
   const vp = r.viewportCols;
   const gridSize = r.size;
@@ -872,6 +900,8 @@ function GridView({
     let totalPenalty = 0;
 
     for (const t of targets) {
+      const tKey = `${t.x},${t.y}`;
+      const tEl = cellRefs.current.get(tKey) ?? null;
       try {
         const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number }>(
           "/arcade/grid/strike",
@@ -880,13 +910,19 @@ function GridView({
         if (result.result === "destroyed") {
           hits++;
           totalReward += result.strikerReward ?? 0;
+          particleExplosion(tEl);
+          spawnFloatingText(tEl, result.strikerReward ? `+${result.strikerReward.toLocaleString()}` : "💥", "#fbbf24");
+          bumpCombo();
         } else if (result.result === "decoy_trap") {
           totalPenalty += result.penalty ?? 0;
+          screenFlash("rgba(239,68,68,0.3)", 200);
+          spawnFloatingText(tEl, "💥 DECOY!", "#ef4444");
+          setCombo(0);
         }
       } catch {
         // cell was empty — skip
       }
-      await new Promise((r) => setTimeout(r, 180));
+      await new Promise((res) => setTimeout(res, 180));
     }
 
     const remaining = (specialMode as { type: "multi_strike"; remaining: number }).remaining - 1;
@@ -904,75 +940,101 @@ function GridView({
 
     setLoading(false);
     await Promise.all([loadGrid(), onStatusRefresh()]);
-    await new Promise((r) => setTimeout(r, 900));
+    await new Promise((res) => setTimeout(res, 900));
     setRevealedKeys(new Set());
   }
 
   function onCellTap(absX: number, absY: number) {
     const key = `${absX},${absY}`;
     const cell = cellMap.get(key);
+    const el = cellRefs.current.get(key) ?? null;
 
     // Special modes intercept all taps
     if (specialMode?.type === "radar") {
+      arcadeSound.radar();
       void handleRadarScan(absX, absY);
       return;
     }
     if (specialMode?.type === "multi_strike") {
+      arcadeSound.multiStrike();
       void handleMultiStrike(absX, absY);
       return;
     }
 
     if (cell?.owner === "me") {
-      // Tap own cell → open shop to manage it
+      arcadeSound.tap();
       haptic("light");
       setShopOpen(true);
       return;
     }
 
-    // Tap empty OR enemy-looking cell → try to claim
-    // Enemy cells are intentionally hidden, so both look the same.
-    // If claim fails (409 "Cell already claimed"), we auto-strike.
+    arcadeSound.tap();
     haptic("medium");
     setClaimCell({ x: absX, y: absY });
   }
 
   // ── Claim handler ────────────────────────────────────────────────────────────
-  // Core hidden-battle mechanic: try claim → if taken, auto-strike with reveal
   async function handleClaim(hours: number) {
     if (!claimCell) return;
     const { x, y } = claimCell;
+    const key = `${x},${y}`;
+    const el = cellRefs.current.get(key) ?? null;
     setLoading(true);
 
     try {
-      // Try to claim the cell
       await apiPost("/arcade/grid/claim", { room, x, y, durationHours: hours });
+      arcadeSound.claim();
       haptic("success");
+      particleClaim(el);
+      spawnFloatingText(el, tr.arcade.claimed, "#4ade80");
       toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(x, y) });
+      bumpCombo();
       setClaimCell(null);
       await Promise.all([loadGrid(), onStatusRefresh()]);
     } catch (claimErr: unknown) {
-      const status = (claimErr as { status?: number }).status;
+      const httpStatus = (claimErr as { status?: number }).status;
       const msg = claimErr instanceof Error ? claimErr.message : "";
 
-      if (status === 409 && msg.toLowerCase().includes("already")) {
-        // 🎯 DISCOVERY MOMENT: this cell is actually enemy-owned!
+      if (httpStatus === 409 && msg.toLowerCase().includes("already")) {
+        // 🎯 DISCOVERY MOMENT
         setClaimCell(null);
+        arcadeSound.enemyDetected();
         haptic("warning");
+        screenFlash("rgba(239,68,68,0.35)", 300);
 
-        // Flash the enemy cell briefly
-        const key = `${x},${y}`;
-        setRevealedKeys((prev) => new Set([...prev, key]));
+        const revKey = key;
+        setRevealedKeys((prev) => new Set([...prev, revKey]));
         toast({ title: "⚔️ Enemy detected! Striking...", description: `(${x}, ${y})` });
 
-        await new Promise((res) => setTimeout(res, 900));
+        await new Promise((res) => setTimeout(res, 800));
 
-        // Auto-strike
         try {
           const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number; message: string }>(
             "/arcade/grid/strike",
             { room, x, y },
           );
-          haptic(result.result === "shielded" ? "warning" : result.result === "decoy_trap" ? "error" : "success");
+
+          if (result.result === "destroyed") {
+            arcadeSound.explosion();
+            haptic("success");
+            screenFlash("rgba(251,191,36,0.25)", 250);
+            particleExplosion(el);
+            spawnFloatingText(el, result.strikerReward ? `+${result.strikerReward.toLocaleString()}` : "💥 DESTROYED", "#fbbf24");
+            bumpCombo();
+          } else if (result.result === "shielded") {
+            arcadeSound.shielded();
+            haptic("warning");
+            screenFlash("rgba(34,211,238,0.2)", 200);
+            spawnFloatingText(el, "🛡 SHIELDED", "#22d3ee");
+          } else if (result.result === "decoy_trap") {
+            arcadeSound.decoyTrap();
+            haptic("error");
+            screenFlash("rgba(239,68,68,0.45)", 350);
+            particleExplosion(el);
+            spawnFloatingText(el, result.penalty ? `−${result.penalty.toLocaleString()}` : "💥 DECOY!", "#ef4444");
+            setCombo(0);
+          }
+
           const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : "⚔️";
           const detail = result.strikerReward
             ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}`
@@ -989,10 +1051,9 @@ function GridView({
           });
         }
 
-        // Clear reveal flash
         setRevealedKeys((prev) => {
           const next = new Set(prev);
-          next.delete(key);
+          next.delete(revKey);
           return next;
         });
       } else {
@@ -1157,18 +1218,26 @@ function GridView({
                 const isHovered = hoveredKey === key;
                 const isRevealed = revealedKeys.has(key);
                 const style = getCellStyle(cell, isHovered, isRevealed);
+                const isFeverTarget = specialMode !== null;
 
                 return (
                   <button
                     key={i}
+                    ref={(el) => {
+                      if (el) cellRefs.current.set(key, el);
+                      else cellRefs.current.delete(key);
+                    }}
                     onClick={() => onCellTap(absX, absY)}
                     onMouseEnter={() => setHoveredKey(key)}
                     onMouseLeave={() => setHoveredKey(null)}
                     className="rounded-[3px] flex items-center justify-center transition-all duration-75 active:scale-75"
                     style={{
                       background: style.background,
-                      border: style.border,
+                      border: isFeverTarget && !cell
+                        ? `1px solid rgba(245,158,11,0.35)`
+                        : style.border,
                       boxShadow: style.boxShadow,
+                      transform: style.transform,
                     }}
                   >
                     {getCellIcon(cell)}
@@ -1199,8 +1268,37 @@ function GridView({
           <ChevronDown className="w-4 h-4 text-white/70" />
         </button>
 
+        {/* Combo Meter */}
+        {combo >= 2 && (
+          <div
+            className="flex items-center gap-2 px-3 py-1 rounded-full"
+            style={{
+              background: combo >= 5
+                ? "linear-gradient(90deg,rgba(239,68,68,0.25),rgba(245,158,11,0.25))"
+                : "rgba(245,158,11,0.15)",
+              border: combo >= 5
+                ? "1px solid rgba(239,68,68,0.5)"
+                : "1px solid rgba(245,158,11,0.35)",
+              animation: "vaultPulse 0.6s ease-in-out infinite",
+            }}
+          >
+            <span className="text-base leading-none">
+              {combo >= 7 ? "🔥" : combo >= 5 ? "⚡" : "✨"}
+            </span>
+            <span
+              className="text-xs font-black tracking-wider"
+              style={{
+                color: combo >= 5 ? "#ef4444" : "#f59e0b",
+              }}
+            >
+              {combo >= 7 ? "FEVER! " : combo >= 5 ? "HOT! " : ""}
+              COMBO ×{combo}
+            </span>
+          </div>
+        )}
+
         {/* Legend */}
-        <div className="flex gap-4 pt-1 pb-0.5">
+        <div className="flex gap-4 pt-0.5 pb-0.5">
           {[
             { bg: "#16a34a", border: "#4ade80", label: tr.arcade.legendMine },
             { bg: "#0e7490", border: "#22d3ee", label: tr.arcade.legendShield },
