@@ -661,14 +661,40 @@ function ShopModal({
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
 
   // JS-driven scroll — body has `touch-action:none` globally which blocks CSS-based
-  // touch scrolling even when the child sets `touch-action:pan-y` (browser takes the
-  // intersection across ancestors = none). Manually tracking delta + setting scrollTop
-  // bypasses this entirely and works in every Telegram WebView.
+  // touch scrolling. React's synthetic touch listeners are passive, so preventDefault
+  // is a no-op there — we must attach NATIVE non-passive listeners to (1) block the
+  // browser from scrolling the page behind the modal and (2) drive scrollTop manually.
+  const overlayRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const touchState = useRef({ startY: 0, startScroll: 0 });
+
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    let startY = 0;
+    let startScroll = 0;
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY;
+      startScroll = scrollRef.current?.scrollTop ?? 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault(); // block page-behind scroll (requires passive:false)
+      e.stopPropagation();
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      const delta = startY - e.touches[0].clientY;
+      scroller.scrollTop = startScroll + delta;
+    };
+    overlay.addEventListener("touchstart", onStart, { passive: true });
+    overlay.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      overlay.removeEventListener("touchstart", onStart);
+      overlay.removeEventListener("touchmove", onMove);
+    };
+  }, []);
 
   return (
     <div
+      ref={overlayRef}
       className="fixed inset-0 z-50"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -709,18 +735,6 @@ function ShopModal({
           ref={scrollRef}
           className="px-5 pb-10"
           style={{ overflowY: "auto", flex: "1 1 0", minHeight: 0 }}
-          onTouchStart={(e) => {
-            touchState.current = {
-              startY: e.touches[0].clientY,
-              startScroll: scrollRef.current?.scrollTop ?? 0,
-            };
-          }}
-          onTouchMove={(e) => {
-            e.stopPropagation();
-            if (!scrollRef.current) return;
-            const delta = touchState.current.startY - e.touches[0].clientY;
-            scrollRef.current.scrollTop = touchState.current.startScroll + delta;
-          }}
         >
           {activeSessions.length > 0 && (
             <div className="mb-4">
