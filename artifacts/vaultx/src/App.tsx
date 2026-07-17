@@ -211,12 +211,9 @@ function Header({ onOpenTour }: HeaderProps) {
               {skxBalance.toLocaleString()}
             </span>
           </div>
-          <div className="flex flex-col items-end shrink-0">
-            <span className="text-[10px] font-bold text-gold/70 tabular-nums whitespace-nowrap">≈${usdVal}</span>
-            {dollarBonus > 0 && (
-              <span className="text-[9px] font-black text-gold whitespace-nowrap">+${dollarBonus.toFixed(2)}</span>
-            )}
-          </div>
+          {dollarBonus > 0 && (
+            <span className="text-[9px] font-black text-gold whitespace-nowrap shrink-0">+${dollarBonus.toFixed(2)}</span>
+          )}
         </div>
       </div>
     </header>
