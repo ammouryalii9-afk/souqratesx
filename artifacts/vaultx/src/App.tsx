@@ -123,51 +123,63 @@ function Header() {
   }, []);
   
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-5 h-20 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 flex items-center justify-center">
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 h-20 flex items-center gap-2 overflow-hidden">
+      {/* Left — shrink-0 so it never collapses */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <div className="w-9 h-9 flex items-center justify-center">
           <img
             src={logo}
             alt="SouqrateX"
             style={{
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               objectFit: 'contain',
               filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.5)) drop-shadow(0 0 4px rgba(52,211,153,0.3))',
             }}
           />
         </div>
-        <div className="flex flex-col">
-          <span className="font-extrabold tracking-tight text-lg text-white leading-none">SouqrateX</span>
-          <div className="flex gap-1 mt-1">
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
+        <div className="flex flex-col min-w-0">
+          <span className="font-extrabold tracking-tight text-base text-white leading-none truncate">SouqrateX</span>
+          <div className="flex gap-1 mt-0.5 flex-wrap">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90 whitespace-nowrap">
               {league.name}
             </span>
             {badge && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90 whitespace-nowrap">
                 {badge.label}
               </span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right — min-w-0 so it can shrink, items-end keeps pills right-aligned */}
+      <div className="flex items-center gap-1.5 min-w-0 shrink-0">
         <LangPicker />
-        <div className="flex flex-col items-end gap-1">
-          {/* SKP row */}
-          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 surface-primary">
-            <span className="text-[9px] text-primary/60 font-bold uppercase tracking-wider">SKP</span>
-            <span className="text-sm font-black text-white tabular-nums tracking-tight leading-none">{Math.floor(tempMiningPoints).toLocaleString()}</span>
-            <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-            <span className="text-[9px] text-primary/60 font-semibold tabular-nums">+{profitPerHour}/hr</span>
+        <div className="flex flex-col items-end gap-1 min-w-0">
+          {/* SKP pill */}
+          <div className="px-2.5 py-1 rounded-xl flex items-center gap-1 surface-primary overflow-hidden max-w-[168px]">
+            <span className="text-[9px] text-primary/60 font-bold uppercase tracking-wider shrink-0">SKP</span>
+            <span className="text-[13px] font-black text-white tabular-nums tracking-tight leading-none truncate">{Math.floor(tempMiningPoints).toLocaleString()}</span>
+            <div className="w-1 h-1 rounded-full bg-primary animate-pulse shrink-0" />
+            <span className="text-[9px] text-primary/60 font-semibold tabular-nums shrink-0 whitespace-nowrap">+{
+              profitPerHour >= 1_000_000
+                ? `${(profitPerHour / 1_000_000).toFixed(1)}M`
+                : profitPerHour >= 1_000
+                  ? `${(profitPerHour / 1_000).toFixed(0)}K`
+                  : profitPerHour
+            }</span>
           </div>
-          {/* SKX row */}
-          <div className="px-3 py-1.5 rounded-xl flex items-center gap-1.5 surface-gold">
-            <span className="text-[9px] text-gold/60 font-bold uppercase tracking-wider">SKX</span>
-            <span className="text-sm font-black text-gold tabular-nums tracking-tight leading-none">{skxBalance.toLocaleString()}</span>
-            <span className="text-[9px] text-gold/50 font-semibold tabular-nums">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
+          {/* SKX pill */}
+          <div className="px-2.5 py-1 rounded-xl flex items-center gap-1 surface-gold overflow-hidden max-w-[168px]">
+            <span className="text-[9px] text-gold/60 font-bold uppercase tracking-wider shrink-0">SKX</span>
+            <span className="text-[13px] font-black text-gold tabular-nums tracking-tight leading-none truncate">{skxBalance.toLocaleString()}</span>
+            <span className="text-[9px] text-gold/50 font-semibold tabular-nums shrink-0 whitespace-nowrap">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
             {dollarBonus > 0 && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full text-gold tabular-nums surface-gold">
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full text-gold tabular-nums surface-gold shrink-0 whitespace-nowrap">
                 +${dollarBonus.toFixed(2)}
               </span>
             )}
