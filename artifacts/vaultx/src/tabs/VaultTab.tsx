@@ -29,69 +29,141 @@ interface FloatingPoint {
 
 let floatId = 0;
 
-function SkinOverlay({ type, accent }: { type: SkinType; accent: string }) {
+// Per-skin base hues for the orb interior
+const SKIN_INNER: Record<SkinType, [string, string]> = {
+  golden:   ['hsl(38,55%,8%)',  'hsl(38,60%,4%)'],
+  electric: ['hsl(200,70%,7%)', 'hsl(200,80%,3%)'],
+  nature:   ['hsl(150,55%,7%)', 'hsl(150,60%,3%)'],
+  mystic:   ['hsl(270,55%,7%)', 'hsl(270,60%,3%)'],
+  fire:     ['hsl(18,65%,8%)',  'hsl(18,70%,4%)'],
+  ice:      ['hsl(198,50%,9%)', 'hsl(198,55%,5%)'],
+  cosmic:   ['hsl(245,50%,5%)', 'hsl(245,55%,2%)'],
+  sovereign:['hsl(42,50%,7%)',  'hsl(42,55%,3%)'],
+};
+
+function SkinAura({ type, accent }: { type: SkinType; accent: string }) {
   const a = accent;
-  if (type === 'electric') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {[0, 1, 2].map(i => (
-        <div key={i} className="skin-scanline" style={{ top: `${22 + i * 26}%`, background: `linear-gradient(90deg,transparent,${a},transparent)`, animationDelay: `${i * 0.9}s` }} />
-      ))}
-      <div className="skin-electric-arc" style={{ borderColor: a, animationDelay: '0.3s' }} />
-    </div>
-  );
-  if (type === 'nature') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {[0, 1, 2, 3].map(i => (
-        <div key={i} className="skin-bubble" style={{ left: `${20 + i * 20}%`, background: `radial-gradient(circle,${a}55,${a}11)`, animationDelay: `${i * 0.7}s`, width: `${8 + i * 3}px`, height: `${8 + i * 3}px` }} />
-      ))}
-    </div>
-  );
-  if (type === 'mystic') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {[0,1,2,3,4,5].map(i => (
-        <div key={i} className="skin-sparkle" style={{ left: `${50 + 38 * Math.cos(i * Math.PI / 3)}%`, top: `${50 + 38 * Math.sin(i * Math.PI / 3)}%`, background: a, boxShadow: `0 0 6px ${a}`, animationDelay: `${i * 0.25}s` }} />
-      ))}
-      <div className="absolute inset-8 rounded-full skin-mystic-ring" style={{ borderColor: `${a}40` }} />
-    </div>
-  );
-  if (type === 'fire') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {[0,1,2,3,4].map(i => (
-        <div key={i} className="skin-ember" style={{ left: `${18 + i * 16}%`, background: `radial-gradient(circle,#fff9 0%,${a} 40%,transparent 70%)`, animationDelay: `${i * 0.38}s`, width: `${4 + (i % 3) * 2}px`, height: `${4 + (i % 3) * 2}px` }} />
-      ))}
-      <div className="absolute inset-0 rounded-full skin-fire-glow" style={{ background: `radial-gradient(ellipse at 50% 80%,${a}22 0%,transparent 60%)` }} />
-    </div>
-  );
-  if (type === 'ice') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      <div className="skin-ice-breath absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle,${a}18 0%,transparent 65%)` }} />
-      {[0,1,2,3,4,5].map(i => (
-        <div key={i} className="absolute skin-ice-shard" style={{ left: `${50 + 30 * Math.cos(i * Math.PI / 3)}%`, top: `${50 + 30 * Math.sin(i * Math.PI / 3)}%`, background: `${a}cc`, transform: `translate(-50%,-50%) rotate(${i * 60}deg)`, animationDelay: `${i * 0.18}s` }} />
-      ))}
-    </div>
-  );
-  if (type === 'cosmic') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {Array.from({ length: 14 }).map((_, i) => (
-        <div key={i} className="skin-star" style={{ left: `${10 + (i * 37 + i * i * 7) % 80}%`, top: `${8 + (i * 53 + i * 11) % 80}%`, background: a, boxShadow: `0 0 4px ${a}`, animationDelay: `${(i * 0.17) % 1.8}s` }} />
-      ))}
-      <div className="absolute inset-0 rounded-full skin-nebula" style={{ background: `conic-gradient(from ${0}deg,${a}05,${a}18,${a}05,${a}12,${a}05)` }} />
-    </div>
-  );
-  if (type === 'sovereign') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      {[0,1,2,3,4,5].map(i => (
-        <div key={i} className="absolute skin-ray" style={{ left: '50%', top: '50%', background: `linear-gradient(to top,transparent,${a}55,transparent)`, transform: `translate(-50%,-100%) rotate(${i * 60}deg)`, transformOrigin: 'bottom center', animationDelay: `${i * 0.18}s` }} />
-      ))}
-      <div className="absolute inset-3 rounded-full skin-crown-ring" style={{ border: `1px solid ${a}55`, boxShadow: `0 0 12px ${a}30,inset 0 0 12px ${a}15` }} />
-    </div>
-  );
+  // Sits as the first absolute child of the button; extends 60px outside via negative inset
+  const wrap: React.CSSProperties = {
+    position: 'absolute', inset: '-60px', borderRadius: '50%', pointerEvents: 'none', zIndex: 0, overflow: 'visible',
+  };
+
   if (type === 'golden') return (
-    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 rounded-full skin-shimmer" style={{ background: `linear-gradient(135deg,transparent 30%,${a}22 50%,transparent 70%)` }} />
-      <div className="absolute inset-0 rounded-full skin-golden-pulse" style={{ background: `radial-gradient(circle,${a}14 0%,transparent 60%)` }} />
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:'-10px', borderRadius:'50%', background:`radial-gradient(circle,${a}20 0%,transparent 62%)`, animation:'skinPulse 3s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}30`, animation:'spin 22s linear infinite' }}>
+        {[0,45,90,135,180,225,270,315].map(ang => (
+          <div key={ang} style={{ position:'absolute', width:'7px', height:'7px', borderRadius:'50%', background:a, boxShadow:`0 0 10px ${a},0 0 20px ${a}55`, left:`${50+49.3*Math.cos(ang*Math.PI/180)}%`, top:`${50+49.3*Math.sin(ang*Math.PI/180)}%`, transform:'translate(-50%,-50%)' }} />
+        ))}
+      </div>
+      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`1px dashed ${a}20`, animation:'spin 12s linear infinite reverse' }} />
+      {[0,45,90,135,180,225,270,315].map((deg, i) => (
+        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
+          <div style={{ position:'absolute', left:'50%', top:'50%', width:'2px', height:'100px', marginLeft:'-1px', marginTop:'-100px', background:`linear-gradient(to top,transparent,${a}60,transparent)`, animation:`skinRay 4s ease-in-out ${i*0.35}s infinite` }} />
+        </div>
+      ))}
     </div>
   );
+
+  if (type === 'electric') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 62%)`, animation:'skinPulse 1.8s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', boxShadow:`0 0 0 1.5px ${a}40,0 0 28px ${a}25`, animation:'skinPulse 1.4s ease-in-out infinite' }} />
+      {[22,50,78].map((pct,i) => (
+        <div key={i} style={{ position:'absolute', left:0, right:0, top:`${pct}%`, height:'1.5px', background:`linear-gradient(90deg,transparent,${a}80,transparent)`, animation:`skinFlicker 2.6s ease-in-out ${i*0.75}s infinite` }} />
+      ))}
+      {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([sx,sy],i) => (
+        <div key={i} style={{ position:'absolute', width:'44px', height:'44px', left:`calc(50% - 22px + ${sx*75}px)`, top:`calc(50% - 22px + ${sy*75}px)`, border:`1.5px solid ${a}65`, borderRadius:'50%', animation:`skinFlicker 1.7s ease-in-out ${i*0.42}s infinite` }} />
+      ))}
+      <div style={{ position:'absolute', inset:'22px', borderRadius:'50%', border:`2px dashed ${a}22`, animation:'spin 5s linear infinite' }} />
+    </div>
+  );
+
+  if (type === 'nature') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}12 0%,transparent 62%)`, animation:'skinPulse 5s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}28`, animation:'spin 28s linear infinite' }} />
+      {Array.from({length:9},(_,i) => (
+        <div key={i} style={{ position:'absolute', left:`${12+i*9}%`, bottom:'12%', width:`${9+(i%3)*5}px`, height:`${9+(i%3)*5}px`, borderRadius:'50%', background:`radial-gradient(circle,${a}70 0%,${a}25 60%,transparent 100%)`, boxShadow:`0 0 10px ${a}35`, animation:`skinFloat ${2.4+i*0.35}s ease-in-out ${i*0.45}s infinite` }} />
+      ))}
+      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`1px solid ${a}18`, animation:'spin 18s linear infinite reverse' }} />
+    </div>
+  );
+
+  if (type === 'mystic') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:'-8px', borderRadius:'50%', background:`radial-gradient(circle,${a}18 0%,transparent 62%)`, animation:'skinPulse 4s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px solid ${a}22`, animation:'spin 16s linear infinite' }} />
+      {[0,72,144,216,288].map((_,i) => (
+        <div key={`o${i}`} style={{ position:'absolute', inset:0, animation:`spin 9s linear ${-i*1.8}s infinite` }}>
+          <div style={{ position:'absolute', left:'50%', top:'2.5%', width:'9px', height:'9px', borderRadius:'50%', background:a, boxShadow:`0 0 12px ${a},0 0 24px ${a}55`, transform:'translate(-50%,0)' }} />
+        </div>
+      ))}
+      {[0,120,240].map((_,i) => (
+        <div key={`i${i}`} style={{ position:'absolute', inset:'18px', animation:`spin 5.5s linear ${-i*1.83}s infinite` }}>
+          <div style={{ position:'absolute', left:'50%', top:'3%', width:'5px', height:'5px', borderRadius:'50%', background:`${a}cc`, boxShadow:`0 0 8px ${a}`, transform:'translate(-50%,0)' }} />
+        </div>
+      ))}
+      <div style={{ position:'absolute', inset:'30px', borderRadius:'50%', border:`1px dashed ${a}30`, animation:'spin 9s linear infinite reverse' }} />
+    </div>
+  );
+
+  if (type === 'fire') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(ellipse at 50% 88%,${a}35 0%,transparent 58%)`, animation:'skinPulse 1.4s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', boxShadow:`0 0 0 1px ${a}22`, animation:'skinPulse 2s ease-in-out infinite' }} />
+      {Array.from({length:8},(_,i) => (
+        <div key={i} style={{ position:'absolute', left:`${14+i*10}%`, bottom:'7%', width:`${7+(i%3)*4}px`, height:`${40+(i%4)*18}px`, borderRadius:'50% 50% 35% 35%', background:`linear-gradient(to top,${a}cc,${a}40,transparent)`, boxShadow:`0 0 12px ${a}60`, animation:`skinFloat ${1.1+i*0.22}s ease-in-out ${i*0.25}s infinite`, transformOrigin:'bottom center' }} />
+      ))}
+      <div style={{ position:'absolute', inset:'20px', borderRadius:'50%', border:`1px solid ${a}18`, animation:'spin 6s linear infinite reverse' }} />
+    </div>
+  );
+
+  if (type === 'ice') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 62%)`, animation:'skinPulse 4.5s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1.5px solid ${a}40`, boxShadow:`0 0 18px ${a}22,inset 0 0 18px ${a}10`, animation:'skinPulse 3s ease-in-out infinite' }} />
+      {[0,45,90,135,180,225,270,315].map((deg,i) => (
+        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
+          <div style={{ position:'absolute', left:'50%', top:'50%', width:'4px', height:'62px', marginLeft:'-2px', marginTop:'-62px', background:`linear-gradient(to top,${a}80 0%,${a}cc 65%,white 100%)`, borderRadius:'3px 3px 0 0', boxShadow:`0 0 8px ${a}70`, animation:`skinRay 3.2s ease-in-out ${i*0.28}s infinite` }} />
+        </div>
+      ))}
+      <div style={{ position:'absolute', inset:'28px', borderRadius:'50%', border:`2px solid ${a}22`, animation:'spin 22s linear infinite' }} />
+    </div>
+  );
+
+  if (type === 'cosmic') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:`radial-gradient(circle,${a}14 0%,transparent 70%)`, animation:'skinPulse 6s ease-in-out infinite' }} />
+      {Array.from({length:28},(_,i) => {
+        const s=i*7+3; const x=(s*37)%100; const y=(s*53)%100; const sz=1+(i%3); const dur=1.1+(i%8)*0.28; const del=(i*0.19)%2.8;
+        return <div key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, width:`${sz}px`, height:`${sz}px`, borderRadius:'50%', background:a, boxShadow:`0 0 ${sz*4}px ${a}`, animation:`skinTwinkle ${dur}s ease-in-out ${del}s infinite` }} />;
+      })}
+      <div style={{ position:'absolute', inset:'3px', borderRadius:'50%', border:`1px dashed ${a}22`, animation:'spin 45s linear infinite' }} />
+      <div style={{ position:'absolute', inset:'24px', borderRadius:'50%', border:`1px dotted ${a}16`, animation:'spin 28s linear infinite reverse' }} />
+    </div>
+  );
+
+  if (type === 'sovereign') return (
+    <div style={wrap}>
+      <div style={{ position:'absolute', inset:'-14px', borderRadius:'50%', background:`radial-gradient(circle,${a}25 0%,transparent 58%)`, animation:'skinPulse 2.5s ease-in-out infinite' }} />
+      <div style={{ position:'absolute', inset:0, borderRadius:'50%', border:`2px solid ${a}40`, boxShadow:`0 0 30px ${a}30`, animation:'skinPulse 3s ease-in-out infinite' }} />
+      {[0,60,120,180,240,300].map((deg,i) => (
+        <div key={deg} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
+          <div style={{ position:'absolute', left:'50%', top:'50%', width:'3px', height:'118px', marginLeft:'-1.5px', marginTop:'-118px', background:`linear-gradient(to top,transparent 0%,${a}65 40%,${a}95 80%,${a}50 100%)`, boxShadow:`0 0 10px ${a}55`, animation:`skinRay 2.8s ease-in-out ${i*0.28}s infinite` }} />
+          <div style={{ position:'absolute', left:'50%', top:'50%', width:'9px', height:'9px', marginLeft:'-4.5px', marginTop:'-124px', background:a, boxShadow:`0 0 14px ${a}`, transform:'rotate(45deg)', animation:`skinRay 2.8s ease-in-out ${i*0.28}s infinite` }} />
+        </div>
+      ))}
+      {[30,90,150,210,270,330].map((deg,i) => (
+        <div key={`s${deg}`} style={{ position:'absolute', inset:0, transform:`rotate(${deg}deg)` }}>
+          <div style={{ position:'absolute', left:'50%', top:'50%', width:'1.5px', height:'70px', marginLeft:'-0.75px', marginTop:'-70px', background:`linear-gradient(to top,transparent,${a}45,transparent)`, animation:`skinRay 2.8s ease-in-out ${i*0.28+0.14}s infinite` }} />
+        </div>
+      ))}
+      <div style={{ position:'absolute', inset:'12px', borderRadius:'50%', border:`1.5px solid ${a}32`, animation:'spin 14s linear infinite' }} />
+      <div style={{ position:'absolute', inset:'26px', borderRadius:'50%', border:`1px dashed ${a}22`, animation:'spin 9s linear infinite reverse' }} />
+    </div>
+  );
+
   return null;
 }
 
@@ -485,6 +557,9 @@ export const VaultTab = () => {
           className="relative w-64 h-64 rounded-full focus:outline-none disabled:cursor-not-allowed group"
           style={{ transform: isTapping ? 'scale(0.95)' : 'scale(1)', transition: 'transform 0.1s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
+          {/* Skin ambient aura — extends OUTSIDE the orb boundary */}
+          {skin && <SkinAura type={skin.type} accent={skinAccent} />}
+
           {/* Layer 1: Outer glow */}
           <div className="absolute inset-0 rounded-full" style={{ 
             background: `radial-gradient(circle, ${sg(0.08)} 0%, transparent 65%)`,
@@ -503,15 +578,15 @@ export const VaultTab = () => {
           <div className="absolute inset-4 rounded-full" style={{ border: `1px solid ${sg(0.12)}`, animation: energy > 0 ? 'spin 8s linear infinite reverse' : 'none' }} />
 
           {/* Layer 4: Main body */}
+          {(() => {
+            const [b1, b2] = skin ? SKIN_INNER[skin.type] : ['hsl(224,50%,9%)', 'hsl(224,71%,4%)'];
+            return (
           <div className="absolute inset-7 rounded-full flex flex-col items-center justify-center overflow-hidden" style={{
-            background: `radial-gradient(circle at 35% 25%, ${sg(0.14)} 0%, ${sg(0.04)} 40%, transparent 70%), linear-gradient(160deg, hsl(224,50%,9%) 0%, hsl(224,71%,4%) 100%)`,
-            boxShadow: `inset 0 2px 0 rgba(255,255,255,0.06), inset 0 -3px 12px rgba(0,0,0,0.6), 0 0 0 1px ${sg(0.15)}, 0 0 30px ${sg(0.12)}`,
-            border: `1px solid ${sg(0.1)}`,
+            background: `radial-gradient(circle at 35% 25%, ${sg(0.18)} 0%, ${sg(0.06)} 40%, transparent 70%), linear-gradient(160deg, ${b1} 0%, ${b2} 100%)`,
+            boxShadow: `inset 0 2px 0 rgba(255,255,255,0.07), inset 0 -3px 12px rgba(0,0,0,0.7), 0 0 0 1px ${sg(0.18)}, 0 0 40px ${sg(0.18)}`,
+            border: `1px solid ${sg(0.14)}`,
           }}>
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
-
-            {/* Skin-specific animated overlay */}
-            {skin && <SkinOverlay type={skin.type} accent={skinAccent} />}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.09) 0%, transparent 70%)' }} />
 
             <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
 
@@ -534,15 +609,8 @@ export const VaultTab = () => {
               <span className="absolute bottom-6 text-[10px] font-bold text-boost animate-pulse surface-boost px-2 py-0.5 rounded-full">TURBO ({turboRemaining}s)</span>
             )}
           </div>
-
-          {/* Sovereign: extra crown ring outside orb */}
-          {skin?.type === 'sovereign' && (
-            <div className="absolute inset-1 rounded-full pointer-events-none skin-crown-outer" style={{ border: `1px solid ${skinAccent}30`, boxShadow: `0 0 20px ${skinAccent}20` }} />
-          )}
-          {/* Cosmic: extra nebula ring */}
-          {skin?.type === 'cosmic' && (
-            <div className="absolute inset-2 rounded-full pointer-events-none" style={{ border: `1px dashed ${skinAccent}25`, animation: 'spin 20s linear infinite reverse' }} />
-          )}
+            );
+          })()}
 
           {floatingPoints.map(fp => (
             <div
@@ -720,122 +788,42 @@ export const VaultTab = () => {
           100% { opacity: 0; transform: translate(-50%, calc(-50% - 65px)) scale(0.8); }
         }
         .dot {
-          position: absolute;
-          width: 5px;
-          height: 5px;
+          position: absolute; width: 5px; height: 5px;
           background: var(--skin-accent, hsl(var(--primary)));
-          border-radius: 50%;
-          opacity: 0;
+          border-radius: 50%; opacity: 0;
           box-shadow: 0 0 8px var(--skin-accent, hsl(var(--primary)));
         }
-        .burst-1 { animation: burst1 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-2 { animation: burst2 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-3 { animation: burst3 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-4 { animation: burst4 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        @keyframes burst1 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(-28px,-28px) scale(0); } }
-        @keyframes burst2 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(28px,-18px) scale(0); } }
-        @keyframes burst3 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(-18px,28px) scale(0); } }
-        @keyframes burst4 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(28px,28px) scale(0); } }
+        .burst-1 { animation: burst1 0.65s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+        .burst-2 { animation: burst2 0.65s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+        .burst-3 { animation: burst3 0.65s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+        .burst-4 { animation: burst4 0.65s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+        @keyframes burst1 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(-28px,-28px) scale(0)} }
+        @keyframes burst2 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(28px,-18px) scale(0)} }
+        @keyframes burst3 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(-18px,28px) scale(0)} }
+        @keyframes burst4 { 0%{opacity:1;transform:translate(0,0) scale(1)} 100%{opacity:0;transform:translate(28px,28px) scale(0)} }
 
-        /* ── Skin overlay animations ── */
-        .skin-scanline {
-          position: absolute; left: 0; right: 0; height: 1px; opacity: 0;
-          animation: skinScanline 3s ease-in-out infinite;
-        }
-        @keyframes skinScanline {
-          0%,100% { opacity:0; transform:scaleX(0.2); }
-          40%,60%  { opacity:0.7; transform:scaleX(1); }
-        }
-        .skin-electric-arc {
-          position: absolute; inset: 20%; border-radius: 50%;
-          border: 1px solid transparent; opacity: 0;
-          animation: skinArc 2.2s ease-in-out infinite;
-        }
-        @keyframes skinArc {
-          0%,100% { opacity:0; transform:scale(0.8) rotate(0deg); }
-          30%,70% { opacity:0.4; transform:scale(1.05) rotate(180deg); }
-        }
-        .skin-bubble {
-          position: absolute; bottom: 5%; border-radius: 50%; opacity: 0;
-          animation: skinBubble 2.8s ease-in-out infinite;
-        }
-        @keyframes skinBubble {
-          0%   { opacity:0; transform:translateY(0) scale(0.6); }
-          20%  { opacity:0.7; }
-          80%  { opacity:0.3; }
-          100% { opacity:0; transform:translateY(-80px) scale(1.2); }
-        }
-        .skin-sparkle {
-          position: absolute; width: 4px; height: 4px; border-radius: 50%;
-          transform: translate(-50%,-50%); opacity: 0;
-          animation: skinSparkle 1.8s ease-in-out infinite;
-        }
-        @keyframes skinSparkle {
-          0%,100% { opacity:0; transform:translate(-50%,-50%) scale(0.4); }
-          50% { opacity:1; transform:translate(-50%,-50%) scale(1.4); }
-        }
-        .skin-mystic-ring {
-          border: 1px solid; animation: spin 6s linear infinite;
-        }
-        .skin-ember {
-          position: absolute; bottom: 8%; border-radius: 50%; opacity: 0;
-          animation: skinEmber 1.8s ease-in-out infinite;
-        }
-        @keyframes skinEmber {
-          0%   { opacity:0; transform:translateY(0) scale(1); }
-          15%  { opacity:0.9; }
-          70%  { opacity:0.4; }
-          100% { opacity:0; transform:translateY(-70px) translateX(8px) scale(0.3); }
-        }
-        .skin-fire-glow { animation: skinFireGlow 1.4s ease-in-out infinite; }
-        @keyframes skinFireGlow {
-          0%,100% { opacity:0.4; } 50% { opacity:0.9; }
-        }
-        .skin-ice-breath { animation: skinIce 3.5s ease-in-out infinite; }
-        @keyframes skinIce {
-          0%,100% { opacity:0.3; transform:scale(0.9); }
-          50% { opacity:0.7; transform:scale(1.05); }
-        }
-        .skin-ice-shard {
-          width: 2px; height: 10px; border-radius: 1px; opacity: 0;
-          animation: skinShard 2.2s ease-in-out infinite;
-        }
-        @keyframes skinShard {
-          0%,100% { opacity:0; transform:translate(-50%,-50%) rotate(var(--r,0deg)) scaleY(0.4); }
-          50% { opacity:0.6; transform:translate(-50%,-50%) rotate(var(--r,0deg)) scaleY(1.1); }
-        }
-        .skin-star {
-          position: absolute; width: 2px; height: 2px; border-radius: 50%;
-          animation: skinTwinkle 1.6s ease-in-out infinite;
-        }
-        @keyframes skinTwinkle {
-          0%,100% { opacity:0.1; transform:scale(0.7); }
-          50% { opacity:1; transform:scale(1.8); }
-        }
-        .skin-nebula { animation: spin 25s linear infinite; opacity: 0.4; }
-        .skin-ray {
-          width: 2px; height: 45%; opacity: 0;
-          animation: skinRay 2s ease-in-out infinite;
+        /* ── Skin aura keyframes ── */
+        @keyframes skinPulse {
+          0%,100% { opacity:.12; transform:scale(.92); }
+          50%      { opacity:.55; transform:scale(1.08); }
         }
         @keyframes skinRay {
-          0%,100% { opacity:0; transform:translate(-50%,-100%) scaleY(0.5) rotate(var(--r,0deg)); }
-          50% { opacity:0.5; transform:translate(-50%,-100%) scaleY(1) rotate(var(--r,0deg)); }
+          0%,100% { opacity:0; }
+          50%     { opacity:.7; }
         }
-        .skin-crown-ring { animation: skinCrown 2.5s ease-in-out infinite; }
-        @keyframes skinCrown {
-          0%,100% { opacity:0.4; box-shadow: 0 0 10px var(--skin-accent,#fbbf24)20; }
-          50% { opacity:0.8; box-shadow: 0 0 22px var(--skin-accent,#fbbf24)40; }
+        @keyframes skinFloat {
+          0%       { opacity:0; transform:translateY(0) scale(.75); }
+          20%,65%  { opacity:.8; }
+          100%     { opacity:0; transform:translateY(-110px) scale(1.1); }
         }
-        .skin-crown-outer { animation: skinCrown 3s ease-in-out infinite; }
-        .skin-shimmer { animation: skinShimmer 2.8s ease-in-out infinite; }
-        @keyframes skinShimmer {
-          0%,100% { opacity:0; transform:translateX(-60%) skewX(-20deg); }
-          50% { opacity:1; transform:translateX(60%) skewX(-20deg); }
+        @keyframes skinFlicker {
+          0%,100%  { opacity:0; }
+          28%,38%  { opacity:.85; }
+          62%,72%  { opacity:.45; }
         }
-        .skin-golden-pulse { animation: skinGoldenPulse 2.4s ease-in-out infinite; }
-        @keyframes skinGoldenPulse {
-          0%,100% { opacity:0.2; transform:scale(0.85); }
-          50% { opacity:0.5; transform:scale(1.08); }
+        @keyframes skinTwinkle {
+          0%,100% { opacity:.08; transform:scale(.5); }
+          50%     { opacity:1;   transform:scale(1.8); }
         }
       `}</style>
 
