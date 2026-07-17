@@ -671,9 +671,8 @@ export const TasksTab = () => {
       )}
 
       {/* ══ TAB BAR ══ */}
-      <div className="sticky top-0 z-20 px-4 pt-3 pb-2.5"
-        style={{ background: 'linear-gradient(to bottom,hsl(224,71%,4%) 80%,transparent)' }}>
-        <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl"
+      <div className="px-4 pt-3 pb-2.5">
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
           {TASK_TABS.map(tab => {
             const isActive = taskTab === tab.id;
