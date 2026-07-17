@@ -12,6 +12,19 @@ import { rateLimit } from "../lib/rateLimit";
 import { logUserActivity } from "../lib/activityLog";
 import { logger } from "../lib/logger";
 import { creditedStateSql } from "../lib/weeklyCredit";
+import { getSettingsMap, asString } from "../lib/settings";
+
+/** Returns true if the arcade is open for this telegramId */
+async function isArcadeAccessible(telegramId: string): Promise<boolean> {
+  const settings = await getSettingsMap();
+  const enabled = settings.arcadeEnabled === true || settings.arcadeEnabled === "true";
+  if (enabled) return true;
+  const whitelist = asString(settings.arcadeWhitelist ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return whitelist.includes(telegramId);
+}
 
 const router: IRouter = Router();
 
@@ -92,6 +105,12 @@ async function getUserActiveSessions(telegramId: string) {
 router.get("/arcade/status", async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
   if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  // Access control — game may be disabled or whitelisted only
+  if (!(await isArcadeAccessible(telegramId))) {
+    res.json({ enabled: false, activeSessions: [], ticket: null, wonSessionsAwarded: 0 });
+    return;
+  }
 
   await settleExpiredSessions();
 
@@ -311,6 +330,11 @@ router.post(
   async (req, res): Promise<void> => {
     const telegramId = getSessionTelegramId(req);
     if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    if (!(await isArcadeAccessible(telegramId))) {
+      res.status(403).json({ error: "اللعبة غير مفعّلة حالياً" });
+      return;
+    }
 
     const { room, x, y, durationHours } = req.body as {
       room: string;

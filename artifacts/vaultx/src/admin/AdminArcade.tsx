@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { Loader2, Sword, Shield, Trophy, Ticket, RefreshCw, Trash2, Grid3x3 } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Loader2, Sword, Shield, Trophy, Ticket, RefreshCw, Trash2, Grid3x3, Power, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ArcadeStats {
@@ -50,6 +50,17 @@ async function adminDelete(path: string): Promise<void> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+async function adminPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 async function fetchStats(): Promise<ArcadeStats> {
   return adminGet<ArcadeStats>("/api/arcade/admin/stats");
 }
@@ -62,6 +73,21 @@ async function fetchSessions(status: string, room: string): Promise<SessionsResp
 
 async function cancelSession(id: number): Promise<void> {
   return adminDelete(`/api/arcade/admin/sessions/${id}`);
+}
+
+async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWhitelist: string }> {
+  const data = await adminGet<Record<string, unknown>>("/api/admin/settings");
+  return {
+    arcadeEnabled: data.arcadeEnabled === true || data.arcadeEnabled === "true",
+    arcadeWhitelist: typeof data.arcadeWhitelist === "string" ? data.arcadeWhitelist : "",
+  };
+}
+
+async function saveArcadeSettings(enabled: boolean, whitelist: string): Promise<void> {
+  await adminPut("/api/admin/settings", {
+    arcadeEnabled: enabled,
+    arcadeWhitelist: whitelist.trim(),
+  });
 }
 
 const ROOM_COLORS: Record<string, string> = {
@@ -85,6 +111,38 @@ export function AdminArcade() {
   const [filterStatus, setFilterStatus] = useState("active");
   const [filterRoom, setFilterRoom] = useState("");
   const [cancelling, setCancelling] = useState<number | null>(null);
+
+  // Settings state
+  const [arcadeEnabled, setArcadeEnabled] = useState(false);
+  const [whitelist, setWhitelist] = useState("");
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const s = await fetchArcadeSettings();
+      setArcadeEnabled(s.arcadeEnabled);
+      setWhitelist(s.arcadeWhitelist);
+    } catch { /* ignore */ } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
+
+  const handleSaveSettings = useCallback(async (enabled: boolean, wl: string) => {
+    setSettingsSaving(true);
+    setSettingsSaved(false);
+    try {
+      await saveArcadeSettings(enabled, wl);
+      setSettingsSaved(true);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSettingsSaved(false), 2500);
+    } catch { /* ignore */ } finally {
+      setSettingsSaving(false);
+    }
+  }, []);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -111,13 +169,9 @@ export function AdminArcade() {
     }
   }, [filterStatus, filterRoom]);
 
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+  useEffect(() => { loadSettings(); }, [loadSettings]);
+  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { loadSessions(); }, [loadSessions]);
 
   async function handleCancel(id: number) {
     setCancelling(id);
@@ -140,10 +194,89 @@ export function AdminArcade() {
           <h2 className="text-lg font-black text-white">🎮 SKX Arcade</h2>
           <p className="text-xs text-muted-foreground">Hidden Pixel Grid — إدارة شاملة</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => { loadStats(); loadSessions(); }}
+        <Button size="sm" variant="outline" onClick={() => { loadStats(); loadSessions(); loadSettings(); }}
           className="border-white/10 text-xs">
           <RefreshCw className="w-3 h-3 mr-1" /> تحديث
         </Button>
+      </div>
+
+      {/* ── Enable / Disable Card ── */}
+      <div className={`rounded-2xl border p-4 transition-all ${
+        arcadeEnabled
+          ? "bg-[#22c55e]/10 border-[#22c55e]/30"
+          : "bg-white/[0.03] border-white/10"
+      }`}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+            arcadeEnabled ? "bg-[#22c55e]/20" : "bg-white/5"
+          }`}>
+            <Power className={`w-4 h-4 ${arcadeEnabled ? "text-[#22c55e]" : "text-muted-foreground"}`} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white">تفعيل اللعبة</p>
+            <p className="text-[10px] text-muted-foreground">
+              {arcadeEnabled ? "اللعبة مفعّلة لجميع المستخدمين" : "اللعبة مُعطَّلة — الوصول عبر القائمة البيضاء فقط"}
+            </p>
+          </div>
+
+          {/* Toggle switch */}
+          {settingsLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          ) : (
+            <button
+              onClick={() => {
+                const next = !arcadeEnabled;
+                setArcadeEnabled(next);
+                handleSaveSettings(next, whitelist);
+              }}
+              disabled={settingsSaving}
+              className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                arcadeEnabled ? "bg-[#22c55e]" : "bg-white/10"
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                arcadeEnabled ? "translate-x-5" : "translate-x-0"
+              }`} />
+            </button>
+          )}
+        </div>
+
+        {/* Whitelist section */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Users className="w-3 h-3 text-muted-foreground" />
+            <p className="text-[11px] font-semibold text-muted-foreground">
+              القائمة البيضاء (Telegram IDs) — مفصولة بفواصل
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={whitelist}
+              onChange={(e) => setWhitelist(e.target.value)}
+              placeholder="123456789, 987654321"
+              className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 transition-colors font-mono"
+              dir="ltr"
+            />
+            <Button
+              size="sm"
+              onClick={() => handleSaveSettings(arcadeEnabled, whitelist)}
+              disabled={settingsSaving}
+              className="shrink-0 text-xs px-3"
+            >
+              {settingsSaving ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : settingsSaved ? (
+                "✓ حُفظ"
+              ) : (
+                "حفظ"
+              )}
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground/60">
+            المستخدمون في هذه القائمة يمكنهم اللعب حتى لو كانت اللعبة مُعطَّلة — مفيد للاختبار
+          </p>
+        </div>
       </div>
 
       {/* Stats cards */}
