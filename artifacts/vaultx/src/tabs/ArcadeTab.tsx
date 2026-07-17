@@ -29,6 +29,7 @@ interface ArcadeStatus {
   adsWatched: number;
   adsNeeded: number;
   starsBalance: number;
+  extraCellCredits: number;
   activeSessions: ActiveSession[];
   wonSessionsAwarded: number;
 }
@@ -119,6 +120,7 @@ const SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
   { type: "decoy", stars: 50, icon: "💥" },
   { type: "radar", stars: 15, icon: "📡" },
   { type: "multi_strike", stars: 30, icon: "⚡" },
+  { type: "extra_cells", stars: 500, icon: "🗺️" },
 ];
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -164,6 +166,7 @@ function shopItemLabel(type: string, tr: ReturnType<typeof useLanguage>["tr"]): 
     decoy: tr.arcade.decoyLabel,
     radar: tr.arcade.radarLabel,
     multi_strike: tr.arcade.multiStrikeLabel,
+    extra_cells: tr.arcade.extraCellsLabel,
   };
   return map[type] ?? type;
 }
@@ -175,6 +178,7 @@ function shopItemDesc(type: string, tr: ReturnType<typeof useLanguage>["tr"]): s
     decoy: tr.arcade.decoyDesc,
     radar: tr.arcade.radarDesc,
     multi_strike: tr.arcade.multiStrikeDesc,
+    extra_cells: tr.arcade.extraCellsDesc,
   };
   return map[type] ?? "";
 }

@@ -375,6 +375,17 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
                     eq(arcadeSessionsTable.telegramId, telegramId),
                   ),
                 );
+            } else if (itemType === "extra_cells") {
+              // Add 3 extra cell slots to user state (capped at 9 total extra)
+              await db.execute(sql`
+                UPDATE vault_users
+                SET state = jsonb_set(
+                  COALESCE(state, '{}'),
+                  '{extraCellCredits}',
+                  to_jsonb(LEAST(COALESCE((state->>'extraCellCredits')::int, 0) + 3, 9))
+                )
+                WHERE telegram_id = ${telegramId}
+              `);
             }
             // radar and multi_strike are handled client-side; just record the purchase
             await db

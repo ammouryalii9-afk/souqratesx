@@ -153,18 +153,21 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
   const ticket = await getTodayTicket(telegramId);
   const activeSessions = await getUserActiveSessions(telegramId);
 
-  // Fetch Telegram Stars balance so the frontend shows the correct value in the shop
+  // Fetch user row for starsBalance + extraCellCredits from state JSONB
   const [userRow] = await db
-    .select({ starsBalance: vaultUsersTable.starsBalance })
+    .select({ starsBalance: vaultUsersTable.starsBalance, state: vaultUsersTable.state })
     .from(vaultUsersTable)
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .limit(1);
+
+  const extraCellCredits = (userRow?.state as Record<string, unknown> | null)?.extraCellCredits as number ?? 0;
 
   res.json({
     hasTicket: ticket?.ticketGranted ?? false,
     adsWatched: ticket?.adsWatched ?? 0,
     adsNeeded: ADS_NEEDED,
     starsBalance: userRow?.starsBalance ?? 0,
+    extraCellCredits,
     todayKey: todayKey(),
     activeSessions: activeSessions.map((s) => ({
       id: s.id,
@@ -242,11 +245,12 @@ router.post(
 // Creates a REAL Telegram Stars invoice for a shop item.
 // The webhook (successful_payment) applies the item effect after payment.
 const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
-  shield_3h:    { stars: 20, label: "🛡️ Shield 3h",       desc: "Protect your cell for 3 hours" },
-  shield_full:  { stars: 80, label: "🔰 Full Shield",      desc: "Shield lasts the entire session" },
-  decoy:        { stars: 50, label: "💥 Decoy Trap",       desc: "Next attacker gets penalised" },
-  radar:        { stars: 15, label: "📡 Radar Scan",       desc: "Reveal enemies in a 3×3 area" },
-  multi_strike: { stars: 30, label: "⚡ Multi-Strike ×5",  desc: "Claim 5 cells simultaneously" },
+  shield_3h:    { stars: 20,  label: "🛡️ Shield 3h",        desc: "Protect your cell for 3 hours" },
+  shield_full:  { stars: 80,  label: "🔰 Full Shield",       desc: "Shield lasts the entire session" },
+  decoy:        { stars: 50,  label: "💥 Decoy Trap",        desc: "Next attacker gets penalised" },
+  radar:        { stars: 15,  label: "📡 Radar Scan",        desc: "Reveal enemies in a 3×3 area" },
+  multi_strike: { stars: 30,  label: "⚡ Multi-Strike ×5",   desc: "Claim 5 cells simultaneously" },
+  extra_cells:  { stars: 500, label: "🗺️ Extra Cells ×3",    desc: "Unlock 3 additional cell slots permanently" },
 };
 
 router.post(
@@ -414,8 +418,16 @@ router.post(
       return;
     }
 
-    // User can have at most 3 active sessions total
+    // User can have at most 3 + extraCellCredits active sessions total
     await settleExpiredSessions();
+    const [claimUser] = await db
+      .select({ state: vaultUsersTable.state })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, telegramId))
+      .limit(1);
+    const claimExtraSlots = (claimUser?.state as Record<string, unknown> | null)?.extraCellCredits as number ?? 0;
+    const maxSessions = 3 + Math.min(claimExtraSlots, 9);
+
     const myActive = await db
       .select({ id: arcadeSessionsTable.id })
       .from(arcadeSessionsTable)
@@ -425,8 +437,8 @@ router.post(
           eq(arcadeSessionsTable.status, "active"),
         ),
       );
-    if (myActive.length >= 3) {
-      res.status(409).json({ error: "Max 3 active sessions at a time" });
+    if (myActive.length >= maxSessions) {
+      res.status(409).json({ error: `Max ${maxSessions} active sessions at a time` });
       return;
     }
 
