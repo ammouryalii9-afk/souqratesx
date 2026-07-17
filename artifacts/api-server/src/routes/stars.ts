@@ -8,12 +8,8 @@ import { createStarsInvoiceLink, isTelegramBotConfigured } from "../lib/telegram
 const router: IRouter = Router();
 
 router.get("/store/products", async (req, res): Promise<void> => {
-  const telegramId = getSessionTelegramId(req);
-  if (!telegramId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-
+  // Public endpoint — no auth required to browse the product catalogue.
+  // Auth is only enforced at purchase time (/stars/invoice).
   const rows = await db
     .select()
     .from(starProductsTable)
