@@ -1065,7 +1065,13 @@ function GridView({
   const gridSize = r.size;
 
   const loadGrid = useCallback(async () => {
-    setGridLoading(true);
+    // Only show the full-screen spinner on the very first load (no data yet).
+    // All background refreshes (15s poll, post-action) are silent.
+    setGridLoading((prev) => {
+      if (prev) return true;          // already showing spinner — keep it
+      if (gridInitializedRef.current) return false;  // has data — stay silent
+      return true;                    // first load — show spinner
+    });
     try {
       const data = await apiGet<GridData>(`/arcade/grid/${room}`);
       const newMyCells = new Set(
