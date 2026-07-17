@@ -216,65 +216,90 @@ function getCellStyle(
   cell: GridCell | undefined,
   isHovered: boolean,
   isRevealed: boolean,
-): { background: string; border: string; boxShadow?: string; transform?: string } {
+  vp: number,
+): {
+  background: string; border: string;
+  boxShadow?: string; transform?: string;
+  animationClass?: string;
+} {
+  const bigCell = vp <= 12;
+
   if (cell?.owner === "me") {
     if (cell.isDecoy) {
       return {
         background: isHovered
-          ? "linear-gradient(135deg,#fbbf24,#f97316)"
-          : "linear-gradient(135deg,#d97706,#b45309)",
-        border: `1.5px solid ${isHovered ? "#fde68a" : "#fbbf24"}`,
-        boxShadow: isHovered ? "0 0 12px #fbbf2490, inset 0 0 6px rgba(255,255,255,0.1)" : "0 0 5px #d9770640",
-        transform: isHovered ? "scale(1.08)" : undefined,
+          ? "linear-gradient(135deg,#fbbf24 0%,#ea7816 100%)"
+          : "linear-gradient(135deg,#92400e 0%,#6b2d06 100%)",
+        border: `${bigCell ? 2 : 1.5}px solid ${isHovered ? "#fde68a" : "#f59e0b"}`,
+        boxShadow: isHovered ? "0 0 18px #f59e0bcc,0 0 36px #f59e0b55,inset 0 0 12px rgba(251,191,36,0.28)" : undefined,
+        transform: isHovered ? "scale(1.15)" : "scale(1.03)",
+        animationClass: isHovered ? undefined : "arcade-decoy",
       };
     }
     if (cell.hasShield) {
       return {
         background: isHovered
-          ? "linear-gradient(135deg,#22d3ee,#0891b2)"
-          : "linear-gradient(135deg,#0e7490,#164e63)",
-        border: `1.5px solid ${isHovered ? "#67e8f9" : "#22d3ee"}`,
-        boxShadow: isHovered ? "0 0 14px #22d3ee90, inset 0 0 6px rgba(255,255,255,0.12)" : "0 0 6px #0e749050",
-        transform: isHovered ? "scale(1.08)" : undefined,
+          ? "linear-gradient(135deg,#38bdf8 0%,#0284c7 100%)"
+          : "linear-gradient(135deg,#164e63 0%,#082f49 100%)",
+        border: `${bigCell ? 2 : 1.5}px solid ${isHovered ? "#7dd3fc" : "#22d3ee"}`,
+        boxShadow: isHovered ? "0 0 20px #38bdf8cc,0 0 40px #38bdf855,inset 0 0 14px rgba(56,189,248,0.3)" : undefined,
+        transform: isHovered ? "scale(1.15)" : "scale(1.03)",
+        animationClass: isHovered ? undefined : "arcade-shield",
       };
     }
     return {
       background: isHovered
-        ? "linear-gradient(135deg,#4ade80,#16a34a)"
-        : "linear-gradient(135deg,#16a34a,#166534)",
-      border: `2px solid ${isHovered ? "#86efac" : "#4ade80"}`,
-      boxShadow: isHovered ? "0 0 14px #22c55e90, inset 0 0 6px rgba(255,255,255,0.1)" : "0 0 5px #22c55e40",
-      transform: isHovered ? "scale(1.08)" : undefined,
+        ? "linear-gradient(135deg,#4ade80 0%,#16a34a 100%)"
+        : "linear-gradient(135deg,#14532d 0%,#052e16 100%)",
+      border: `${bigCell ? 2 : 1.5}px solid ${isHovered ? "#86efac" : "#22c55e"}`,
+      boxShadow: isHovered ? "0 0 20px #22c55ecc,0 0 40px #22c55e55,inset 0 0 14px rgba(74,222,128,0.28)" : undefined,
+      transform: isHovered ? "scale(1.15)" : "scale(1.03)",
+      animationClass: isHovered ? undefined : "arcade-owned",
     };
   }
 
-  // Enemy — hidden (same as empty), revealed = red flash
   if (cell?.owner === "other" && isRevealed) {
     return {
-      background: "linear-gradient(135deg,#991b1b,#7f1d1d)",
-      border: "2px solid #ef4444",
-      boxShadow: "0 0 16px #ef444499, inset 0 0 8px rgba(239,68,68,0.3)",
-      transform: "scale(1.12)",
+      background: "linear-gradient(135deg,#991b1b 0%,#450a0a 100%)",
+      border: "2px solid #f87171",
+      boxShadow: "0 0 22px #ef4444cc,0 0 44px #ef444455,inset 0 0 16px rgba(239,68,68,0.35)",
+      transform: "scale(1.18)",
+      animationClass: "arcade-enemy",
     };
   }
 
-  // Empty / hidden enemy — identical
+  // Empty / hidden enemy — identical visual (core mechanic)
+  if (isHovered) {
+    return {
+      background: "rgba(255,255,255,0.09)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      boxShadow: "0 0 6px rgba(255,255,255,0.06),inset 0 0 5px rgba(255,255,255,0.04)",
+      transform: "scale(1.07)",
+    };
+  }
   return {
-    background: isHovered
-      ? "rgba(255,255,255,0.10)"
-      : "rgba(255,255,255,0.025)",
-    border: isHovered
-      ? "1px solid rgba(255,255,255,0.22)"
-      : "1px solid rgba(255,255,255,0.055)",
-    boxShadow: isHovered ? "inset 0 0 4px rgba(255,255,255,0.06)" : undefined,
+    background: "linear-gradient(135deg,rgba(18,32,70,0.65) 0%,rgba(8,15,38,0.5) 100%)",
+    border: "1px solid rgba(70,100,190,0.1)",
   };
 }
 
-function getCellIcon(cell: GridCell | undefined) {
+function getCellIcon(cell: GridCell | undefined, vp: number) {
   if (!cell || cell.owner !== "me") return null;
-  if (cell.isDecoy) return <span style={{ fontSize: "9px", lineHeight: 1 }}>💥</span>;
-  if (cell.hasShield) return <span style={{ fontSize: "9px", lineHeight: 1 }}>🛡</span>;
-  return <div style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.75)", boxShadow: "0 0 4px #fff" }} />;
+  const sz = vp <= 10 ? "12px" : vp <= 14 ? "9px" : "8px";
+  const dotSz = vp <= 10 ? 7 : vp <= 14 ? 5 : 4;
+  if (cell.isDecoy) return (
+    <span style={{ fontSize: sz, lineHeight: 1, filter: "drop-shadow(0 0 4px #f59e0b)" }}>⚠️</span>
+  );
+  if (cell.hasShield) return (
+    <span style={{ fontSize: sz, lineHeight: 1, filter: "drop-shadow(0 0 5px #22d3ee)" }}>🛡</span>
+  );
+  return (
+    <div style={{
+      width: dotSz, height: dotSz, borderRadius: "50%",
+      background: "radial-gradient(circle,#fff 30%,rgba(74,222,128,0.8) 100%)",
+      boxShadow: "0 0 6px #fff,0 0 14px rgba(74,222,128,0.9)",
+    }} />
+  );
 }
 
 // ── EntryGate ────────────────────────────────────────────────────────────────
@@ -485,17 +510,41 @@ function RoomSelector({ status, onRoomSelected }: {
               key={room}
               onClick={() => { haptic("light"); onRoomSelected(room); }}
               className="relative overflow-hidden rounded-2xl text-left transition-all active:scale-[0.97]"
-              style={{ background: r.gradient, border: `1px solid ${r.color}35` }}
+              style={{
+                background: r.gradient,
+                border: `1px solid ${r.color}40`,
+                boxShadow: `0 0 20px ${r.color}12,0 4px 16px rgba(0,0,0,0.4)`,
+              }}
             >
-              <div className="p-4">
+              {/* Shine sweep animation */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+                <div style={{
+                  position: "absolute", top: 0, bottom: 0, width: "30%",
+                  background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)",
+                  animation: "arcadeRoomShine 5s ease-in-out infinite",
+                  animationDelay: room === "easy" ? "0s" : room === "tactical" ? "1.8s" : "3.5s",
+                }} />
+              </div>
+              {/* Corner accent */}
+              <div className="absolute top-0 right-0 w-20 h-20 pointer-events-none" style={{
+                background: `radial-gradient(circle at top right,${r.color}22 0%,transparent 70%)`,
+              }} />
+
+              <div className="p-4 relative z-10">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-black text-white text-lg leading-tight">{r.label}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: `${r.color}bb` }}>{roomDesc(room, tr)}</p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="font-black text-white text-lg leading-tight">{r.label}</p>
+                    </div>
+                    <p className="text-[11px]" style={{ color: `${r.color}cc` }}>{roomDesc(room, tr)}</p>
                   </div>
                   <div
-                    className="px-3 py-1.5 rounded-xl text-sm font-black"
-                    style={{ background: r.color, color: "#000" }}
+                    className="px-3 py-1.5 rounded-xl text-sm font-black shrink-0"
+                    style={{
+                      background: r.color,
+                      color: "#000",
+                      boxShadow: `0 0 12px ${r.color}66`,
+                    }}
                   >
                     {r.multiplier}
                   </div>
@@ -504,14 +553,19 @@ function RoomSelector({ status, onRoomSelected }: {
                 <div className="flex gap-2">
                   {DURATION_OPTIONS.map((d) => {
                     const pts = finalPts(d.points, room);
+                    const stake = Math.round(pts * 0.25);
                     return (
                       <div
                         key={d.hours}
                         className="flex-1 rounded-xl py-2 text-center"
-                        style={{ background: `${r.color}18` }}
+                        style={{
+                          background: `${r.color}14`,
+                          border: `1px solid ${r.color}22`,
+                        }}
                       >
                         <p className="text-[9px] font-bold" style={{ color: `${r.color}88` }}>{d.hours}{tr.arcade.hoursUnit}</p>
                         <p className="text-xs font-black" style={{ color: r.color }}>{(pts / 1000).toFixed(0)}K</p>
+                        <p className="text-[8px]" style={{ color: `${r.color}66` }}>−{(stake / 1000).toFixed(0)}K</p>
                       </div>
                     );
                   })}
@@ -520,17 +574,18 @@ function RoomSelector({ status, onRoomSelected }: {
                 {myCount > 0 && (
                   <div
                     className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black"
-                    style={{ background: `${r.color}22`, color: r.color }}
+                    style={{
+                      background: `${r.color}1a`,
+                      color: r.color,
+                      border: `1px solid ${r.color}35`,
+                      boxShadow: `0 0 8px ${r.color}22`,
+                    }}
                   >
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: r.color, boxShadow: `0 0 4px ${r.color}`, animation: "vaultPulse 1.5s ease-in-out infinite" }} />
                     {tr.arcade.activeHere(myCount)}
                   </div>
                 )}
               </div>
-              <div
-                className="absolute right-0 top-0 bottom-0 w-16 pointer-events-none"
-                style={{ background: `linear-gradient(to left,${r.color}18,transparent)` }}
-              />
             </button>
           );
         })}
@@ -1148,36 +1203,61 @@ function GridView({
   const mySessions = status.activeSessions.filter((s) => s.roomType === room);
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#060b18" }}>
+    <div className="flex flex-col h-full" style={{ background: "radial-gradient(ellipse at 50% 0%,#0b1830 0%,#060b18 50%,#030710 100%)" }}>
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3" style={{ background: r.gradient, borderBottom: `1px solid ${r.color}30` }}>
+      <div
+        className="shrink-0 flex items-center gap-2.5 px-3 py-2.5"
+        style={{
+          background: `linear-gradient(135deg,${r.color}18 0%,rgba(0,0,0,0.5) 100%)`,
+          borderBottom: `1px solid ${r.color}35`,
+          backdropFilter: "blur(8px)",
+        }}
+      >
         <button
           onClick={onBack}
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.3)" }}
+          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}
         >
-          <ChevronLeft className="w-5 h-5 text-white" />
+          <ChevronLeft className="w-4 h-4 text-white" />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-white">{r.label}</p>
-          <p className="text-[10px] truncate" style={{ color: `${r.color}cc` }}>
-            {gridData ? tr.arcade.activeCells(gridData.totalActive) : tr.arcade.loadingGrid}
-            {" · "}{viewOx}–{Math.min(viewOx + vp - 1, gridSize - 1)}, {viewOy}–{Math.min(viewOy + vp - 1, gridSize - 1)}
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: r.color, boxShadow: `0 0 6px ${r.color}` }} />
+            <p className="text-sm font-black text-white leading-none">{r.label}</p>
+            <span
+              className="text-[9px] font-black px-1.5 py-0.5 rounded-md"
+              style={{ background: `${r.color}22`, color: r.color, border: `1px solid ${r.color}40` }}
+            >
+              {r.multiplier}
+            </span>
+          </div>
+          <p className="text-[9px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.38)" }}>
+            {gridData ? (
+              <><span style={{ color: r.color }}>{gridData.totalActive}</span> {tr.arcade.activeCells(0).replace(/^0 /, "")} · [{viewOx},{viewOy}]</>
+            ) : tr.arcade.loadingGrid}
           </p>
+        </div>
+        {/* SKX balance chip */}
+        <div
+          className="flex items-center gap-1 px-2 py-1 rounded-lg shrink-0"
+          style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}
+        >
+          <span className="text-[9px] font-black" style={{ color: "#f59e0b" }}>SKX</span>
+          <span className="text-[10px] font-black text-white">{(status.skxBalance / 1000).toFixed(0)}K</span>
         </div>
         <button
           onClick={() => loadGrid()}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-sm"
-          style={{ background: "rgba(0,0,0,0.25)" }}
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-sm"
+          style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
         >
           ↻
         </button>
         <button
           onClick={() => { haptic("light"); setShopOpen(true); }}
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: "rgba(245,158,11,0.25)", border: "1px solid rgba(245,158,11,0.4)" }}
+          className="w-8 h-8 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(245,158,11,0.18)", border: "1px solid rgba(245,158,11,0.4)", boxShadow: "0 0 8px rgba(245,158,11,0.2)" }}
         >
-          <Star className="w-4 h-4 text-yellow-400" />
+          <Star className="w-3.5 h-3.5 text-yellow-400" />
         </button>
       </div>
 
@@ -1234,24 +1314,41 @@ function GridView({
           {/* Grid */}
           <div className="flex-1 relative min-w-0" style={{ aspectRatio: "1", maxHeight: "100%" }}>
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 arcade-grid-glow"
               style={{
                 display: "grid",
                 gridTemplateColumns: `repeat(${vp}, 1fr)`,
                 gap: "2px",
-                padding: "3px",
-                borderRadius: "12px",
-                background: "rgba(255,255,255,0.03)",
+                padding: "4px",
+                borderRadius: "16px",
+                background: "linear-gradient(135deg,#04091c 0%,#060d26 50%,#030810 100%)",
+                border: `1px solid ${r.color}22`,
+                overflow: "hidden",
+                position: "relative",
               }}
             >
+              {/* Horizontal scan beam */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[14px] z-10"
+                style={{ mixBlendMode: "screen" }}>
+                <div style={{
+                  position: "absolute", left: 0, right: 0, height: "35%",
+                  background: `linear-gradient(to bottom,transparent,${r.color}06,transparent)`,
+                  animation: "arcadeScanBeam 8s linear infinite",
+                }} />
+              </div>
+              {/* Subtle scanline texture */}
+              <div className="pointer-events-none absolute inset-0 z-[9] rounded-[14px]"
+                style={{
+                  backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.006) 3px,rgba(255,255,255,0.006) 4px)",
+                }} />
               {gridLoading && (
                 <div
-                  className="absolute inset-0 flex items-center justify-center z-10 rounded-xl"
-                  style={{ background: "rgba(6,11,24,0.75)" }}
+                  className="absolute inset-0 flex items-center justify-center z-20 rounded-[14px]"
+                  style={{ background: "rgba(4,9,28,0.85)", backdropFilter: "blur(2px)" }}
                 >
                   <div
-                    className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
-                    style={{ borderColor: r.color, borderTopColor: "transparent" }}
+                    className="w-8 h-8 rounded-full border-2 animate-spin"
+                    style={{ borderColor: `${r.color}33`, borderTopColor: r.color, boxShadow: `0 0 12px ${r.color}66` }}
                   />
                 </div>
               )}
@@ -1264,8 +1361,9 @@ function GridView({
                 const cell = cellMap.get(key);
                 const isHovered = hoveredKey === key;
                 const isRevealed = revealedKeys.has(key);
-                const style = getCellStyle(cell, isHovered, isRevealed);
-                const isFeverTarget = specialMode !== null;
+                const style = getCellStyle(cell, isHovered, isRevealed, vp);
+                const isFeverTarget = specialMode !== null && !cell;
+                const radius = vp <= 10 ? "5px" : vp <= 14 ? "3px" : "2px";
 
                 return (
                   <button
@@ -1277,17 +1375,20 @@ function GridView({
                     onClick={() => onCellTap(absX, absY)}
                     onMouseEnter={() => setHoveredKey(key)}
                     onMouseLeave={() => setHoveredKey(null)}
-                    className="rounded-[3px] flex items-center justify-center transition-all duration-75 active:scale-75"
+                    className={`flex items-center justify-center transition-all duration-100 active:scale-75 ${style.animationClass ?? ""}`}
                     style={{
+                      borderRadius: radius,
                       background: style.background,
-                      border: isFeverTarget && !cell
-                        ? `1px solid rgba(245,158,11,0.35)`
+                      border: isFeverTarget
+                        ? `1px solid rgba(245,158,11,0.45)`
                         : style.border,
-                      boxShadow: style.boxShadow,
+                      boxShadow: isFeverTarget
+                        ? "inset 0 0 4px rgba(245,158,11,0.15)"
+                        : (style.animationClass ? undefined : style.boxShadow),
                       transform: style.transform,
                     }}
                   >
-                    {getCellIcon(cell)}
+                    {getCellIcon(cell, vp)}
                   </button>
                 );
               })}
@@ -1362,31 +1463,58 @@ function GridView({
 
       {/* My sessions panel */}
       {mySessions.length > 0 && (
-        <div className="shrink-0 px-4 py-2.5" style={{ borderTop: `1px solid ${r.color}20`, background: `${r.color}07` }}>
-          <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: `${r.color}70` }}>
-            {tr.arcade.mySessions}
-          </p>
-          <div className="flex flex-col gap-1.5">
+        <div
+          className="shrink-0 px-3 py-2"
+          style={{
+            borderTop: `1px solid ${r.color}25`,
+            background: `linear-gradient(to right,${r.color}0a,transparent,${r.color}08)`,
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="w-1 h-1 rounded-full animate-pulse" style={{ background: r.color }} />
+            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: `${r.color}88` }}>
+              {tr.arcade.mySessions}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
             {mySessions.map((s) => {
               const elapsed = Date.now() - (new Date(s.expiresAt).getTime() - s.durationHours * 3_600_000);
-              const pct = Math.max(4, Math.min(100, (elapsed / (s.durationHours * 3_600_000)) * 100));
+              const pct = Math.max(2, Math.min(100, (elapsed / (s.durationHours * 3_600_000)) * 100));
+              const isDecoy = s.isDecoy;
+              const isShielded = s.hasShield;
+              const accentColor = isDecoy ? "#f59e0b" : isShielded ? "#22d3ee" : r.color;
               return (
                 <div
                   key={s.id}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                  style={{ background: `${r.color}10`, border: `1px solid ${r.color}20` }}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: `linear-gradient(135deg,${accentColor}10,${accentColor}06)`,
+                    border: `1px solid ${accentColor}25`,
+                    boxShadow: `0 0 8px ${accentColor}10`,
+                  }}
                 >
-                  <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
-                  <span className="text-[10px] shrink-0" style={{ color: "rgba(255,255,255,0.5)" }}>({s.gridX},{s.gridY})</span>
-                  <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: r.color }} />
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentColor, boxShadow: `0 0 5px ${accentColor}` }} />
+                  <span className="text-[9px] font-bold shrink-0" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    ({s.gridX},{s.gridY})
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        background: `linear-gradient(90deg,${accentColor}99,${accentColor})`,
+                        boxShadow: `0 0 4px ${accentColor}66`,
+                      }}
+                    />
                   </div>
-                  <span className="text-[10px] font-bold shrink-0" style={{ color: r.color }}>
+                  <span className="text-[10px] font-bold shrink-0" style={{ color: accentColor }}>
                     {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
                   </span>
-                  <span className="text-[10px] font-black text-yellow-400 shrink-0">+{s.finalPoints.toLocaleString()}</span>
-                  {s.hasShield && <Shield className="w-3 h-3 text-cyan-400 shrink-0" />}
-                  {s.isDecoy && <span className="text-[9px] shrink-0">💥</span>}
+                  <span className="text-[10px] font-black shrink-0" style={{ color: "#fbbf24", textShadow: "0 0 6px #f59e0b66" }}>
+                    +{(s.finalPoints / 1000).toFixed(0)}K
+                  </span>
+                  {isShielded && <span className="text-[9px] shrink-0" style={{ filter: "drop-shadow(0 0 3px #22d3ee)" }}>🛡</span>}
+                  {isDecoy && <span className="text-[9px] shrink-0">⚠️</span>}
                 </div>
               );
             })}
