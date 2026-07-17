@@ -695,21 +695,16 @@ function ShopModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl px-5 pt-3 pb-8"
-        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)" }}
+        className="w-full max-w-sm rounded-3xl px-4 pt-4 pb-5"
+        style={{ background: "#0a1628", border: "1px solid rgba(245,158,11,0.3)" }}
       >
-        {/* Handle */}
-        <div className="flex justify-center mb-3">
-          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
-        </div>
-
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="font-black text-white text-base">{tr.arcade.shopTitle}</h3>
             <p className="text-[11px] font-bold" style={{ color: "rgba(245,158,11,0.8)" }}>Real Telegram Stars · Instant effect</p>
@@ -725,7 +720,7 @@ function ShopModal({
 
         {/* Session picker — only when multiple sessions exist */}
         {activeSessions.length > 1 && (
-          <div className="mb-4">
+          <div className="mb-3">
             <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
             <div className="flex flex-wrap gap-2">
               {activeSessions.map((s) => (
