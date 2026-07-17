@@ -44,6 +44,9 @@ function PixelsTabInner() {
   // Tick every 60s so the countdown display updates without needing parent re-renders
   const [, setTick] = useState(0);
   const [subTab, setSubTab] = useState<'pixels' | 'arcade'>('pixels');
+  // Mount-once: ArcadeTab stays mounted after first visit (hidden via CSS) so
+  // switching sub-tabs or any parent re-render never resets in-game state.
+  const [arcadeMounted, setArcadeMounted] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,14 +169,6 @@ function PixelsTabInner() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full pb-24">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Sub-tab navigation */}
@@ -185,7 +180,7 @@ function PixelsTabInner() {
           🏛️ البكسلات
         </button>
         <button
-          onClick={() => setSubTab('arcade')}
+          onClick={() => { setArcadeMounted(true); setSubTab('arcade'); }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${subTab === 'arcade' ? 'text-white' : 'text-muted-foreground hover:text-white'}`}
           style={subTab === 'arcade' ? { background: 'linear-gradient(135deg,#22c55e,#16a34a)' } : {}}
         >
@@ -193,13 +188,19 @@ function PixelsTabInner() {
         </button>
       </div>
 
-      {subTab === 'arcade' && (
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      {arcadeMounted && (
+        <div className={subTab === 'arcade' ? 'flex-1 overflow-y-auto overflow-x-hidden' : 'hidden'}>
           <ArcadeTab />
         </div>
       )}
 
-      {subTab === 'pixels' && (
+      {subTab === 'pixels' && loading && (
+        <div className="flex items-center justify-center flex-1 pb-24">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      )}
+
+      {subTab === 'pixels' && !loading && (
     <div className="flex flex-col space-y-4 pb-24 px-4 pt-2 animate-in fade-in duration-300 overflow-y-auto flex-1">
       {/* Header */}
       <div className="text-center">

@@ -70,6 +70,11 @@ interface GridData {
 type Room = "easy" | "tactical" | "hardcore";
 type Phase = "loading" | "disabled" | "gate" | "rooms" | "grid";
 
+// Module-level persistence: survives component unmount/remount (tab switches,
+// parent re-renders, Telegram invoice overlays). Reset only on full app reload.
+let persistedPhase: Phase | null = null;
+let persistedRoom: Room | null = null;
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ROOMS: Record<
@@ -1815,15 +1820,28 @@ function ArcadeTabInner() {
   const { toast } = useToast();
   const { tr } = useLanguage();
 
-  const [phase, setPhase] = useState<Phase>("loading");
-  const phaseRef = useRef<Phase>("loading");
+  // Restore from module-level persistence: if the component remounts for ANY
+  // reason (parent re-render, Telegram invoice overlay, tab switch), a player
+  // who was inside the grid goes straight back to it instead of the gate.
+  const initialPhase: Phase =
+    persistedPhase === "grid" && persistedRoom ? "grid" : "loading";
+  const [phase, setPhase] = useState<Phase>(initialPhase);
+  const phaseRef = useRef<Phase>(initialPhase);
   const setPhaseStable = useCallback((p: Phase) => {
     phaseRef.current = p;
+    persistedPhase = p;
+    if (p !== "grid") persistedRoom = null;
     setPhase(p);
   }, []);
   const [status, setStatus] = useState<ArcadeStatus | null>(null);
   const [config, setConfig] = useState<PublicConfig | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedRoom, setSelectedRoomState] = useState<Room | null>(
+    initialPhase === "grid" ? persistedRoom : null,
+  );
+  const setSelectedRoom = useCallback((room: Room | null) => {
+    persistedRoom = room;
+    setSelectedRoomState(room);
+  }, []);
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
