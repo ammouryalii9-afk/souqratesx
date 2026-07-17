@@ -12,7 +12,7 @@ import { rateLimit } from "../lib/rateLimit";
 import { logUserActivity } from "../lib/activityLog";
 import { logger } from "../lib/logger";
 import { creditedStateSql } from "../lib/weeklyCredit";
-import { getSettingsMap, asString } from "../lib/settings";
+import { getSettingsMap, asString, asNumber } from "../lib/settings";
 import { sendReminderToUser } from "../lib/telegramBot";
 
 /** Send a fire-and-forget arcade notification via bot */
@@ -268,24 +268,47 @@ router.post(
   },
 );
 
-// ── POST /arcade/shop/invoice ────────────────────────────────────────────────────
-// Creates a REAL Telegram Stars invoice for a shop item.
-// The webhook (successful_payment) applies the item effect after payment.
-// Custom SKX purchase: 1 Star = 2,000 SKX · min 1 star (= 2,000 SKX)
-const SKX_PER_STAR = 2_000;
-const SKX_CUSTOM_MIN = 2_000;
-const SKX_CUSTOM_MAX = 10_000_000;
-
-const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
-  shield_3h:    { stars: 20,  label: "🛡️ Shield 3h",        desc: "Protect your cell for 3 hours" },
-  shield_full:  { stars: 80,  label: "🔰 Full Shield",       desc: "Shield lasts the entire session" },
-  decoy:        { stars: 50,  label: "💥 Decoy Trap",        desc: "Next attacker gets penalised" },
-  radar:        { stars: 15,  label: "📡 Radar Scan",        desc: "Reveal enemies in a 3×3 area" },
-  multi_strike: { stars: 30,  label: "⚡ Multi-Strike ×5",   desc: "Claim 5 cells simultaneously" },
-  extra_cells:  { stars: 500, label: "🗺️ Extra Cells ×3",    desc: "Unlock 3 additional cell slots permanently" },
-  // skx_custom is handled dynamically below
+// ── Arcade Shop defaults (overridable via admin_settings) ────────────────────────
+const SHOP_DEFAULTS = {
+  skxPerStar:         2_000,
+  skxCustomMin:       2_000,
+  skxCustomMax:       10_000_000,
+  shield3hStars:      20,
+  shieldFullStars:    80,
+  decoyStars:         50,
+  radarStars:         15,
+  multiStrikeStars:   30,
+  extraCellsStars:    500,
 };
 
+async function getShopConfig() {
+  const s = await getSettingsMap();
+  return {
+    skxPerStar:       asNumber(s["arcadeSkxPerStar"],       SHOP_DEFAULTS.skxPerStar),
+    skxCustomMin:     asNumber(s["arcadeSkxCustomMin"],     SHOP_DEFAULTS.skxCustomMin),
+    skxCustomMax:     asNumber(s["arcadeSkxCustomMax"],     SHOP_DEFAULTS.skxCustomMax),
+    shield3hStars:    asNumber(s["arcadeShield3hStars"],    SHOP_DEFAULTS.shield3hStars),
+    shieldFullStars:  asNumber(s["arcadeShieldFullStars"],  SHOP_DEFAULTS.shieldFullStars),
+    decoyStars:       asNumber(s["arcadeDecoyStars"],       SHOP_DEFAULTS.decoyStars),
+    radarStars:       asNumber(s["arcadeRadarStars"],       SHOP_DEFAULTS.radarStars),
+    multiStrikeStars: asNumber(s["arcadeMultiStrikeStars"], SHOP_DEFAULTS.multiStrikeStars),
+    extraCellsStars:  asNumber(s["arcadeExtraCellsStars"],  SHOP_DEFAULTS.extraCellsStars),
+  };
+}
+
+// ── GET /arcade/shop/config ───────────────────────────────────────────────────────
+// Returns current shop prices so the frontend can display accurate star costs.
+router.get(
+  "/arcade/shop/config",
+  async (_req, res): Promise<void> => {
+    const cfg = await getShopConfig();
+    res.json(cfg);
+  },
+);
+
+// ── POST /arcade/shop/invoice ────────────────────────────────────────────────────
+// Creates a REAL Telegram Stars invoice for a shop item.
+// Prices are read from admin_settings (with fallback to SHOP_DEFAULTS).
 router.post(
   "/arcade/shop/invoice",
   rateLimit("arcade:shop-invoice", 10, 60_000),
@@ -298,6 +321,17 @@ router.post(
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) { res.status(503).json({ error: "Bot not configured" }); return; }
 
+    const cfg = await getShopConfig();
+
+    const CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
+      shield_3h:    { stars: cfg.shield3hStars,    label: "🛡️ Shield 3h",       desc: "Protect your cell for 3 hours" },
+      shield_full:  { stars: cfg.shieldFullStars,  label: "🔰 Full Shield",      desc: "Shield lasts the entire session" },
+      decoy:        { stars: cfg.decoyStars,        label: "💥 Decoy Trap",       desc: "Next attacker gets penalised" },
+      radar:        { stars: cfg.radarStars,        label: "📡 Radar Scan",       desc: "Reveal enemies in a 3×3 area" },
+      multi_strike: { stars: cfg.multiStrikeStars,  label: "⚡ Multi-Strike ×5",  desc: "Claim 5 cells simultaneously" },
+      extra_cells:  { stars: cfg.extraCellsStars,   label: "🗺️ Extra Cells ×3",   desc: "Unlock 3 additional cell slots permanently" },
+    };
+
     let stars: number;
     let label: string;
     let desc: string;
@@ -305,16 +339,16 @@ router.post(
 
     if (itemType === "skx_custom") {
       const skxAmt = Math.floor(Number(rawSkxAmount) || 0);
-      if (!skxAmt || skxAmt < SKX_CUSTOM_MIN || skxAmt > SKX_CUSTOM_MAX) {
-        res.status(400).json({ error: `SKX amount must be between ${SKX_CUSTOM_MIN} and ${SKX_CUSTOM_MAX}` });
+      if (!skxAmt || skxAmt < cfg.skxCustomMin || skxAmt > cfg.skxCustomMax) {
+        res.status(400).json({ error: `SKX amount must be between ${cfg.skxCustomMin} and ${cfg.skxCustomMax}` });
         return;
       }
-      stars = Math.ceil(skxAmt / SKX_PER_STAR);
+      stars = Math.ceil(skxAmt / cfg.skxPerStar);
       label = `💎 ${skxAmt.toLocaleString()} SKX`;
       desc = `${skxAmt.toLocaleString()} SKX added to your balance instantly`;
       payload = JSON.stringify({ effect: "arcade_shop", telegramId, itemType: "skx_custom", skxAmount: skxAmt, sessionId: null });
     } else {
-      const item = ARCADE_SHOP_CATALOG[itemType];
+      const item = CATALOG[itemType];
       if (!item) { res.status(400).json({ error: "Unknown item" }); return; }
       stars = item.stars;
       label = item.label;

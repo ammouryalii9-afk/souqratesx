@@ -117,7 +117,7 @@ const DURATION_OPTIONS: { hours: number; points: number }[] = [
   { hours: 24, points: 200_000 },
 ];
 
-const SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
+const DEFAULT_SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
   { type: "shield_3h",    stars: 20,  icon: "🛡️" },
   { type: "shield_full",  stars: 80,  icon: "🔰" },
   { type: "decoy",        stars: 50,  icon: "💥" },
@@ -126,10 +126,40 @@ const SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
   { type: "extra_cells",  stars: 500, icon: "🗺️" },
 ];
 
-// 1 Star = 2,000 SKX · minimum 2,000 SKX (= 1 star)
-const SKX_PER_STAR = 2_000;
-const SKX_MIN = 2_000;
-const SKX_MAX = 10_000_000;
+interface ShopConfig {
+  skxPerStar: number;
+  skxCustomMin: number;
+  skxCustomMax: number;
+  shield3hStars: number;
+  shieldFullStars: number;
+  decoyStars: number;
+  radarStars: number;
+  multiStrikeStars: number;
+  extraCellsStars: number;
+}
+
+const DEFAULT_SHOP_CONFIG: ShopConfig = {
+  skxPerStar: 2_000,
+  skxCustomMin: 2_000,
+  skxCustomMax: 10_000_000,
+  shield3hStars: 20,
+  shieldFullStars: 80,
+  decoyStars: 50,
+  radarStars: 15,
+  multiStrikeStars: 30,
+  extraCellsStars: 500,
+};
+
+function shopConfigToItems(cfg: ShopConfig): { type: string; stars: number; icon: string }[] {
+  return [
+    { type: "shield_3h",    stars: cfg.shield3hStars,    icon: "🛡️" },
+    { type: "shield_full",  stars: cfg.shieldFullStars,  icon: "🔰" },
+    { type: "decoy",        stars: cfg.decoyStars,        icon: "💥" },
+    { type: "radar",        stars: cfg.radarStars,        icon: "📡" },
+    { type: "multi_strike", stars: cfg.multiStrikeStars,  icon: "⚡" },
+    { type: "extra_cells",  stars: cfg.extraCellsStars,   icon: "🗺️" },
+  ];
+}
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
@@ -751,16 +781,23 @@ function ShopModal({
   activeSessions,
   onClose,
   onPurchased,
+  shopConfig,
 }: {
   activeSessions: ActiveSession[];
   onClose: () => void;
   onPurchased: (itemType: string) => void;
+  shopConfig: ShopConfig;
 }) {
   const { tr } = useLanguage();
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
   const [loadingItem, setLoadingItem] = useState<string | null>(null);
   const [skxInput, setSkxInput] = useState("");
+
+  const SHOP_ITEMS = shopConfigToItems(shopConfig);
+  const SKX_PER_STAR = shopConfig.skxPerStar;
+  const SKX_MIN = shopConfig.skxCustomMin;
+  const SKX_MAX = shopConfig.skxCustomMax;
 
   const skxAmount = Math.max(0, Math.min(SKX_MAX, parseInt(skxInput.replace(/\D/g, ""), 10) || 0));
   const starsNeeded = skxAmount >= SKX_MIN ? Math.ceil(skxAmount / SKX_PER_STAR) : 0;
@@ -989,6 +1026,7 @@ function GridView({
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [claimCell, setClaimCell] = useState<{ x: number; y: number } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
+  const [shopConfig, setShopConfig] = useState<ShopConfig>(DEFAULT_SHOP_CONFIG);
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
   const [specialMode, setSpecialMode] = useState<SpecialMode>(null);
@@ -1037,6 +1075,12 @@ function GridView({
     const interval = setInterval(loadGrid, 15_000);
     return () => clearInterval(interval);
   }, [loadGrid]);
+
+  useEffect(() => {
+    apiGet<ShopConfig>("/arcade/shop/config")
+      .then((cfg) => setShopConfig(cfg))
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   useEffect(() => {
     if (!gridData) return;
@@ -1658,6 +1702,7 @@ function GridView({
           activeSessions={status.activeSessions}
           onClose={() => setShopOpen(false)}
           onPurchased={handlePurchased}
+          shopConfig={shopConfig}
         />
       )}
 

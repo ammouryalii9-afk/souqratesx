@@ -1,6 +1,41 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Loader2, Sword, Shield, Trophy, Ticket, RefreshCw, Trash2, Grid3x3, Power, Users } from "lucide-react";
+import { Loader2, Sword, Shield, Trophy, Ticket, RefreshCw, Trash2, Grid3x3, Power, Users, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+interface ShopConfig {
+  skxPerStar: number;
+  skxCustomMin: number;
+  skxCustomMax: number;
+  shield3hStars: number;
+  shieldFullStars: number;
+  decoyStars: number;
+  radarStars: number;
+  multiStrikeStars: number;
+  extraCellsStars: number;
+}
+
+const SHOP_DEFAULTS: ShopConfig = {
+  skxPerStar: 2000,
+  skxCustomMin: 2000,
+  skxCustomMax: 10000000,
+  shield3hStars: 20,
+  shieldFullStars: 80,
+  decoyStars: 50,
+  radarStars: 15,
+  multiStrikeStars: 30,
+  extraCellsStars: 500,
+};
+
+const SHOP_ITEMS_META = [
+  { key: "shield3hStars",    icon: "🛡️", label: "Shield 3h" },
+  { key: "shieldFullStars",  icon: "🔰", label: "Full Shield" },
+  { key: "decoyStars",       icon: "💥", label: "Decoy Trap" },
+  { key: "radarStars",       icon: "📡", label: "Radar Scan" },
+  { key: "multiStrikeStars", icon: "⚡", label: "Multi-Strike ×5" },
+  { key: "extraCellsStars",  icon: "🗺️", label: "Extra Cells ×3" },
+] as const;
+
+type ShopItemKey = typeof SHOP_ITEMS_META[number]["key"];
 
 interface ArcadeStats {
   totalActive: number;
@@ -90,6 +125,24 @@ async function saveArcadeSettings(enabled: boolean, whitelist: string): Promise<
   });
 }
 
+async function fetchShopConfig(): Promise<ShopConfig> {
+  return adminGet<ShopConfig>("/api/arcade/shop/config");
+}
+
+async function saveShopConfig(cfg: ShopConfig): Promise<void> {
+  await adminPut("/api/admin/settings", {
+    arcadeSkxPerStar:       cfg.skxPerStar,
+    arcadeSkxCustomMin:     cfg.skxCustomMin,
+    arcadeSkxCustomMax:     cfg.skxCustomMax,
+    arcadeShield3hStars:    cfg.shield3hStars,
+    arcadeShieldFullStars:  cfg.shieldFullStars,
+    arcadeDecoyStars:       cfg.decoyStars,
+    arcadeRadarStars:       cfg.radarStars,
+    arcadeMultiStrikeStars: cfg.multiStrikeStars,
+    arcadeExtraCellsStars:  cfg.extraCellsStars,
+  });
+}
+
 const ROOM_COLORS: Record<string, string> = {
   easy: "#22c55e",
   tactical: "#f59e0b",
@@ -112,13 +165,20 @@ export function AdminArcade() {
   const [filterRoom, setFilterRoom] = useState("");
   const [cancelling, setCancelling] = useState<number | null>(null);
 
-  // Settings state
+  // General settings state
   const [arcadeEnabled, setArcadeEnabled] = useState(false);
   const [whitelist, setWhitelist] = useState("");
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Shop config state
+  const [shopCfg, setShopCfg] = useState<ShopConfig>(SHOP_DEFAULTS);
+  const [shopLoading, setShopLoading] = useState(true);
+  const [shopSaving, setShopSaving] = useState(false);
+  const [shopSaved, setShopSaved] = useState(false);
+  const shopSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
@@ -130,6 +190,29 @@ export function AdminArcade() {
       setSettingsLoading(false);
     }
   }, []);
+
+  const loadShopConfig = useCallback(async () => {
+    setShopLoading(true);
+    try {
+      const cfg = await fetchShopConfig();
+      setShopCfg(cfg);
+    } catch { /* ignore */ } finally {
+      setShopLoading(false);
+    }
+  }, []);
+
+  const handleSaveShopConfig = useCallback(async () => {
+    setShopSaving(true);
+    setShopSaved(false);
+    try {
+      await saveShopConfig(shopCfg);
+      setShopSaved(true);
+      if (shopSavedTimer.current) clearTimeout(shopSavedTimer.current);
+      shopSavedTimer.current = setTimeout(() => setShopSaved(false), 2500);
+    } catch { /* ignore */ } finally {
+      setShopSaving(false);
+    }
+  }, [shopCfg]);
 
   const handleSaveSettings = useCallback(async (enabled: boolean, wl: string) => {
     setSettingsSaving(true);
@@ -170,6 +253,7 @@ export function AdminArcade() {
   }, [filterStatus, filterRoom]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
+  useEffect(() => { loadShopConfig(); }, [loadShopConfig]);
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
@@ -277,6 +361,95 @@ export function AdminArcade() {
             المستخدمون في هذه القائمة يمكنهم اللعب حتى لو كانت اللعبة مُعطَّلة — مفيد للاختبار
           </p>
         </div>
+      </div>
+
+      {/* ── Shop Prices Card ── */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-indigo-500/15">
+            <ShoppingBag className="w-4 h-4 text-indigo-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white">أسعار متجر Arcade</p>
+            <p className="text-[10px] text-muted-foreground">بالنجوم — تُطبَّق فوراً على المستخدمين</p>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleSaveShopConfig}
+            disabled={shopSaving || shopLoading}
+            className="shrink-0 text-xs px-3 bg-indigo-600 hover:bg-indigo-500"
+          >
+            {shopSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : shopSaved ? "✓ حُفظ" : "حفظ"}
+          </Button>
+        </div>
+
+        {shopLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
+            <Loader2 className="w-3 h-3 animate-spin" /> جارٍ التحميل...
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Item prices */}
+            <div className="grid grid-cols-2 gap-2">
+              {SHOP_ITEMS_META.map(({ key, icon, label }) => (
+                <div key={key} className="flex items-center gap-2 rounded-xl bg-white/[0.04] border border-white/5 px-3 py-2">
+                  <span className="text-base shrink-0">{icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] text-muted-foreground leading-none mb-1">{label}</p>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={1}
+                        max={9999}
+                        value={shopCfg[key as ShopItemKey]}
+                        onChange={(e) => setShopCfg((prev) => ({ ...prev, [key]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                        className="w-full bg-transparent text-white text-xs font-black outline-none"
+                      />
+                      <span className="text-[10px] text-yellow-400 shrink-0">⭐</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* SKX / Star rate */}
+            <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-3 py-2.5">
+              <p className="text-[10px] font-bold text-indigo-300 mb-2">💎 معدل SKX للنجمة الواحدة</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[9px] text-muted-foreground mb-1">SKX / نجمة</p>
+                  <input
+                    type="number"
+                    min={100}
+                    value={shopCfg.skxPerStar}
+                    onChange={(e) => setShopCfg((prev) => ({ ...prev, skxPerStar: Math.max(100, parseInt(e.target.value) || 100) }))}
+                    className="w-full bg-transparent text-white text-xs font-black outline-none border-b border-white/10 pb-0.5"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground mb-1">حد أدنى (SKX)</p>
+                  <input
+                    type="number"
+                    min={100}
+                    value={shopCfg.skxCustomMin}
+                    onChange={(e) => setShopCfg((prev) => ({ ...prev, skxCustomMin: Math.max(100, parseInt(e.target.value) || 100) }))}
+                    className="w-full bg-transparent text-white text-xs font-black outline-none border-b border-white/10 pb-0.5"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] text-muted-foreground mb-1">حد أقصى (SKX)</p>
+                  <input
+                    type="number"
+                    min={1000}
+                    value={shopCfg.skxCustomMax}
+                    onChange={(e) => setShopCfg((prev) => ({ ...prev, skxCustomMax: Math.max(1000, parseInt(e.target.value) || 1000) }))}
+                    className="w-full bg-transparent text-white text-xs font-black outline-none border-b border-white/10 pb-0.5"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats cards */}
