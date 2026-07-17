@@ -270,7 +270,7 @@ function MainLayout() {
       {showTour && <AppTour onClose={() => setShowTour(false)} />}
 
       <main className="flex-1 overflow-x-hidden relative">
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 overflow-y-auto">
           {mountedTabs.has('vault') && <div className={activeTab !== 'vault' ? 'hidden' : ''}><VaultTab /></div>}
           {mountedTabs.has('games') && <div className={activeTab !== 'games' ? 'hidden' : ''}><GamesTab /></div>}
           {mountedTabs.has('tasks') && <div className={activeTab !== 'tasks' ? 'hidden' : ''}><TasksTab /></div>}

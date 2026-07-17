@@ -154,6 +154,7 @@ export function StarsTab() {
 
   const [products, setProducts] = useState<StarProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [confirmProduct, setConfirmProduct] = useState<StarProduct | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [successProduct, setSuccessProduct] = useState<StarProduct | null>(null);
@@ -161,7 +162,7 @@ export function StarsTab() {
   useEffect(() => {
     getStarProducts()
       .then(setProducts)
-      .catch(() => {})
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -230,7 +231,23 @@ export function StarsTab() {
         </div>
       )}
 
-      {!loading && products.length === 0 && (
+      {!loading && fetchError && (
+        <div className="text-center py-16 text-red-400 text-sm">
+          {lang === 'ar' ? 'تعذّر تحميل المنتجات، حاول مرة أخرى' : 'Could not load products, please try again'}
+          <button
+            className="block mx-auto mt-3 px-4 py-2 rounded-xl border border-white/10 text-white/60 text-xs hover:bg-white/5 transition-all"
+            onClick={() => {
+              setFetchError(false);
+              setLoading(true);
+              getStarProducts().then(setProducts).catch(() => setFetchError(true)).finally(() => setLoading(false));
+            }}
+          >
+            {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+          </button>
+        </div>
+      )}
+
+      {!loading && !fetchError && products.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           {lang === 'ar' ? 'لا توجد منتجات متاحة حالياً' : 'No products available right now'}
         </div>
