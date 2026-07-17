@@ -29,6 +29,7 @@ interface ArcadeStatus {
   adsWatched: number;
   adsNeeded: number;
   starsBalance: number;
+  skxBalance: number;
   extraCellCredits: number;
   activeSessions: ActiveSession[];
   wonSessionsAwarded: number;
@@ -543,12 +544,14 @@ function RoomSelector({ status, onRoomSelected }: {
 function ClaimDialog({
   cell,
   room,
+  skxBalance,
   onConfirm,
   onCancel,
   loading,
 }: {
   cell: { x: number; y: number };
   room: Room;
+  skxBalance: number;
   onConfirm: (hours: number) => void;
   onCancel: () => void;
   loading: boolean;
@@ -556,6 +559,8 @@ function ClaimDialog({
   const { tr } = useLanguage();
   const [selectedHours, setSelectedHours] = useState(6);
   const r = ROOMS[room];
+  const MIN_SKX = 100_000;
+  const hasMinSkx = skxBalance >= MIN_SKX;
 
   return (
     <div
@@ -586,15 +591,29 @@ function ClaimDialog({
             </div>
           </div>
 
+          {/* SKX balance warning */}
+          {!hasMinSkx && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3 text-xs font-bold"
+              style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+            >
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              <span>{tr.arcade.needSkxMin(MIN_SKX)}</span>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2 mb-3">
             {DURATION_OPTIONS.map((d) => {
               const pts = finalPts(d.points, room);
+              const stake = Math.round(pts * 0.25);
+              const canAfford = skxBalance >= stake;
               const isSelected = selectedHours === d.hours;
               return (
                 <button
                   key={d.hours}
                   onClick={() => setSelectedHours(d.hours)}
-                  className="flex items-center gap-3 p-3 rounded-2xl transition-all"
+                  disabled={!hasMinSkx || !canAfford}
+                  className="flex items-center gap-3 p-3 rounded-2xl transition-all disabled:opacity-40"
                   style={{
                     background: isSelected ? `${r.color}18` : "rgba(255,255,255,0.04)",
                     border: isSelected ? `1.5px solid ${r.color}` : "1px solid rgba(255,255,255,0.08)",
@@ -614,12 +633,24 @@ function ClaimDialog({
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-base font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
-                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>{tr.arcade.ptsLabel}</p>
+                    <p className="text-[9px]" style={{ color: "#f59e0b" }}>
+                      {tr.arcade.stakeLabel} {stake.toLocaleString()} SKX
+                    </p>
                   </div>
                 </button>
               );
             })}
           </div>
+
+          {/* Stake explanation */}
+          {hasMinSkx && (
+            <div
+              className="px-3 py-2 rounded-xl text-[10px] mb-1"
+              style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", color: "rgba(251,191,36,0.8)" }}
+            >
+              {tr.arcade.stakeExplain}
+            </div>
+          )}
         </div>
 
         {/* Sticky bottom buttons — always visible */}
@@ -634,7 +665,7 @@ function ClaimDialog({
           </button>
           <button
             onClick={() => onConfirm(selectedHours)}
-            disabled={loading}
+            disabled={loading || !hasMinSkx}
             className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
             style={{ background: r.color, color: "#000" }}
           >
@@ -1007,11 +1038,14 @@ function GridView({
     setLoading(true);
 
     try {
-      await apiPost("/arcade/grid/claim", { room, x, y, durationHours: hours });
+      const claimResult = await apiPost<{ session: { finalPoints: number; stakeAmount: number }; newSkxBalance?: number }>(
+        "/arcade/grid/claim", { room, x, y, durationHours: hours }
+      );
       arcadeSound.claim();
       haptic("success");
       particleClaim(el);
-      spawnFloatingText(el, tr.arcade.claimed, "#4ade80");
+      const stakeAmt = claimResult.session.stakeAmount;
+      spawnFloatingText(el, `−${stakeAmt.toLocaleString()} SKX`, "#f59e0b");
       toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(x, y) });
       bumpCombo();
       setClaimCell(null);
@@ -1365,6 +1399,7 @@ function GridView({
         <ClaimDialog
           cell={claimCell}
           room={room}
+          skxBalance={status.skxBalance}
           onConfirm={handleClaim}
           onCancel={() => setClaimCell(null)}
           loading={loading}

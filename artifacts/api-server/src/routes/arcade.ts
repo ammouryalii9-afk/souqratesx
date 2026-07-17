@@ -136,14 +136,12 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
       .update(arcadeSessionsTable)
       .set({ status: "credited" })
       .where(inArray(arcadeSessionsTable.id, wonIds));
-    // Award points — background credit → pendingBonusPoints (toSpendable: false)
+    // Award full prize as SKX directly (stake was already paid — this is the gross win)
     if (totalWonPoints > 0) {
       await db
         .update(vaultUsersTable)
         .set({
-          pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${totalWonPoints}::bigint`,
-          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${totalWonPoints}::bigint`,
-          state: creditedStateSql(totalWonPoints, {}, { toSpendable: false }),
+          skxBalance: sql`${vaultUsersTable.skxBalance} + ${totalWonPoints}::bigint`,
         })
         .where(eq(vaultUsersTable.telegramId, telegramId));
       await logUserActivity(telegramId, "arcade_won", { totalWonPoints });
@@ -153,9 +151,9 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
   const ticket = await getTodayTicket(telegramId);
   const activeSessions = await getUserActiveSessions(telegramId);
 
-  // Fetch user row for starsBalance + extraCellCredits from state JSONB
+  // Fetch user row for starsBalance, skxBalance + extraCellCredits from state JSONB
   const [userRow] = await db
-    .select({ starsBalance: vaultUsersTable.starsBalance, state: vaultUsersTable.state })
+    .select({ starsBalance: vaultUsersTable.starsBalance, skxBalance: vaultUsersTable.skxBalance, state: vaultUsersTable.state })
     .from(vaultUsersTable)
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .limit(1);
@@ -167,6 +165,7 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
     adsWatched: ticket?.adsWatched ?? 0,
     adsNeeded: ADS_NEEDED,
     starsBalance: userRow?.starsBalance ?? 0,
+    skxBalance: userRow?.skxBalance ?? 0,
     extraCellCredits,
     todayKey: todayKey(),
     activeSessions: activeSessions.map((s) => ({
@@ -464,6 +463,43 @@ router.post(
     const basePoints = DURATION_BASE_POINTS[durationHours];
     const multiplierPct = ROOM_MULTIPLIER[room];
     const finalPoints = Math.round((basePoints * multiplierPct) / 100);
+    const stakeAmount = Math.round(finalPoints * 0.25); // 25% upfront stake
+    const MIN_SKX_BALANCE = 100_000;
+
+    // Must have ≥ 100,000 SKX and enough to cover the stake
+    const [balanceRow] = await db
+      .select({ skxBalance: vaultUsersTable.skxBalance })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, telegramId))
+      .limit(1);
+
+    const currentSkx = balanceRow?.skxBalance ?? 0;
+    if (currentSkx < MIN_SKX_BALANCE) {
+      res.status(402).json({ error: `Need at least ${MIN_SKX_BALANCE.toLocaleString()} SKX to play` });
+      return;
+    }
+    if (currentSkx < stakeAmount) {
+      res.status(402).json({ error: `Not enough SKX — need ${stakeAmount.toLocaleString()} to stake` });
+      return;
+    }
+
+    // Deduct 25% stake atomically (guard: balance must still be sufficient)
+    const deducted = await db
+      .update(vaultUsersTable)
+      .set({ skxBalance: sql`${vaultUsersTable.skxBalance} - ${stakeAmount}::bigint` })
+      .where(
+        and(
+          eq(vaultUsersTable.telegramId, telegramId),
+          sql`${vaultUsersTable.skxBalance} >= ${stakeAmount}::bigint`,
+        ),
+      )
+      .returning({ skxBalance: vaultUsersTable.skxBalance });
+
+    if (deducted.length === 0) {
+      res.status(402).json({ error: "Insufficient SKX balance" });
+      return;
+    }
+
     const expiresAt = new Date(Date.now() + durationHours * 3_600_000);
 
     const [session] = await db
@@ -482,7 +518,7 @@ router.post(
       })
       .returning();
 
-    await logUserActivity(telegramId, "arcade_claim", { room, x, y, durationHours, finalPoints });
+    await logUserActivity(telegramId, "arcade_claim", { room, x, y, durationHours, finalPoints, stakeAmount });
     res.json({
       session: {
         id: session.id,
@@ -491,10 +527,12 @@ router.post(
         gridY: session.gridY,
         durationHours: session.durationHours,
         finalPoints: session.finalPoints,
+        stakeAmount,
         expiresAt: session.expiresAt.toISOString(),
         hasShield: false,
         isDecoy: false,
       },
+      newSkxBalance: deducted[0].skxBalance,
     });
   },
 );
@@ -582,27 +620,41 @@ router.post(
       return;
     }
 
-    // Normal strike: destroy session, striker gets 10% of victim's points
-    const strikerReward = Math.round(target.finalPoints * 0.1);
+    // Normal strike: victim loses remaining 75% of prize from SKX balance; striker gets it
+    const remainingStake = Math.round(target.finalPoints * 0.75);
 
     await db
       .update(arcadeSessionsTable)
       .set({ status: "destroyed", destroyedBy: telegramId, completedAt: now })
       .where(eq(arcadeSessionsTable.id, target.id));
 
-    if (strikerReward > 0) {
+    // Deduct 75% from victim's SKX balance (floor at 0)
+    let actualPenalty = remainingStake;
+    if (remainingStake > 0) {
+      const [victimRow] = await db
+        .select({ skxBalance: vaultUsersTable.skxBalance })
+        .from(vaultUsersTable)
+        .where(eq(vaultUsersTable.telegramId, target.telegramId))
+        .limit(1);
+      actualPenalty = Math.min(remainingStake, victimRow?.skxBalance ?? 0);
+      if (actualPenalty > 0) {
+        await db
+          .update(vaultUsersTable)
+          .set({ skxBalance: sql`GREATEST(0, ${vaultUsersTable.skxBalance} - ${actualPenalty}::bigint)` })
+          .where(eq(vaultUsersTable.telegramId, target.telegramId));
+      }
+    }
+
+    // Striker earns the penalty amount as SKX
+    if (actualPenalty > 0) {
       await db
         .update(vaultUsersTable)
-        .set({
-          pendingBonusPoints: sql`${vaultUsersTable.pendingBonusPoints} + ${strikerReward}::bigint`,
-          lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${strikerReward}::bigint`,
-          state: creditedStateSql(strikerReward, {}, { toSpendable: false }),
-        })
+        .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${actualPenalty}::bigint` })
         .where(eq(vaultUsersTable.telegramId, telegramId));
     }
 
-    await logUserActivity(telegramId, "arcade_strike", { room, x, y, strikerReward, victimId: target.telegramId });
-    res.json({ result: "struck", strikerReward, message: `💥 Strike! +${strikerReward.toLocaleString()} pts` });
+    await logUserActivity(telegramId, "arcade_strike", { room, x, y, strikerReward: actualPenalty, victimId: target.telegramId });
+    res.json({ result: "struck", strikerReward: actualPenalty, message: `💥 Strike! +${actualPenalty.toLocaleString()} SKX` });
   },
 );
 
