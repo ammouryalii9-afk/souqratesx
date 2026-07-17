@@ -7,7 +7,7 @@
 // [Sentry.io SDK] — error tracking and performance monitoring
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useVault, getLeague, SKINS } from '../context/VaultContext';
+import { useVault, getLeague, SKINS, type SkinType } from '../context/VaultContext';
 import { getEngageStatus, type EngageStatus } from '../lib/engageApi';
 import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
@@ -28,6 +28,72 @@ interface FloatingPoint {
 }
 
 let floatId = 0;
+
+function SkinOverlay({ type, accent }: { type: SkinType; accent: string }) {
+  const a = accent;
+  if (type === 'electric') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {[0, 1, 2].map(i => (
+        <div key={i} className="skin-scanline" style={{ top: `${22 + i * 26}%`, background: `linear-gradient(90deg,transparent,${a},transparent)`, animationDelay: `${i * 0.9}s` }} />
+      ))}
+      <div className="skin-electric-arc" style={{ borderColor: a, animationDelay: '0.3s' }} />
+    </div>
+  );
+  if (type === 'nature') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="skin-bubble" style={{ left: `${20 + i * 20}%`, background: `radial-gradient(circle,${a}55,${a}11)`, animationDelay: `${i * 0.7}s`, width: `${8 + i * 3}px`, height: `${8 + i * 3}px` }} />
+      ))}
+    </div>
+  );
+  if (type === 'mystic') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {[0,1,2,3,4,5].map(i => (
+        <div key={i} className="skin-sparkle" style={{ left: `${50 + 38 * Math.cos(i * Math.PI / 3)}%`, top: `${50 + 38 * Math.sin(i * Math.PI / 3)}%`, background: a, boxShadow: `0 0 6px ${a}`, animationDelay: `${i * 0.25}s` }} />
+      ))}
+      <div className="absolute inset-8 rounded-full skin-mystic-ring" style={{ borderColor: `${a}40` }} />
+    </div>
+  );
+  if (type === 'fire') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {[0,1,2,3,4].map(i => (
+        <div key={i} className="skin-ember" style={{ left: `${18 + i * 16}%`, background: `radial-gradient(circle,#fff9 0%,${a} 40%,transparent 70%)`, animationDelay: `${i * 0.38}s`, width: `${4 + (i % 3) * 2}px`, height: `${4 + (i % 3) * 2}px` }} />
+      ))}
+      <div className="absolute inset-0 rounded-full skin-fire-glow" style={{ background: `radial-gradient(ellipse at 50% 80%,${a}22 0%,transparent 60%)` }} />
+    </div>
+  );
+  if (type === 'ice') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      <div className="skin-ice-breath absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle,${a}18 0%,transparent 65%)` }} />
+      {[0,1,2,3,4,5].map(i => (
+        <div key={i} className="absolute skin-ice-shard" style={{ left: `${50 + 30 * Math.cos(i * Math.PI / 3)}%`, top: `${50 + 30 * Math.sin(i * Math.PI / 3)}%`, background: `${a}cc`, transform: `translate(-50%,-50%) rotate(${i * 60}deg)`, animationDelay: `${i * 0.18}s` }} />
+      ))}
+    </div>
+  );
+  if (type === 'cosmic') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {Array.from({ length: 14 }).map((_, i) => (
+        <div key={i} className="skin-star" style={{ left: `${10 + (i * 37 + i * i * 7) % 80}%`, top: `${8 + (i * 53 + i * 11) % 80}%`, background: a, boxShadow: `0 0 4px ${a}`, animationDelay: `${(i * 0.17) % 1.8}s` }} />
+      ))}
+      <div className="absolute inset-0 rounded-full skin-nebula" style={{ background: `conic-gradient(from ${0}deg,${a}05,${a}18,${a}05,${a}12,${a}05)` }} />
+    </div>
+  );
+  if (type === 'sovereign') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      {[0,1,2,3,4,5].map(i => (
+        <div key={i} className="absolute skin-ray" style={{ left: '50%', top: '50%', background: `linear-gradient(to top,transparent,${a}55,transparent)`, transform: `translate(-50%,-100%) rotate(${i * 60}deg)`, transformOrigin: 'bottom center', animationDelay: `${i * 0.18}s` }} />
+      ))}
+      <div className="absolute inset-3 rounded-full skin-crown-ring" style={{ border: `1px solid ${a}55`, boxShadow: `0 0 12px ${a}30,inset 0 0 12px ${a}15` }} />
+    </div>
+  );
+  if (type === 'golden') return (
+    <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 rounded-full skin-shimmer" style={{ background: `linear-gradient(135deg,transparent 30%,${a}22 50%,transparent 70%)` }} />
+      <div className="absolute inset-0 rounded-full skin-golden-pulse" style={{ background: `radial-gradient(circle,${a}14 0%,transparent 60%)` }} />
+    </div>
+  );
+  return null;
+}
 
 export const VaultTab = () => {
   const { 
@@ -280,8 +346,18 @@ export const VaultTab = () => {
     }
   };
 
+  const skinBg = skin?.bg ?? ['rgba(52,211,153,0.10)', 'rgba(52,211,153,0.04)'];
+
   return (
-    <div className="flex flex-col space-y-5 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div
+      className="flex flex-col space-y-5 pb-24 px-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative"
+      style={{ '--skin-accent': skinAccent } as React.CSSProperties}
+    >
+      {/* Full-tab skin background wash */}
+      <div className="pointer-events-none absolute inset-0 z-0" style={{
+        background: `radial-gradient(ellipse 120% 60% at 50% 0%, ${skinBg[0]} 0%, ${skinBg[1]} 50%, transparent 80%)`,
+        transition: 'background 0.6s ease',
+      }} />
 
       {/* Balance Card */}
       <div className="rounded-[28px] p-6 flex flex-col items-center relative overflow-hidden" style={{
@@ -433,28 +509,40 @@ export const VaultTab = () => {
             border: `1px solid ${sg(0.1)}`,
           }}>
             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
-            
-            <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-primary/10 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
-            
-            <span className="text-[9px] text-primary/50 font-bold uppercase tracking-[0.3em] mb-1 relative z-10">{tr.vault.mined}</span>
-            
+
+            {/* Skin-specific animated overlay */}
+            {skin && <SkinOverlay type={skin.type} accent={skinAccent} />}
+
+            <div className={`absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent ${isTapping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-150`} />
+
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] mb-1 relative z-10" style={{ color: `${skinAccent}99` }}>{tr.vault.mined}</span>
+
             <span className="text-5xl font-black text-white tabular-nums leading-none tracking-tight relative z-10" style={{ textShadow: `0 0 30px ${sg(0.3)}` }}>
               {Math.floor(tempMiningPoints).toLocaleString()}
             </span>
-            
-            <span className="text-[11px] text-primary/70 font-semibold mt-1 relative z-10">{tr.vault.skp}</span>
-            
-            <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.12)' }}>
-              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-boost' : 'text-primary'}`} />
-              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-boost' : 'text-primary'}`}>
+
+            <span className="text-[11px] font-semibold mt-1 relative z-10" style={{ color: `${skinAccent}bb` }}>{tr.vault.skp}</span>
+
+            <div className="mt-3 px-3 py-1 rounded-full flex items-center gap-1.5 relative z-10" style={{ background: `${skinBg[0]}`, border: `1px solid ${sg(0.18)}` }}>
+              <Zap className={`w-3 h-3 ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: skinAccent }} />
+              <span className={`text-[10px] font-bold ${activeTurbo ? 'text-boost' : ''}`} style={activeTurbo ? undefined : { color: skinAccent }}>
                 +{activeTurbo ? pointsPerTap * 5 : pointsPerTap} {tr.vault.perTap}
               </span>
             </div>
-            
+
             {activeTurbo && (
               <span className="absolute bottom-6 text-[10px] font-bold text-boost animate-pulse surface-boost px-2 py-0.5 rounded-full">TURBO ({turboRemaining}s)</span>
             )}
           </div>
+
+          {/* Sovereign: extra crown ring outside orb */}
+          {skin?.type === 'sovereign' && (
+            <div className="absolute inset-1 rounded-full pointer-events-none skin-crown-outer" style={{ border: `1px solid ${skinAccent}30`, boxShadow: `0 0 20px ${skinAccent}20` }} />
+          )}
+          {/* Cosmic: extra nebula ring */}
+          {skin?.type === 'cosmic' && (
+            <div className="absolute inset-2 rounded-full pointer-events-none" style={{ border: `1px dashed ${skinAccent}25`, animation: 'spin 20s linear infinite reverse' }} />
+          )}
 
           {floatingPoints.map(fp => (
             <div
@@ -463,8 +551,8 @@ export const VaultTab = () => {
               style={{ left: `${fp.x}%`, top: `${fp.y}%`, transform: 'translate(-50%, -50%)' }}
             >
               <span
-                className="font-black text-primary text-xl tracking-tighter absolute drop-shadow-md"
-                style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards' }}
+                className="font-black text-xl tracking-tighter absolute drop-shadow-md"
+                style={{ animation: 'floatUp 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards', color: skinAccent, textShadow: `0 0 12px ${skinAccent}88` }}
               >
                 +{fp.value}
               </span>
@@ -490,7 +578,7 @@ export const VaultTab = () => {
               {energy} <span className="text-muted-foreground">/ {maxEnergy}</span>
             </span>
           </div>
-          <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" />
+          <Progress value={(energy / maxEnergy) * 100} className="h-2.5 bg-black/40" indicatorStyle={{ background: `linear-gradient(90deg, ${sg(0.6)}, ${skinAccent})`, boxShadow: `0 0 12px ${sg(0.5)}` }} />
         </div>
       </div>
 
@@ -633,32 +721,121 @@ export const VaultTab = () => {
         }
         .dot {
           position: absolute;
-          width: 4px;
-          height: 4px;
-          background: hsl(var(--primary));
+          width: 5px;
+          height: 5px;
+          background: var(--skin-accent, hsl(var(--primary)));
           border-radius: 50%;
           opacity: 0;
-          box-shadow: 0 0 8px hsl(var(--primary));
+          box-shadow: 0 0 8px var(--skin-accent, hsl(var(--primary)));
         }
-        .burst-1 { animation: burst1 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-2 { animation: burst2 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-3 { animation: burst3 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        .burst-4 { animation: burst4 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-        @keyframes burst1 {
-          0% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { opacity: 0; transform: translate(-25px, -25px) scale(0); }
+        .burst-1 { animation: burst1 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-2 { animation: burst2 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-3 { animation: burst3 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .burst-4 { animation: burst4 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        @keyframes burst1 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(-28px,-28px) scale(0); } }
+        @keyframes burst2 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(28px,-18px) scale(0); } }
+        @keyframes burst3 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(-18px,28px) scale(0); } }
+        @keyframes burst4 { 0% { opacity:1; transform:translate(0,0) scale(1); } 100% { opacity:0; transform:translate(28px,28px) scale(0); } }
+
+        /* ── Skin overlay animations ── */
+        .skin-scanline {
+          position: absolute; left: 0; right: 0; height: 1px; opacity: 0;
+          animation: skinScanline 3s ease-in-out infinite;
         }
-        @keyframes burst2 {
-          0% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { opacity: 0; transform: translate(25px, -15px) scale(0); }
+        @keyframes skinScanline {
+          0%,100% { opacity:0; transform:scaleX(0.2); }
+          40%,60%  { opacity:0.7; transform:scaleX(1); }
         }
-        @keyframes burst3 {
-          0% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { opacity: 0; transform: translate(-15px, 25px) scale(0); }
+        .skin-electric-arc {
+          position: absolute; inset: 20%; border-radius: 50%;
+          border: 1px solid transparent; opacity: 0;
+          animation: skinArc 2.2s ease-in-out infinite;
         }
-        @keyframes burst4 {
-          0% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { opacity: 0; transform: translate(25px, 25px) scale(0); }
+        @keyframes skinArc {
+          0%,100% { opacity:0; transform:scale(0.8) rotate(0deg); }
+          30%,70% { opacity:0.4; transform:scale(1.05) rotate(180deg); }
+        }
+        .skin-bubble {
+          position: absolute; bottom: 5%; border-radius: 50%; opacity: 0;
+          animation: skinBubble 2.8s ease-in-out infinite;
+        }
+        @keyframes skinBubble {
+          0%   { opacity:0; transform:translateY(0) scale(0.6); }
+          20%  { opacity:0.7; }
+          80%  { opacity:0.3; }
+          100% { opacity:0; transform:translateY(-80px) scale(1.2); }
+        }
+        .skin-sparkle {
+          position: absolute; width: 4px; height: 4px; border-radius: 50%;
+          transform: translate(-50%,-50%); opacity: 0;
+          animation: skinSparkle 1.8s ease-in-out infinite;
+        }
+        @keyframes skinSparkle {
+          0%,100% { opacity:0; transform:translate(-50%,-50%) scale(0.4); }
+          50% { opacity:1; transform:translate(-50%,-50%) scale(1.4); }
+        }
+        .skin-mystic-ring {
+          border: 1px solid; animation: spin 6s linear infinite;
+        }
+        .skin-ember {
+          position: absolute; bottom: 8%; border-radius: 50%; opacity: 0;
+          animation: skinEmber 1.8s ease-in-out infinite;
+        }
+        @keyframes skinEmber {
+          0%   { opacity:0; transform:translateY(0) scale(1); }
+          15%  { opacity:0.9; }
+          70%  { opacity:0.4; }
+          100% { opacity:0; transform:translateY(-70px) translateX(8px) scale(0.3); }
+        }
+        .skin-fire-glow { animation: skinFireGlow 1.4s ease-in-out infinite; }
+        @keyframes skinFireGlow {
+          0%,100% { opacity:0.4; } 50% { opacity:0.9; }
+        }
+        .skin-ice-breath { animation: skinIce 3.5s ease-in-out infinite; }
+        @keyframes skinIce {
+          0%,100% { opacity:0.3; transform:scale(0.9); }
+          50% { opacity:0.7; transform:scale(1.05); }
+        }
+        .skin-ice-shard {
+          width: 2px; height: 10px; border-radius: 1px; opacity: 0;
+          animation: skinShard 2.2s ease-in-out infinite;
+        }
+        @keyframes skinShard {
+          0%,100% { opacity:0; transform:translate(-50%,-50%) rotate(var(--r,0deg)) scaleY(0.4); }
+          50% { opacity:0.6; transform:translate(-50%,-50%) rotate(var(--r,0deg)) scaleY(1.1); }
+        }
+        .skin-star {
+          position: absolute; width: 2px; height: 2px; border-radius: 50%;
+          animation: skinTwinkle 1.6s ease-in-out infinite;
+        }
+        @keyframes skinTwinkle {
+          0%,100% { opacity:0.1; transform:scale(0.7); }
+          50% { opacity:1; transform:scale(1.8); }
+        }
+        .skin-nebula { animation: spin 25s linear infinite; opacity: 0.4; }
+        .skin-ray {
+          width: 2px; height: 45%; opacity: 0;
+          animation: skinRay 2s ease-in-out infinite;
+        }
+        @keyframes skinRay {
+          0%,100% { opacity:0; transform:translate(-50%,-100%) scaleY(0.5) rotate(var(--r,0deg)); }
+          50% { opacity:0.5; transform:translate(-50%,-100%) scaleY(1) rotate(var(--r,0deg)); }
+        }
+        .skin-crown-ring { animation: skinCrown 2.5s ease-in-out infinite; }
+        @keyframes skinCrown {
+          0%,100% { opacity:0.4; box-shadow: 0 0 10px var(--skin-accent,#fbbf24)20; }
+          50% { opacity:0.8; box-shadow: 0 0 22px var(--skin-accent,#fbbf24)40; }
+        }
+        .skin-crown-outer { animation: skinCrown 3s ease-in-out infinite; }
+        .skin-shimmer { animation: skinShimmer 2.8s ease-in-out infinite; }
+        @keyframes skinShimmer {
+          0%,100% { opacity:0; transform:translateX(-60%) skewX(-20deg); }
+          50% { opacity:1; transform:translateX(60%) skewX(-20deg); }
+        }
+        .skin-golden-pulse { animation: skinGoldenPulse 2.4s ease-in-out infinite; }
+        @keyframes skinGoldenPulse {
+          0%,100% { opacity:0.2; transform:scale(0.85); }
+          50% { opacity:0.5; transform:scale(1.08); }
         }
       `}</style>
 
