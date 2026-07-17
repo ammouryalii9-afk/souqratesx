@@ -660,48 +660,24 @@ function ShopModal({
   const { tr } = useLanguage();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
 
-  // JS-driven scroll — body has `touch-action:none` globally which blocks CSS-based
-  // touch scrolling. React's synthetic touch listeners are passive, so preventDefault
-  // is a no-op there — we must attach NATIVE non-passive listeners to (1) block the
-  // browser from scrolling the page behind the modal and (2) drive scrollTop manually.
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
+  // The app's index.css has `body { touch-action: none }` which kills ALL native
+  // touch-scroll everywhere. Fix: lift it to "pan-y" while this modal is mounted
+  // so the scrollable list gets native scroll. Body has overflow:hidden so it won't
+  // actually scroll — only the overflow-y:auto child will.
   useEffect(() => {
-    const overlay = overlayRef.current;
-    if (!overlay) return;
-    let startY = 0;
-    let startScroll = 0;
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY;
-      startScroll = scrollRef.current?.scrollTop ?? 0;
-    };
-    const onMove = (e: TouchEvent) => {
-      e.preventDefault(); // block page-behind scroll (requires passive:false)
-      e.stopPropagation();
-      const scroller = scrollRef.current;
-      if (!scroller) return;
-      const delta = startY - e.touches[0].clientY;
-      scroller.scrollTop = startScroll + delta;
-    };
-    overlay.addEventListener("touchstart", onStart, { passive: true });
-    overlay.addEventListener("touchmove", onMove, { passive: false });
-    return () => {
-      overlay.removeEventListener("touchstart", onStart);
-      overlay.removeEventListener("touchmove", onMove);
-    };
+    const prev = document.body.style.touchAction;
+    document.body.style.touchAction = "pan-y";
+    return () => { document.body.style.touchAction = prev; };
   }, []);
 
   return (
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50"
+      className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Modal panel — absolutely pinned to bottom, no flex column needed */}
       <div
-        className="absolute bottom-0 left-0 right-0 w-full max-w-md mx-auto rounded-t-3xl"
+        className="w-full max-w-md rounded-t-3xl"
         style={{
           background: "#0a1628",
           borderTop: "2px solid rgba(245,158,11,0.35)",
@@ -730,11 +706,10 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Scrollable items — JS-driven scroll to bypass body touch-action:none */}
+        {/* Scrollable list — native CSS scroll, works now that body touch-action is pan-y */}
         <div
-          ref={scrollRef}
           className="px-5 pb-10"
-          style={{ overflowY: "auto", flex: "1 1 0", minHeight: 0 }}
+          style={{ overflowY: "auto", flex: "1 1 0", minHeight: 0, WebkitOverflowScrolling: "touch" }}
         >
           {activeSessions.length > 0 && (
             <div className="mb-4">
