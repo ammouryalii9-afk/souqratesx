@@ -1816,6 +1816,11 @@ function ArcadeTabInner() {
   const { tr } = useLanguage();
 
   const [phase, setPhase] = useState<Phase>("loading");
+  const phaseRef = useRef<Phase>("loading");
+  const setPhaseStable = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhase(p);
+  }, []);
   const [status, setStatus] = useState<ArcadeStatus | null>(null);
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -1825,34 +1830,45 @@ function ArcadeTabInner() {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
   }, []);
 
+  // Stable refs so callbacks don't recreate when context re-renders
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const refreshFromServerRef = useRef(refreshFromServer);
+  refreshFromServerRef.current = refreshFromServer;
+  const trRef = useRef(tr);
+  trRef.current = tr;
+
+  // loadStatus: runs on mount and on explicit calls only.
+  // Guards against changing phase while in "grid" — ticket is consumed after entry
+  // so hasTicket=false would wrongly send the user to "gate".
   const loadStatus = useCallback(async () => {
     try {
       const data = await apiGet<ArcadeStatus>("/arcade/status");
       setStatus(data);
-      if (data.enabled === false) { setPhase("disabled"); return; }
       if (data.wonSessionsAwarded > 0) {
-        toast({ title: tr.arcade.wonPoints(data.wonSessionsAwarded), description: tr.arcade.wonPointsDesc });
-        refreshFromServer();
+        toastRef.current({ title: trRef.current.arcade.wonPoints(data.wonSessionsAwarded), description: trRef.current.arcade.wonPointsDesc });
+        refreshFromServerRef.current();
       }
-      setPhase(data.hasTicket ? "rooms" : "gate");
+      // Never change phase while player is inside the grid
+      if (phaseRef.current === "grid") return;
+      if (data.enabled === false) { setPhaseStable("disabled"); return; }
+      setPhaseStable(data.hasTicket ? "rooms" : "gate");
     } catch {
-      setPhase("gate");
+      if (phaseRef.current !== "grid") setPhaseStable("gate");
     }
-  }, [toast, refreshFromServer, tr]);
+  }, [setPhaseStable]);   // stable — no context deps
 
-  // Used by GridView — updates status data WITHOUT resetting the phase.
-  // loadStatus resets phase based on hasTicket (which is false after ticket consumed),
-  // sending the user back to "gate" mid-session. This callback avoids that reset.
+  // Used by GridView after claims/strikes — updates status data only, never phase.
   const refreshGridStatus = useCallback(async () => {
     try {
       const data = await apiGet<ArcadeStatus>("/arcade/status");
       setStatus(data);
       if (data.wonSessionsAwarded > 0) {
-        toast({ title: tr.arcade.wonPoints(data.wonSessionsAwarded), description: tr.arcade.wonPointsDesc });
-        refreshFromServer();
+        toastRef.current({ title: trRef.current.arcade.wonPoints(data.wonSessionsAwarded), description: trRef.current.arcade.wonPointsDesc });
+        refreshFromServerRef.current();
       }
     } catch { /* ignore — grid stays open */ }
-  }, [toast, refreshFromServer, tr]);
+  }, []);   // stable
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
@@ -1951,7 +1967,7 @@ function ArcadeTabInner() {
       <GridView
         room={selectedRoom}
         status={status}
-        onBack={() => setPhase("rooms")}
+        onBack={() => setPhaseStable("rooms")}
         onStatusRefresh={refreshGridStatus}
       />
     );
@@ -1961,7 +1977,7 @@ function ArcadeTabInner() {
     return (
       <RoomSelector
         status={status}
-        onRoomSelected={(room) => { setSelectedRoom(room); setPhase("grid"); }}
+        onRoomSelected={(room) => { setSelectedRoom(room); setPhaseStable("grid"); }}
       />
     );
   }
