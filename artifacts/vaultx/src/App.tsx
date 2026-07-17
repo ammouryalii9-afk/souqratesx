@@ -116,11 +116,9 @@ function Header({ onOpenTour }: HeaderProps) {
   const { tr } = useLanguage();
   const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
-  const [pointsPerDollar, setPointsPerDollar] = useState(2_000_000);
   const [dollarBonus, setDollarBonus] = useState(0);
   useEffect(() => {
     getPublicConfig().then(c => {
-      setPointsPerDollar(c.pointsPerDollar);
       setDollarBonus(c.dollarBonus);
     }).catch(() => {});
   }, []);
@@ -130,8 +128,6 @@ function Header({ onOpenTour }: HeaderProps) {
     : profitPerHour >= 1_000
       ? `+${(profitPerHour / 1_000).toFixed(0)}K/hr`
       : `+${profitPerHour}/hr`;
-
-  const usdVal = (skxBalance / pointsPerDollar).toFixed(2);
 
   return (
     <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3 pb-2.5 flex flex-col gap-2">
