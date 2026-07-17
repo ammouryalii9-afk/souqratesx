@@ -387,10 +387,9 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
                 WHERE telegram_id = ${telegramId}
               `);
             }
-            // skx_purchase packages — credit SKX balance directly
-            if (itemType === "skx_50k" || itemType === "skx_150k" || itemType === "skx_500k") {
-              const skxMap: Record<string, number> = { skx_50k: 50_000, skx_150k: 150_000, skx_500k: 500_000 };
-              const skxAmt = skxMap[itemType] ?? 0;
+            // skx_custom — credit exact SKX amount from payload
+            if (itemType === "skx_custom") {
+              const skxAmt = Math.floor(Number((shopPayload as { skxAmount?: number }).skxAmount) || 0);
               if (skxAmt > 0) {
                 await db
                   .update(vaultUsersTable)

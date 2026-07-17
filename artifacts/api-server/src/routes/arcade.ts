@@ -271,12 +271,10 @@ router.post(
 // ── POST /arcade/shop/invoice ────────────────────────────────────────────────────
 // Creates a REAL Telegram Stars invoice for a shop item.
 // The webhook (successful_payment) applies the item effect after payment.
-// SKX amounts purchasable with Stars (1 Star ≈ some SKX)
-const SKX_STAR_PACKAGES: Record<string, { stars: number; skx: number; label: string; desc: string }> = {
-  skx_50k:  { stars: 25,  skx: 50_000,  label: "💎 50K SKX",  desc: "50,000 SKX instantly" },
-  skx_150k: { stars: 70,  skx: 150_000, label: "💎 150K SKX", desc: "150,000 SKX instantly" },
-  skx_500k: { stars: 200, skx: 500_000, label: "💎 500K SKX", desc: "500,000 SKX instantly" },
-};
+// Custom SKX purchase: 1 Star = 2,000 SKX · min 1 star (= 2,000 SKX)
+const SKX_PER_STAR = 2_000;
+const SKX_CUSTOM_MIN = 2_000;
+const SKX_CUSTOM_MAX = 10_000_000;
 
 const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
   shield_3h:    { stars: 20,  label: "🛡️ Shield 3h",        desc: "Protect your cell for 3 hours" },
@@ -285,9 +283,7 @@ const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: 
   radar:        { stars: 15,  label: "📡 Radar Scan",        desc: "Reveal enemies in a 3×3 area" },
   multi_strike: { stars: 30,  label: "⚡ Multi-Strike ×5",   desc: "Claim 5 cells simultaneously" },
   extra_cells:  { stars: 500, label: "🗺️ Extra Cells ×3",    desc: "Unlock 3 additional cell slots permanently" },
-  skx_50k:     { stars: 25,  label: "💎 50K SKX",            desc: "50,000 SKX added to your balance" },
-  skx_150k:    { stars: 70,  label: "💎 150K SKX",           desc: "150,000 SKX added to your balance" },
-  skx_500k:    { stars: 200, label: "💎 500K SKX",           desc: "500,000 SKX added to your balance" },
+  // skx_custom is handled dynamically below
 };
 
 router.post(
@@ -297,23 +293,44 @@ router.post(
     const telegramId = getSessionTelegramId(req);
     if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-    const { itemType, sessionId } = req.body as { itemType: string; sessionId?: number };
-    const item = ARCADE_SHOP_CATALOG[itemType];
-    if (!item) { res.status(400).json({ error: "Unknown item" }); return; }
+    const { itemType, sessionId, skxAmount: rawSkxAmount } = req.body as { itemType: string; sessionId?: number; skxAmount?: number };
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) { res.status(503).json({ error: "Bot not configured" }); return; }
 
-    const payload = JSON.stringify({ effect: "arcade_shop", telegramId, itemType, sessionId: sessionId ?? null });
+    let stars: number;
+    let label: string;
+    let desc: string;
+    let payload: string;
+
+    if (itemType === "skx_custom") {
+      const skxAmt = Math.floor(Number(rawSkxAmount) || 0);
+      if (!skxAmt || skxAmt < SKX_CUSTOM_MIN || skxAmt > SKX_CUSTOM_MAX) {
+        res.status(400).json({ error: `SKX amount must be between ${SKX_CUSTOM_MIN} and ${SKX_CUSTOM_MAX}` });
+        return;
+      }
+      stars = Math.ceil(skxAmt / SKX_PER_STAR);
+      label = `💎 ${skxAmt.toLocaleString()} SKX`;
+      desc = `${skxAmt.toLocaleString()} SKX added to your balance instantly`;
+      payload = JSON.stringify({ effect: "arcade_shop", telegramId, itemType: "skx_custom", skxAmount: skxAmt, sessionId: null });
+    } else {
+      const item = ARCADE_SHOP_CATALOG[itemType];
+      if (!item) { res.status(400).json({ error: "Unknown item" }); return; }
+      stars = item.stars;
+      label = item.label;
+      desc = item.desc;
+      payload = JSON.stringify({ effect: "arcade_shop", telegramId, itemType, sessionId: sessionId ?? null });
+    }
+
     const tgRes = await fetch(`https://api.telegram.org/bot${token}/createInvoiceLink`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: item.label,
-        description: item.desc,
+        title: label,
+        description: desc,
         payload,
         currency: "XTR",
-        prices: [{ label: item.label, amount: item.stars }],
+        prices: [{ label, amount: stars }],
       }),
     });
     const tgData = await tgRes.json() as { ok: boolean; result?: string; description?: string };

@@ -124,10 +124,12 @@ const SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
   { type: "radar",        stars: 15,  icon: "📡" },
   { type: "multi_strike", stars: 30,  icon: "⚡" },
   { type: "extra_cells",  stars: 500, icon: "🗺️" },
-  { type: "skx_50k",      stars: 25,  icon: "💎" },
-  { type: "skx_150k",     stars: 70,  icon: "💎" },
-  { type: "skx_500k",     stars: 200, icon: "💎" },
 ];
+
+// 1 Star = 2,000 SKX · minimum 2,000 SKX (= 1 star)
+const SKX_PER_STAR = 2_000;
+const SKX_MIN = 2_000;
+const SKX_MAX = 10_000_000;
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
@@ -173,9 +175,6 @@ function shopItemLabel(type: string, tr: ReturnType<typeof useLanguage>["tr"]): 
     radar:        tr.arcade.radarLabel,
     multi_strike: tr.arcade.multiStrikeLabel,
     extra_cells:  tr.arcade.extraCellsLabel,
-    skx_50k:      tr.arcade.skx50kLabel,
-    skx_150k:     tr.arcade.skx150kLabel,
-    skx_500k:     tr.arcade.skx500kLabel,
   };
   return map[type] ?? type;
 }
@@ -188,9 +187,6 @@ function shopItemDesc(type: string, tr: ReturnType<typeof useLanguage>["tr"]): s
     radar:        tr.arcade.radarDesc,
     multi_strike: tr.arcade.multiStrikeDesc,
     extra_cells:  tr.arcade.extraCellsDesc,
-    skx_50k:      tr.arcade.skx50kDesc,
-    skx_150k:     tr.arcade.skx150kDesc,
-    skx_500k:     tr.arcade.skx500kDesc,
   };
   return map[type] ?? "";
 }
@@ -764,8 +760,13 @@ function ShopModal({
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
   const [loadingItem, setLoadingItem] = useState<string | null>(null);
+  const [skxInput, setSkxInput] = useState("");
 
-  async function buyItem(itemType: string) {
+  const skxAmount = Math.max(0, Math.min(SKX_MAX, parseInt(skxInput.replace(/\D/g, ""), 10) || 0));
+  const starsNeeded = skxAmount >= SKX_MIN ? Math.ceil(skxAmount / SKX_PER_STAR) : 0;
+  const skxValid = skxAmount >= SKX_MIN;
+
+  async function buyItem(itemType: string, extraBody?: Record<string, unknown>) {
     type TgWebApp = { openInvoice?: (url: string, cb: (s: string) => void) => void };
     const tg = (window as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp;
     if (!tg?.openInvoice) {
@@ -780,7 +781,7 @@ function ShopModal({
     }
     setLoadingItem(itemType);
     try {
-      const { invoiceUrl } = await apiPost<{ invoiceUrl: string }>("/arcade/shop/invoice", { itemType, sessionId: sid });
+      const { invoiceUrl } = await apiPost<{ invoiceUrl: string }>("/arcade/shop/invoice", { itemType, sessionId: sid, ...extraBody });
       tg.openInvoice(invoiceUrl, (status: string) => {
         setLoadingItem(null);
         if (status === "paid") {
@@ -805,8 +806,8 @@ function ShopModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-sm rounded-3xl px-4 pt-4 pb-5"
-        style={{ background: "#0a1628", border: "1px solid rgba(245,158,11,0.3)" }}
+        className="w-full max-w-sm rounded-3xl px-4 pt-4 pb-5 overflow-y-auto"
+        style={{ background: "#0a1628", border: "1px solid rgba(245,158,11,0.3)", maxHeight: "82vh" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -846,7 +847,7 @@ function ShopModal({
           </div>
         )}
 
-        {/* Items — single-row list, ~52px per row × 5 = fits any phone with zero scroll */}
+        {/* Regular items */}
         <div className="flex flex-col gap-2">
           {SHOP_ITEMS.map((item) => {
             const isLoading = loadingItem === item.type;
@@ -880,6 +881,79 @@ function ShopModal({
               </button>
             );
           })}
+        </div>
+
+        {/* ── SKX Custom Purchase ─────────────────────────── */}
+        <div
+          className="mt-3 rounded-2xl px-4 py-3"
+          style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)" }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontSize: 18 }}>💎</span>
+            <p className="text-sm font-black text-white">{tr.arcade.skxBuyTitle}</p>
+          </div>
+          <p className="text-[10px] mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
+            {tr.arcade.skxBuyRate}
+          </p>
+
+          {/* Input */}
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <span className="text-[11px] font-bold shrink-0" style={{ color: "rgba(255,255,255,0.4)" }}>SKX</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={SKX_MIN}
+              max={SKX_MAX}
+              step={1000}
+              value={skxInput}
+              onChange={(e) => setSkxInput(e.target.value)}
+              placeholder={`min ${SKX_MIN.toLocaleString()}`}
+              className="flex-1 bg-transparent text-white font-black text-sm outline-none"
+              style={{ minWidth: 0 }}
+            />
+            {skxAmount > 0 && (
+              <span className="text-[11px] font-black shrink-0" style={{ color: "#818cf8" }}>
+                = {starsNeeded} ⭐
+              </span>
+            )}
+          </div>
+
+          {/* Quick presets */}
+          <div className="flex gap-1.5 mb-3">
+            {[10_000, 50_000, 100_000, 500_000].map((preset) => (
+              <button
+                key={preset}
+                onClick={() => setSkxInput(String(preset))}
+                className="flex-1 py-1.5 rounded-xl text-[9px] font-black transition-all active:scale-95"
+                style={{
+                  background: skxAmount === preset ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.05)",
+                  border: skxAmount === preset ? "1px solid #818cf8" : "1px solid rgba(255,255,255,0.08)",
+                  color: skxAmount === preset ? "#818cf8" : "rgba(255,255,255,0.45)",
+                }}
+              >
+                {preset >= 1000 ? `${preset / 1000}K` : preset}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => buyItem("skx_custom", { skxAmount })}
+            disabled={!skxValid || loadingItem !== null}
+            className="w-full py-3 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-40"
+            style={{
+              background: skxValid ? "linear-gradient(135deg,#4f46e5,#818cf8)" : "rgba(255,255,255,0.06)",
+              color: skxValid ? "#fff" : "rgba(255,255,255,0.3)",
+            }}
+          >
+            {loadingItem === "skx_custom"
+              ? "⏳"
+              : skxValid
+                ? `${tr.arcade.skxBuyBtn} · ${starsNeeded} ⭐`
+                : tr.arcade.skxBuyEnterAmount}
+          </button>
         </div>
       </div>
     </div>
