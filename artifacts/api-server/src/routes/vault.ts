@@ -44,6 +44,9 @@ const PROTECTED_STATE_KEYS = [
   // stale in-flight sync (read before a convert, written after) can never
   // restore the pre-convert SKP buffer (which would allow double-converting).
   "claimSeq",
+  // Daily arcade ad-reward usage counters (shield, radar, slot) — written
+  // server-side only; the frontend debounced PUT must never clobber these.
+  "arcadeAdRewards",
 ];
 
 function num(v: unknown): number {

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "../lib/i18n";
 import {
   getPublicConfig,
+  getBotUsername,
   claimAdsgramReward,
   claimMonetagReward,
   claimOnclickaReward,
@@ -33,6 +34,7 @@ interface ArcadeStatus {
   extraCellCredits: number;
   activeSessions: ActiveSession[];
   wonSessionsAwarded: number;
+  adRewardsToday?: { shield15m: number; radarFree: number; extraSlot: number };
 }
 
 interface ActiveSession {
@@ -494,6 +496,16 @@ function EntryGate({
             {tr.arcade.howItWorksText}
           </p>
         </div>
+
+        {/* Ad boosts teaser */}
+        {hasAd && (
+          <div className="rounded-xl p-3 flex gap-2.5 items-center" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.18)" }}>
+            <span className="text-lg shrink-0">💡</span>
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(34,211,238,0.7)" }}>
+              {tr.arcade.adGateTeaser}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -635,7 +647,63 @@ function RoomSelector({ status, onRoomSelected }: {
             </button>
           );
         })}
+
+        {/* Invite friends → 4 slots card */}
+        <InviteFriendsCard status={status} />
       </div>
+    </div>
+  );
+}
+
+// ── InviteFriendsCard (used inside RoomSelector) ───────────────────────────────
+
+function InviteFriendsCard({ status }: { status: ArcadeStatus }) {
+  const { tr } = useLanguage();
+  const { userId } = useVault();
+  const [botName, setBotName] = useState("SouqratesXbot");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    getBotUsername().then((n) => { if (n) setBotName(n); }).catch(() => {});
+  }, []);
+
+  const maxSlots = status.extraCellCredits > 0 ? 3 + status.extraCellCredits : 3;
+  if (maxSlots >= 4) return null; // already has 4+ slots — no need to show
+
+  function share() {
+    haptic("light");
+    const link = `https://t.me/${botName}?startapp=${userId}`;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`);
+    } else {
+      navigator.clipboard.writeText(link).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.25)" }}
+    >
+      <div className="px-4 pt-3 pb-3 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(99,102,241,0.18)" }}>
+          <span className="text-xl">👥</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black text-white">{tr.arcade.inviteForBonus}</p>
+          <p className="text-[11px]" style={{ color: "rgba(99,102,241,0.85)" }}>{tr.arcade.inviteForBonusDesc}</p>
+        </div>
+      </div>
+      <button
+        onClick={share}
+        className="w-full py-2.5 font-black text-sm transition-all active:scale-[0.98]"
+        style={{ background: "linear-gradient(135deg,#4338ca,#6366f1)", color: "#fff" }}
+      >
+        {copied ? "✅ Copied!" : tr.arcade.inviteForBonusBtn}
+      </button>
     </div>
   );
 }
@@ -1012,13 +1080,17 @@ type SpecialMode =
 function GridView({
   room,
   status,
+  config,
   onBack,
   onStatusRefresh,
+  onAdBoost,
 }: {
   room: Room;
   status: ArcadeStatus;
+  config: PublicConfig | null;
   onBack: () => void;
   onStatusRefresh: () => void;
+  onAdBoost: (itemType: string, sessionId?: number) => Promise<{ ok?: boolean; limitReached?: boolean; shieldExpiresAt?: string; extraCellCredits?: number } | null>;
 }) {
   const { toast } = useToast();
   const { tr } = useLanguage();
@@ -1050,6 +1122,9 @@ function GridView({
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // cell button refs for effect anchoring
   const cellRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  // Ad boost state
+  const [adBoostLoading, setAdBoostLoading] = useState<string | null>(null);
+  const [shieldPickerOpen, setShieldPickerOpen] = useState(false);
 
   function bumpCombo() {
     setCombo((c) => {
@@ -1380,6 +1455,32 @@ function GridView({
     await Promise.all([loadGrid(), onStatusRefresh()]);
   }
 
+  // Called by Ad Boost panel buttons
+  async function handleAdBoostClick(itemType: string, sessionId?: number) {
+    if (adBoostLoading) return;
+    setAdBoostLoading(itemType);
+    try {
+      const result = await onAdBoost(itemType, sessionId);
+      if (!result) return; // error or ad dismissed — onAdBoost already showed toast
+      if (result.limitReached) return;
+      haptic("success");
+      if (itemType === "shield_15m") {
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostShieldBtn });
+        await Promise.all([loadGrid(), onStatusRefresh()]);
+      } else if (itemType === "radar_free") {
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostRadarBtn });
+        setSpecialMode({ type: "radar" });
+        await onStatusRefresh();
+      } else if (itemType === "extra_slot") {
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostSlotBtn });
+        await onStatusRefresh();
+      }
+    } finally {
+      setAdBoostLoading(null);
+      setShieldPickerOpen(false);
+    }
+  }
+
   function pan(dx: number, dy: number) {
     const step = Math.max(2, Math.floor(vp / 3));
     setViewOx((x) => Math.max(0, Math.min(gridSize - vp, x + dx * step)));
@@ -1658,6 +1759,97 @@ function GridView({
           ))}
         </div>
       </div>
+
+      {/* Ad Boosts panel */}
+      {(() => {
+        const hasAd =
+          (config?.adsgram.enabled && config.adsgram.blockId) ||
+          (config?.monetag.enabled && config.monetag.zoneId) ||
+          (config?.onclicka.enabled && config.onclicka.spotId);
+        if (!hasAd) return null;
+        const ad = status.adRewardsToday ?? { shield15m: 0, radarFree: 0, extraSlot: 0 };
+        const adBoosts = [
+          { key: "shield_15m", label: tr.arcade.adBoostShieldBtn, used: ad.shield15m, limit: 3, color: "#22d3ee" },
+          { key: "radar_free", label: tr.arcade.adBoostRadarBtn, used: ad.radarFree, limit: 3, color: "#a78bfa" },
+          { key: "extra_slot", label: tr.arcade.adBoostSlotBtn, used: ad.extraSlot, limit: 2, color: "#4ade80" },
+        ];
+        return (
+          <div className="shrink-0 px-3 pt-1.5 pb-1" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {tr.arcade.adBoostTitle}
+            </p>
+            <div className="flex gap-1.5">
+              {adBoosts.map(({ key, label, used, limit, color }) => {
+                const exhausted = used >= limit;
+                const isLoading = adBoostLoading === key;
+                const handleClick = key === "shield_15m"
+                  ? () => {
+                      if (mySessions.length === 0) { toast({ title: tr.arcade.adBoostNoSession }); return; }
+                      if (mySessions.length === 1) { handleAdBoostClick(key, mySessions[0].id); return; }
+                      setShieldPickerOpen(true);
+                    }
+                  : () => handleAdBoostClick(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={handleClick}
+                    disabled={exhausted || !!adBoostLoading}
+                    className="flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl transition-all active:scale-[0.94] disabled:opacity-40"
+                    style={{
+                      background: exhausted ? "rgba(255,255,255,0.04)" : `${color}12`,
+                      border: `1px solid ${exhausted ? "rgba(255,255,255,0.07)" : `${color}30`}`,
+                    }}
+                  >
+                    <span className="text-sm leading-none">{isLoading ? "⏳" : label.split(" ")[0]}</span>
+                    <span className="text-[8px] font-black leading-tight text-center" style={{ color: exhausted ? "rgba(255,255,255,0.3)" : color }}>
+                      {label.split(" ").slice(1).join(" ")}
+                    </span>
+                    <span className="text-[8px] font-bold" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      {tr.arcade.adBoostUsed(used, limit)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Shield session picker modal (only when multiple sessions) */}
+            {shieldPickerOpen && mySessions.length > 1 && (
+              <div
+                className="fixed inset-0 z-50 flex items-end justify-center"
+                style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
+                onClick={() => setShieldPickerOpen(false)}
+              >
+                <div
+                  className="w-full max-w-sm rounded-t-3xl p-5"
+                  style={{ background: "#0a1628", border: "1px solid rgba(34,211,238,0.25)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-sm font-black text-white mb-3">{tr.arcade.adBoostShieldBtn}</p>
+                  <div className="flex flex-col gap-2">
+                    {mySessions.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => handleAdBoostClick("shield_15m", s.id)}
+                        disabled={adBoostLoading === "shield_15m"}
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl active:scale-[0.97] transition-all disabled:opacity-50"
+                        style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.2)" }}
+                      >
+                        <span className="text-lg">🛡️</span>
+                        <div className="text-left">
+                          <p className="text-sm font-black text-white capitalize">{s.roomType}</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>({s.gridX},{s.gridY})</p>
+                        </div>
+                        <span className="ml-auto text-[10px] font-bold" style={{ color: "#22d3ee" }}>
+                          {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* My sessions panel */}
       {mySessions.length > 0 && (
@@ -2105,13 +2297,51 @@ function ArcadeTabInner() {
     );
   }
 
+  // Watches an ad then calls POST /arcade/ad/reward; returns server result or null.
+  // Used by GridView's ad boost panel. actionLoading gate shows global spinner.
+  async function handleAdBoost(
+    itemType: string,
+    sessionId?: number,
+  ): Promise<{ ok?: boolean; limitReached?: boolean; shieldExpiresAt?: string; extraCellCredits?: number } | null> {
+    const hasAd =
+      (config?.adsgram.enabled && config.adsgram.blockId) ||
+      (config?.monetag.enabled && config.monetag.zoneId) ||
+      (config?.onclicka.enabled && config.onclicka.spotId);
+    if (!hasAd) {
+      toast({ title: "Ads not configured" });
+      return null;
+    }
+    setActionLoading(true);
+    try {
+      await watchRewardedAdWithFallback(config!);
+      const data = await apiPost<{ ok?: boolean; limitReached?: boolean; shieldExpiresAt?: string; extraCellCredits?: number }>(
+        "/arcade/ad/reward",
+        { itemType, sessionId },
+      );
+      return data;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      const isLimit = msg.includes("429") || msg.toLowerCase().includes("limit");
+      if (isLimit) {
+        toast({ title: "Daily limit reached", variant: "destructive" });
+        return { limitReached: true };
+      }
+      toast({ title: tr.arcade.error, description: msg || tr.arcade.tryAgain, variant: "destructive" });
+      return null;
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   if (phase === "grid" && selectedRoom) {
     return (
       <GridView
         room={selectedRoom}
         status={status}
+        config={config}
         onBack={() => setPhaseStable("rooms")}
         onStatusRefresh={refreshGridStatus}
+        onAdBoost={handleAdBoost}
       />
     );
   }

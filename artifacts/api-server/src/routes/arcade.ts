@@ -186,7 +186,13 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
     .where(eq(vaultUsersTable.telegramId, telegramId))
     .limit(1);
 
-  const extraCellCredits = (userRow?.state as Record<string, unknown> | null)?.extraCellCredits as number ?? 0;
+  const stateObj = (userRow?.state as Record<string, unknown> | null) ?? {};
+  const extraCellCredits = stateObj.extraCellCredits as number ?? 0;
+  const adRaw = stateObj.arcadeAdRewards as { date?: string; shield15m?: number; radarFree?: number; extraSlot?: number } | undefined;
+  const todayStr = todayKey();
+  const adRewardsToday = adRaw?.date === todayStr
+    ? { shield15m: adRaw.shield15m ?? 0, radarFree: adRaw.radarFree ?? 0, extraSlot: adRaw.extraSlot ?? 0 }
+    : { shield15m: 0, radarFree: 0, extraSlot: 0 };
 
   res.json({
     hasTicket: ticket?.ticketGranted ?? false,
@@ -195,7 +201,8 @@ router.get("/arcade/status", async (req, res): Promise<void> => {
     starsBalance: userRow?.starsBalance ?? 0,
     skxBalance: userRow?.skxBalance ?? 0,
     extraCellCredits,
-    todayKey: todayKey(),
+    adRewardsToday,
+    todayKey: todayStr,
     activeSessions: activeSessions.map((s) => ({
       id: s.id,
       roomType: s.roomType,
@@ -900,6 +907,105 @@ router.post(
       );
 
     res.json({ room, cx, cy, activeCount: row?.count ?? 0 });
+  },
+);
+
+// ── POST /arcade/ad/reward ─────────────────────────────────────────────────────
+// Called after a user successfully watches a rewarded ad. Validates the daily
+// limit then applies the chosen reward (shield 15 min / free radar enable /
+// extra cell slot). Counters live in state.arcadeAdRewards (PROTECTED_STATE_KEY).
+router.post(
+  "/arcade/ad/reward",
+  rateLimit("arcade:ad-reward", 15, 60_000),
+  async (req, res): Promise<void> => {
+    const telegramId = getSessionTelegramId(req);
+    if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    if (!(await isArcadeAccessible(telegramId))) {
+      res.status(403).json({ error: "Arcade not accessible" }); return;
+    }
+
+    const { itemType, sessionId } = req.body as {
+      itemType: string;
+      sessionId?: number;
+    };
+
+    const VALID_TYPES = ["shield_15m", "radar_free", "extra_slot"];
+    if (!VALID_TYPES.includes(itemType)) {
+      res.status(400).json({ error: "Invalid itemType" }); return;
+    }
+
+    const DAILY_LIMITS: Record<string, number> = { shield_15m: 3, radar_free: 3, extra_slot: 2 };
+    const STATE_KEY: Record<string, "shield15m" | "radarFree" | "extraSlot"> = {
+      shield_15m: "shield15m",
+      radar_free: "radarFree",
+      extra_slot: "extraSlot",
+    };
+    const limit = DAILY_LIMITS[itemType];
+    const stateKey = STATE_KEY[itemType];
+    const day = todayKey();
+
+    const [userRow] = await db
+      .select({ state: vaultUsersTable.state })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, telegramId))
+      .limit(1);
+    if (!userRow) { res.status(404).json({ error: "User not found" }); return; }
+
+    const uState = (userRow.state as Record<string, unknown>) ?? {};
+    const adRaw = uState.arcadeAdRewards as { date?: string; shield15m?: number; radarFree?: number; extraSlot?: number } | undefined;
+    const todayUsage: { date: string; shield15m: number; radarFree: number; extraSlot: number } =
+      adRaw?.date === day
+        ? { date: day, shield15m: adRaw.shield15m ?? 0, radarFree: adRaw.radarFree ?? 0, extraSlot: adRaw.extraSlot ?? 0 }
+        : { date: day, shield15m: 0, radarFree: 0, extraSlot: 0 };
+
+    const currentCount = todayUsage[stateKey];
+    if (currentCount >= limit) {
+      res.status(429).json({ error: "Daily limit reached", limitReached: true, limit, usedToday: currentCount });
+      return;
+    }
+
+    // Apply the reward
+    let extra: Record<string, unknown> = {};
+
+    if (itemType === "shield_15m") {
+      if (!sessionId) { res.status(400).json({ error: "sessionId required for shield_15m" }); return; }
+      const shieldUntil = new Date(Date.now() + 15 * 60_000);
+      const [updated] = await db
+        .update(arcadeSessionsTable)
+        .set({ shieldExpiresAt: shieldUntil })
+        .where(and(
+          eq(arcadeSessionsTable.id, sessionId),
+          eq(arcadeSessionsTable.telegramId, telegramId),
+          eq(arcadeSessionsTable.status, "active"),
+        ))
+        .returning({ id: arcadeSessionsTable.id, shieldExpiresAt: arcadeSessionsTable.shieldExpiresAt });
+      if (!updated) { res.status(404).json({ error: "Session not found or not yours" }); return; }
+      extra = { shieldExpiresAt: updated.shieldExpiresAt?.toISOString() };
+    } else if (itemType === "extra_slot") {
+      await db.execute(
+        sql`UPDATE vault_users
+            SET state = jsonb_set(
+              COALESCE(state, '{}'),
+              '{extraCellCredits}',
+              to_jsonb(COALESCE((state->>'extraCellCredits')::int, 0) + 1)
+            )
+            WHERE telegram_id = ${telegramId}`,
+      );
+      extra = { extraCellCredits: (uState.extraCellCredits as number ?? 0) + 1 };
+    }
+    // radar_free: no server action needed — caller activates radar mode locally
+
+    // Bump daily counter
+    const newUsage = { ...todayUsage, [stateKey]: currentCount + 1 };
+    await db.execute(
+      sql`UPDATE vault_users
+          SET state = jsonb_set(COALESCE(state, '{}'), '{arcadeAdRewards}', ${JSON.stringify(newUsage)}::jsonb)
+          WHERE telegram_id = ${telegramId}`,
+    );
+
+    await logUserActivity(telegramId, "arcade_ad_reward", { itemType, ...extra });
+    res.json({ ok: true, ...extra, usedToday: currentCount + 1, limit });
   },
 );
 
