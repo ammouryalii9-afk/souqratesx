@@ -1035,15 +1035,16 @@ function GridView({
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
   const [specialMode, setSpecialMode] = useState<SpecialMode>(null);
-  const [strikeResult, setStrikeResult] = useState<{
-    result: string;
-    strikerReward?: number;
-    penalty?: number;
-    victim?: { telegramId: string; firstName: string | null; username: string | null };
-    striker?: { telegramId: string; firstName: string | null; username: string | null };
-    x: number;
-    y: number;
+  // Full-screen win/lose overlays
+  const [winOverlay, setWinOverlay] = useState<{
+    reward: number;
+    victimName: string;
+    x: number; y: number;
   } | null>(null);
+  const [loseOverlay, setLoseOverlay] = useState<{ x: number; y: number } | null>(null);
+  // Track own cells to detect passive destruction (polled every 15s)
+  const prevMyCellKeysRef = useRef<Set<string>>(new Set());
+  const gridInitializedRef = useRef(false);
   // Combo system
   const [combo, setCombo] = useState(0);
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1067,6 +1068,23 @@ function GridView({
     setGridLoading(true);
     try {
       const data = await apiGet<GridData>(`/arcade/grid/${room}`);
+      const newMyCells = new Set(
+        data.cells.filter((c) => c.owner === "me").map((c) => `${c.x},${c.y}`)
+      );
+      // Detect passive destruction between polls
+      if (gridInitializedRef.current) {
+        for (const key of prevMyCellKeysRef.current) {
+          if (!newMyCells.has(key)) {
+            const [dx, dy] = key.split(",").map(Number);
+            haptic("error");
+            screenFlash("rgba(239,68,68,0.55)", 450);
+            setLoseOverlay({ x: dx, y: dy });
+            break;
+          }
+        }
+      }
+      prevMyCellKeysRef.current = newMyCells;
+      gridInitializedRef.current = true;
       setGridData(data);
     } catch {
       // silent
@@ -1285,12 +1303,13 @@ function GridView({
           if (result.result === "destroyed") {
             arcadeSound.explosion();
             haptic("success");
-            screenFlash("rgba(251,191,36,0.25)", 250);
+            screenFlash("rgba(34,197,94,0.3)", 300);
             particleExplosion(el);
             spawnFloatingText(el, result.strikerReward ? `+${result.strikerReward.toLocaleString()}` : "💥 DESTROYED", "#fbbf24");
             bumpCombo();
-            // Show detailed strike result card
-            setStrikeResult({ result: result.result, strikerReward: result.strikerReward, victim: result.victim, striker: result.striker, x, y });
+            // Full-screen WIN overlay
+            const victimName = result.victim?.firstName ?? (result.victim?.username ? `@${result.victim.username}` : "Unknown");
+            setWinOverlay({ reward: result.strikerReward ?? 0, victimName, x, y });
           } else if (result.result === "shielded") {
             arcadeSound.shielded();
             haptic("warning");
@@ -1711,103 +1730,199 @@ function GridView({
         />
       )}
 
-      {/* Strike Result Modal */}
-      {strikeResult && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4"
-          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
-          onClick={() => setStrikeResult(null)}
-        >
+      {/* ── WIN overlay ─────────────────────────────── */}
+      {winOverlay && (
+        <>
+          <style>{`
+            @keyframes arcadeWinPop {
+              0%   { opacity:0; transform:scale(0.6); }
+              60%  { opacity:1; transform:scale(1.06); }
+              80%  { transform:scale(0.97); }
+              100% { opacity:1; transform:scale(1); }
+            }
+            @keyframes arcadeWinPulse {
+              0%,100% { box-shadow:0 0 40px 8px rgba(34,197,94,0.45); }
+              50%     { box-shadow:0 0 80px 24px rgba(34,197,94,0.75); }
+            }
+            @keyframes arcadeWinNum {
+              0%   { opacity:0; transform:translateY(18px) scale(0.7); }
+              70%  { opacity:1; transform:translateY(-4px) scale(1.08); }
+              100% { transform:translateY(0) scale(1); }
+            }
+            @keyframes arcadeShimmer {
+              0%   { background-position: -200% center; }
+              100% { background-position:  200% center; }
+            }
+          `}</style>
           <div
-            className="w-full max-w-sm rounded-3xl px-5 py-5"
-            style={{
-              background: "linear-gradient(135deg,#0d1f3c 0%,#0a1628 100%)",
-              border: "2px solid rgba(251,191,36,0.4)",
-              boxShadow: "0 0 30px rgba(251,191,36,0.15), 0 0 60px rgba(251,191,36,0.05)",
-            }}
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[60] flex items-center justify-center"
+            style={{ background: "rgba(0,5,0,0.82)", backdropFilter: "blur(6px)" }}
+            onClick={() => setWinOverlay(null)}
           >
-            {/* Victory banner */}
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(251,191,36,0.15)", border: "2px solid rgba(251,191,36,0.4)" }}
-              >
-                <span style={{ fontSize: 24 }}>⚔️</span>
+            <div
+              style={{
+                animation: "arcadeWinPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards, arcadeWinPulse 1.6s 0.45s ease-in-out infinite",
+                background: "linear-gradient(145deg,#052e16 0%,#14532d 50%,#052e16 100%)",
+                border: "2px solid rgba(34,197,94,0.6)",
+                borderRadius: 28,
+                padding: "36px 28px 28px",
+                width: "min(340px,90vw)",
+                textAlign: "center",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Big icon */}
+              <div style={{ fontSize: 64, lineHeight: 1, marginBottom: 8 }}>⚔️</div>
+
+              {/* Title */}
+              <p style={{
+                fontSize: 28, fontWeight: 900, letterSpacing: 2,
+                background: "linear-gradient(90deg,#4ade80,#86efac,#4ade80)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                animation: "arcadeShimmer 1.8s linear infinite",
+                marginBottom: 4,
+              }}>
+                تم التدمير! 💥
+              </p>
+              <p style={{ fontSize: 12, color: "rgba(134,239,172,0.6)", marginBottom: 20 }}>
+                الخلية ({winOverlay.x}, {winOverlay.y})
+              </p>
+
+              {/* Reward */}
+              {winOverlay.reward > 0 && (
+                <div style={{
+                  animation: "arcadeWinNum 0.5s 0.3s both",
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.35)",
+                  borderRadius: 16, padding: "14px 20px", marginBottom: 16,
+                }}>
+                  <p style={{ fontSize: 11, color: "rgba(134,239,172,0.6)", marginBottom: 2 }}>مكافأتك</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: "#4ade80", textShadow: "0 0 20px rgba(74,222,128,0.7)" }}>
+                    +{winOverlay.reward.toLocaleString()} SKX
+                  </p>
+                </div>
+              )}
+
+              {/* Victim */}
+              <div style={{
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                borderRadius: 14, padding: "10px 16px", marginBottom: 20,
+                display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <span style={{ fontSize: 22 }}>💀</span>
+                <div style={{ textAlign: "left", flex: 1 }}>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 1 }}>تم تدمير خلية</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{winOverlay.victimName}</p>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 900, color: "#f87171",
+                  background: "rgba(239,68,68,0.2)", padding: "3px 8px", borderRadius: 8 }}>
+                  DESTROYED
+                </span>
               </div>
-              <div>
-                <p className="font-black text-white text-base leading-tight">{tr.arcade.strikeResultTitle}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  Cell ({strikeResult.x}, {strikeResult.y})
-                </p>
-              </div>
+
               <button
-                onClick={() => setStrikeResult(null)}
-                className="ml-auto w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.07)" }}
+                onClick={() => setWinOverlay(null)}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 16, border: "none",
+                  background: "linear-gradient(135deg,#16a34a,#4ade80)",
+                  color: "#052e16", fontSize: 15, fontWeight: 900, cursor: "pointer",
+                  letterSpacing: 1,
+                }}
               >
-                <X className="w-3.5 h-3.5 text-white/50" />
+                🔥 استمر في القتال
               </button>
             </div>
-
-            {/* SKX won */}
-            {strikeResult.strikerReward != null && strikeResult.strikerReward > 0 && (
-              <div
-                className="flex items-center justify-between px-4 py-3 rounded-2xl mb-3"
-                style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
-              >
-                <span className="text-sm font-bold" style={{ color: "rgba(251,191,36,0.8)" }}>
-                  {tr.arcade.strikerRewardLabel}
-                </span>
-                <span className="text-lg font-black" style={{ color: "#fbbf24", textShadow: "0 0 10px #f59e0b" }}>
-                  +{strikeResult.strikerReward.toLocaleString()} SKX
-                </span>
-              </div>
-            )}
-
-            {/* Victim profile */}
-            {strikeResult.victim && (
-              <div
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}
-              >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(239,68,68,0.15)" }}
-                >
-                  <span style={{ fontSize: 18 }}>💀</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    {tr.arcade.enemyProfileTitle}
-                  </p>
-                  <p className="text-sm font-black text-white leading-tight truncate">
-                    {strikeResult.victim.firstName ?? (strikeResult.victim.username ? `@${strikeResult.victim.username}` : "Unknown")}
-                  </p>
-                  {strikeResult.victim.username && (
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-                      @{strikeResult.victim.username}
-                    </p>
-                  )}
-                </div>
-                <div
-                  className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-black"
-                  style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
-                >
-                  DESTROYED
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => setStrikeResult(null)}
-              className="w-full mt-4 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95"
-              style={{ background: "linear-gradient(135deg,#92400e,#fbbf24)", color: "#000" }}
-            >
-              🔥 Continue
-            </button>
           </div>
-        </div>
+        </>
+      )}
+
+      {/* ── LOSE overlay ────────────────────────────── */}
+      {loseOverlay && (
+        <>
+          <style>{`
+            @keyframes arcadeLosePop {
+              0%   { opacity:0; transform:scale(0.5) rotate(-4deg); }
+              60%  { opacity:1; transform:scale(1.05) rotate(1deg); }
+              80%  { transform:scale(0.97) rotate(-0.5deg); }
+              100% { opacity:1; transform:scale(1) rotate(0deg); }
+            }
+            @keyframes arcadeLosePulse {
+              0%,100% { box-shadow:0 0 40px 8px rgba(239,68,68,0.45); }
+              50%     { box-shadow:0 0 90px 28px rgba(239,68,68,0.75); }
+            }
+            @keyframes arcadeShake {
+              0%,100% { transform:translateX(0); }
+              15%     { transform:translateX(-8px); }
+              30%     { transform:translateX(8px); }
+              45%     { transform:translateX(-6px); }
+              60%     { transform:translateX(6px); }
+              75%     { transform:translateX(-3px); }
+              90%     { transform:translateX(3px); }
+            }
+          `}</style>
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center"
+            style={{ background: "rgba(10,0,0,0.85)", backdropFilter: "blur(6px)" }}
+            onClick={() => setLoseOverlay(null)}
+          >
+            <div
+              style={{
+                animation: "arcadeLosePop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards, arcadeLosePulse 1.6s 0.45s ease-in-out infinite",
+                background: "linear-gradient(145deg,#1c0505 0%,#450a0a 50%,#1c0505 100%)",
+                border: "2px solid rgba(239,68,68,0.65)",
+                borderRadius: 28,
+                padding: "36px 28px 28px",
+                width: "min(340px,90vw)",
+                textAlign: "center",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Skull with shake */}
+              <div style={{ fontSize: 68, lineHeight: 1, marginBottom: 8,
+                animation: "arcadeShake 0.5s 0.2s ease-in-out" }}>
+                💀
+              </div>
+
+              {/* Title */}
+              <p style={{
+                fontSize: 30, fontWeight: 900, letterSpacing: 2,
+                color: "#ef4444", textShadow: "0 0 30px rgba(239,68,68,0.8)",
+                marginBottom: 6,
+              }}>
+                تم تدميرك!
+              </p>
+              <p style={{ fontSize: 13, color: "rgba(252,165,165,0.6)", marginBottom: 24 }}>
+                خليتك ({loseOverlay.x}, {loseOverlay.y}) تم اختراقها من قِبَل عدو
+              </p>
+
+              {/* Destroyed cell badge */}
+              <div style={{
+                background: "rgba(239,68,68,0.1)",
+                border: "1px solid rgba(239,68,68,0.3)",
+                borderRadius: 16, padding: "14px 20px", marginBottom: 24,
+              }}>
+                <p style={{ fontSize: 12, color: "rgba(252,165,165,0.5)", marginBottom: 4 }}>الخلية المدمرة</p>
+                <p style={{ fontSize: 22, fontWeight: 900, color: "#fca5a5" }}>
+                  ({loseOverlay.x}, {loseOverlay.y})
+                </p>
+              </div>
+
+              <button
+                onClick={() => setLoseOverlay(null)}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 16, border: "none",
+                  background: "linear-gradient(135deg,#7f1d1d,#ef4444)",
+                  color: "#fff", fontSize: 15, fontWeight: 900, cursor: "pointer",
+                  letterSpacing: 1,
+                }}
+              >
+                ⚔️ الانتقام
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
