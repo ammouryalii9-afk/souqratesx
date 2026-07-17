@@ -116,7 +116,7 @@ interface PhantomSettings {
   phantomMinRealPlayers: number;
 }
 
-async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWhitelist: string } & PhantomSettings> {
+async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWhitelist: string } & PhantomSettings & { fakeCountBase: number; fakeCountVariance: number }> {
   const data = await adminGet<Record<string, unknown>>("/api/admin/settings");
   return {
     arcadeEnabled: data.arcadeEnabled === true || data.arcadeEnabled === "true",
@@ -124,7 +124,16 @@ async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWh
     phantomEnabled: data.arcadePhantomEnabled === true || data.arcadePhantomEnabled === "true",
     phantomDensity: typeof data.arcadePhantomDensity === "number" ? data.arcadePhantomDensity : 15,
     phantomMinRealPlayers: typeof data.arcadePhantomMinRealPlayers === "number" ? data.arcadePhantomMinRealPlayers : 30,
+    fakeCountBase: typeof data.arcadeFakeCountBase === "number" ? data.arcadeFakeCountBase : 0,
+    fakeCountVariance: typeof data.arcadeFakeCountVariance === "number" ? data.arcadeFakeCountVariance : 0,
   };
+}
+
+async function saveFakeCountSettings(base: number, variance: number): Promise<void> {
+  await adminPut("/api/admin/settings", {
+    arcadeFakeCountBase: base,
+    arcadeFakeCountVariance: variance,
+  });
 }
 
 async function saveArcadeSettings(enabled: boolean, whitelist: string): Promise<void> {
@@ -205,6 +214,13 @@ export function AdminArcade() {
   const [phantomSaved, setPhantomSaved] = useState(false);
   const phantomSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fake counter state
+  const [fakeCountBase, setFakeCountBase] = useState(0);
+  const [fakeCountVariance, setFakeCountVariance] = useState(0);
+  const [fakeCountSaving, setFakeCountSaving] = useState(false);
+  const [fakeCountSaved, setFakeCountSaved] = useState(false);
+  const fakeCountSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
     try {
@@ -214,10 +230,25 @@ export function AdminArcade() {
       setPhantomEnabled(s.phantomEnabled);
       setPhantomDensity(s.phantomDensity);
       setPhantomMinReal(s.phantomMinRealPlayers);
+      setFakeCountBase(s.fakeCountBase);
+      setFakeCountVariance(s.fakeCountVariance);
     } catch { /* ignore */ } finally {
       setSettingsLoading(false);
     }
   }, []);
+
+  const handleSaveFakeCount = useCallback(async () => {
+    setFakeCountSaving(true);
+    setFakeCountSaved(false);
+    try {
+      await saveFakeCountSettings(fakeCountBase, fakeCountVariance);
+      setFakeCountSaved(true);
+      if (fakeCountSavedTimer.current) clearTimeout(fakeCountSavedTimer.current);
+      fakeCountSavedTimer.current = setTimeout(() => setFakeCountSaved(false), 2500);
+    } catch { /* ignore */ } finally {
+      setFakeCountSaving(false);
+    }
+  }, [fakeCountBase, fakeCountVariance]);
 
   const loadShopConfig = useCallback(async () => {
     setShopLoading(true);
@@ -485,6 +516,83 @@ export function AdminArcade() {
             className="w-full text-xs bg-purple-600 hover:bg-purple-500"
           >
             {phantomSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : phantomSaved ? "✓ حُفظ" : "حفظ إعدادات الـ Phantom"}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Fake Counter Card ── */}
+      <div className="rounded-2xl border border-orange-500/30 bg-orange-500/8 p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-orange-500/20">
+            <span className="text-lg">🔢</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white">عداد اللاعبين الوهمي (Fake Counter)</p>
+            <p className="text-[10px] text-muted-foreground">
+              يُضاف إلى العدد المعروض في الـ LiveTicker — لا يؤثر على الشبكة الفعلية
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Base value */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-muted-foreground">الرقم الأساسي</p>
+              <span className="text-[11px] font-black text-orange-400">{fakeCountBase.toLocaleString()}</span>
+            </div>
+            <input
+              type="range" min={0} max={2000} step={10}
+              value={fakeCountBase}
+              onChange={(e) => setFakeCountBase(Number(e.target.value))}
+              className="w-full accent-orange-500"
+            />
+            <div className="flex gap-1.5 flex-wrap">
+              {[0, 50, 100, 200, 500, 1000].map(v => (
+                <button key={v} onClick={() => setFakeCountBase(v)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${fakeCountBase === v ? 'bg-orange-500 border-orange-500 text-white' : 'border-white/15 text-white/50 hover:border-orange-500/60'}`}
+                >{v === 0 ? 'إيقاف' : v}</button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">
+              الرقم الوهمي المضاف إلى عداد اللاعبين (0 = معطّل)
+            </p>
+          </div>
+
+          {/* Variance */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-muted-foreground">التباين العشوائي (±)</p>
+              <span className="text-[11px] font-black text-orange-400">±{fakeCountVariance}</span>
+            </div>
+            <input
+              type="range" min={0} max={500} step={5}
+              value={fakeCountVariance}
+              onChange={(e) => setFakeCountVariance(Number(e.target.value))}
+              className="w-full accent-orange-500"
+            />
+            <p className="text-[10px] text-muted-foreground/60">
+              يتغير الرقم في نطاق [{Math.max(0, fakeCountBase - fakeCountVariance)}–{fakeCountBase + fakeCountVariance}] — يُحدَّث كل ساعة تلقائياً
+            </p>
+          </div>
+
+          {/* Preview */}
+          {fakeCountBase > 0 && (
+            <div className="px-3 py-2 rounded-xl bg-black/30 border border-orange-500/20 text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">المعروض للمستخدم (مثال)</p>
+              <p className="text-sm font-black text-orange-300">
+                ~{fakeCountBase} — {fakeCountBase + fakeCountVariance} لاعب نشط
+              </p>
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            onClick={handleSaveFakeCount}
+            disabled={fakeCountSaving}
+            className="w-full text-xs bg-orange-600 hover:bg-orange-500"
+          >
+            {fakeCountSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : fakeCountSaved ? "✓ حُفظ" : "حفظ إعدادات العداد"}
           </Button>
         </div>
       </div>

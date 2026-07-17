@@ -511,17 +511,35 @@ router.get("/arcade/grid/:room", async (req, res): Promise<void> => {
         const key = `${px},${py}`;
         if (!occupied.has(key)) {
           occupied.add(key);
-          cells.push({ x: px, y: py, owner: "other", hasShield: false, isDecoy: false });
+          cells.push({ x: px, y: py, owner: "other", sessionId: undefined, durationHours: undefined, finalPoints: undefined, expiresAt: undefined, hasShield: false, isDecoy: false });
           phantomInjected++;
         }
       }
     }
   }
 
+  // ── Fake counter injection (social-proof display only) ─────────────────────
+  const fakeBase    = asNumber(phSettings.arcadeFakeCountBase,     0);
+  const fakeVariance = asNumber(phSettings.arcadeFakeCountVariance, 0);
+  let fakeExtra = 0;
+  if (fakeBase > 0 || fakeVariance > 0) {
+    // Stable per-room-per-hour so the displayed number drifts slowly, not every request
+    const hour = new Date().toISOString().slice(0, 13);
+    const seedStr = `fake:${room}:${hour}`;
+    let seedNum = 0;
+    for (let i = 0; i < seedStr.length; i++) {
+      seedNum = (Math.imul(31, seedNum) + seedStr.charCodeAt(i)) | 0;
+    }
+    const rnd = seededRnd(seedNum >>> 0);
+    const lo = Math.max(0, fakeBase - fakeVariance);
+    const hi = fakeBase + fakeVariance;
+    fakeExtra = Math.round(lo + rnd() * (hi - lo));
+  }
+
   res.json({
     room,
     gridSize: ROOM_GRID_SIZE[room],
-    totalActive: activeCells.length + phantomInjected,
+    totalActive: activeCells.length + phantomInjected + fakeExtra,
     cells,
   });
 });
