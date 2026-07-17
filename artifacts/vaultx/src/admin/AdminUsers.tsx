@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { adminApi, type AdminUserDetail, type AdminUserSummary, type UserActivityEntry, type UserDeepStats } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Ban, CheckCircle2, Crown, History, Search, Trash2, X, BarChart2, Copy, Check } from "lucide-react";
+import { Ban, CheckCircle2, Crown, History, Search, Trash2, X, BarChart2, Copy, Check, Coins } from "lucide-react";
 
 const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   adsgram_reward: "مشاهدة إعلان (Adsgram)",
@@ -140,14 +140,77 @@ function UserActivityView({ telegramId }: { telegramId: string }) {
   );
 }
 
+function SkxCreditPanel({ telegramId, onCredited }: { telegramId: string; onCredited: (newBalance: number) => void }) {
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const raw = amount.trim();
+    const n = parseInt(raw, 10);
+    if (!n || !Number.isFinite(n) || n === 0) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await adminApi.creditSkx(telegramId, n, reason || undefined);
+      setMsg({ ok: true, text: `تم! الرصيد الجديد: ${res.skxBalance.toLocaleString()} SKX` });
+      setAmount("");
+      setReason("");
+      onCredited(res.skxBalance);
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "فشل الإضافة" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => { void submit(e); }} className="flex flex-col gap-2 bg-white/5 border border-amber-500/20 rounded-xl p-3">
+      <div className="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
+        <Coins className="w-3.5 h-3.5 shrink-0" />
+        إضافة / خصم SKX
+      </div>
+      <div className="flex gap-2">
+        <Input
+          type="number"
+          placeholder="المبلغ (سالب للخصم)"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="flex-1 text-sm"
+          data-testid="input-skx-amount"
+        />
+        <Button type="submit" size="sm" disabled={busy || !amount} className="shrink-0">
+          {busy ? "..." : "تأكيد"}
+        </Button>
+      </div>
+      <Input
+        placeholder="سبب (اختياري)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className="text-sm"
+        data-testid="input-skx-reason"
+      />
+      {msg && (
+        <p className={`text-xs font-medium ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>
+      )}
+    </form>
+  );
+}
+
 function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; onClose: () => void; onChanged: () => void }) {
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"info" | "stats" | "activity">("info");
+  const [skxBalance, setSkxBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    adminApi.user(telegramId).then(setUser).catch(() => setError("فشل تحميل المستخدم"));
+    adminApi.user(telegramId).then((u) => {
+      setUser(u);
+      setSkxBalance(u.skxBalance);
+    }).catch(() => setError("فشل تحميل المستخدم"));
   }, [telegramId]);
 
   async function save(patch: Partial<AdminUserDetail>) {
@@ -203,6 +266,10 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
               <StatCard label="الطاقة الحالية" value={`${user.energy}/${user.maxEnergy}`} />
               <StatCard label="إعلانات اليوم" value={user.adsWatchedToday} />
               <StatCard label="نجوم Stars" value={user.starsBalance} />
+              <StatCard
+                label="رصيد SKX"
+                value={`${(skxBalance ?? 0).toLocaleString()} SKX`}
+              />
             </div>
 
             {/* ── Referrals block ── */}
@@ -292,6 +359,8 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
                     {user.isPremium ? "إلغاء البريميوم" : "منح بريميوم"}
                   </Button>
                 </div>
+
+                <SkxCreditPanel telegramId={telegramId} onCredited={setSkxBalance} />
 
                 {error && <p className="text-red-400 text-xs">{error}</p>}
 

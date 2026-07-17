@@ -128,6 +128,7 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     maxEnergy: typeof st.maxEnergy === "number" ? st.maxEnergy : 1000,
     profitPerHour: computeProfitPerHour(st),
     createdAt: user.createdAt.toISOString(),
+    skxBalance: user.skxBalance,
     updatedAt: user.updatedAt.toISOString(),
   };
 }
@@ -290,6 +291,46 @@ router.delete("/admin/users/:telegramId", async (req, res): Promise<void> => {
   await logAdminAction("delete_user", req.params.telegramId);
 
   res.json(DeleteAdminUserResponse.parse({ authenticated: true }));
+});
+
+router.post("/admin/users/:telegramId/credit-skx", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) {
+    res.status(401).json({ error: "Not authenticated as admin" });
+    return;
+  }
+
+  const { amount, reason } = req.body as { amount?: unknown; reason?: unknown };
+  const parsed = typeof amount === "number" && Number.isFinite(amount) && amount !== 0;
+  if (!parsed) {
+    res.status(400).json({ error: "amount must be a non-zero finite number" });
+    return;
+  }
+
+  const amountInt = Math.trunc(amount as number);
+
+  const [updated] = await db
+    .update(vaultUsersTable)
+    .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${amountInt}::bigint` })
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, req.params.telegramId),
+        sql`${vaultUsersTable.skxBalance} + ${amountInt}::bigint >= 0`,
+      ),
+    )
+    .returning({ skxBalance: vaultUsersTable.skxBalance, telegramId: vaultUsersTable.telegramId });
+
+  if (!updated) {
+    res.status(404).json({ error: "User not found or resulting balance would be negative" });
+    return;
+  }
+
+  await logAdminAction("credit_skx", req.params.telegramId, {
+    amount: amountInt,
+    newBalance: updated.skxBalance,
+    reason: typeof reason === "string" ? reason : undefined,
+  });
+
+  res.json({ skxBalance: updated.skxBalance });
 });
 
 router.post("/admin/users/bulk-ban", async (req, res): Promise<void> => {

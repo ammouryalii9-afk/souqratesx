@@ -74,11 +74,12 @@ export type AdminUserDetail = AdminUserSummary & {
   adsWatchedToday: number;
   notes: string | null;
   state: Record<string, unknown>;
+  skxBalance: number;
   // extracted game-state fields
   currentPoints: number;
   miningLevel: number;
-  energy: number;
   maxEnergy: number;
+  energy: number;
   profitPerHour: number;
   updatedAt: string;
 };
@@ -331,6 +332,11 @@ export const adminApi = {
     }),
   userActivity: (telegramId: string) => adminFetch<UserActivityEntry[]>(`/admin/users/${telegramId}/activity`),
   userStats: (telegramId: string) => adminFetch<UserDeepStats>(`/admin/users/${telegramId}/stats`),
+  creditSkx: (telegramId: string, amount: number, reason?: string) =>
+    adminFetch<{ skxBalance: number }>(`/admin/users/${telegramId}/credit-skx`, {
+      method: "POST",
+      body: JSON.stringify({ amount, ...(reason ? { reason } : {}) }),
+    }),
   broadcasts: () => adminFetch<BroadcastJob[]>("/admin/broadcast"),
   broadcastLangStats: () => adminFetch<LangStat[]>("/admin/broadcast/lang-stats"),
   createBroadcast: (message: string, audience: string, langCodes?: string[]) =>
