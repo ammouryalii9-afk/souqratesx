@@ -1111,10 +1111,14 @@ function GridView({
       .catch(() => { /* keep defaults */ });
   }, []);
 
+  // Center viewport on player's cell only once — on the very first data load.
+  // Background polls must NOT move the viewport or the player loses their position.
+  const centeredRef = useRef(false);
   useEffect(() => {
-    if (!gridData) return;
+    if (!gridData || centeredRef.current) return;
     const myCells = gridData.cells.filter((c) => c.owner === "me");
     if (myCells.length > 0) {
+      centeredRef.current = true;
       const cx = Math.max(0, Math.min(gridSize - vp, myCells[0].x - Math.floor(vp / 2)));
       const cy = Math.max(0, Math.min(gridSize - vp, myCells[0].y - Math.floor(vp / 2)));
       setViewOx(cx);
