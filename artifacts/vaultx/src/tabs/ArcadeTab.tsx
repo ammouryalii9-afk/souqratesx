@@ -726,10 +726,19 @@ function ClaimDialog({
   loading: boolean;
 }) {
   const { tr } = useLanguage();
-  const [selectedHours, setSelectedHours] = useState(6);
   const r = ROOMS[room];
-  const MIN_SKX = 10_000;
-  const hasMinSkx = skxBalance >= MIN_SKX;
+
+  // Auto-select cheapest duration the user can actually afford; fall back to 1h
+  const firstAffordable = DURATION_OPTIONS.find((d) => {
+    const stake = Math.round(finalPts(d.points, room) * 0.25);
+    return skxBalance >= stake;
+  });
+  const [selectedHours, setSelectedHours] = useState(firstAffordable?.hours ?? DURATION_OPTIONS[0].hours);
+
+  const selectedOpt = DURATION_OPTIONS.find((d) => d.hours === selectedHours)!;
+  const selectedStake = Math.round(finalPts(selectedOpt.points, room) * 0.25);
+  const canAffordSelected = skxBalance >= selectedStake;
+  const canAffordAny = !!firstAffordable;
 
   return (
     <div
@@ -760,14 +769,16 @@ function ClaimDialog({
             </div>
           </div>
 
-          {/* SKX balance warning */}
-          {!hasMinSkx && (
+          {/* No affordable option at all */}
+          {!canAffordAny && (
             <div
               className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3 text-xs font-bold"
               style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
             >
               <Lock className="w-3.5 h-3.5 shrink-0" />
-              <span>{tr.arcade.needSkxMin(MIN_SKX)}</span>
+              <span>
+                {tr.arcade.needSkxMin(Math.round(finalPts(DURATION_OPTIONS[0].points, room) * 0.25))}
+              </span>
             </div>
           )}
 
@@ -780,12 +791,13 @@ function ClaimDialog({
               return (
                 <button
                   key={d.hours}
-                  onClick={() => setSelectedHours(d.hours)}
-                  disabled={!hasMinSkx || !canAfford}
-                  className="flex items-center gap-3 p-3 rounded-2xl transition-all disabled:opacity-40"
+                  onClick={() => { if (canAfford) setSelectedHours(d.hours); }}
+                  disabled={!canAfford}
+                  className="flex items-center gap-3 p-3 rounded-2xl transition-all disabled:opacity-35"
                   style={{
                     background: isSelected ? `${r.color}18` : "rgba(255,255,255,0.04)",
                     border: isSelected ? `1.5px solid ${r.color}` : "1px solid rgba(255,255,255,0.08)",
+                    cursor: canAfford ? "pointer" : "not-allowed",
                   }}
                 >
                   <div
@@ -801,8 +813,10 @@ function ClaimDialog({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-base font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
-                    <p className="text-[9px]" style={{ color: "#f59e0b" }}>
+                    <p className="text-base font-black" style={{ color: canAfford ? r.color : "rgba(255,255,255,0.25)" }}>
+                      {pts.toLocaleString()}
+                    </p>
+                    <p className="text-[9px]" style={{ color: canAfford ? "#f59e0b" : "rgba(255,255,255,0.2)" }}>
                       {tr.arcade.stakeLabel} {stake.toLocaleString()} SKX
                     </p>
                   </div>
@@ -812,14 +826,12 @@ function ClaimDialog({
           </div>
 
           {/* Stake explanation */}
-          {hasMinSkx && (
-            <div
-              className="px-3 py-2 rounded-xl text-[10px] mb-1"
-              style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", color: "rgba(251,191,36,0.8)" }}
-            >
-              {tr.arcade.stakeExplain}
-            </div>
-          )}
+          <div
+            className="px-3 py-2 rounded-xl text-[10px] mb-1"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", color: "rgba(251,191,36,0.8)" }}
+          >
+            {tr.arcade.stakeExplain}
+          </div>
         </div>
 
         {/* Sticky bottom buttons — always visible */}
@@ -834,7 +846,7 @@ function ClaimDialog({
           </button>
           <button
             onClick={() => onConfirm(selectedHours)}
-            disabled={loading || !hasMinSkx}
+            disabled={loading || !canAffordSelected}
             className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
             style={{ background: r.color, color: "#000" }}
           >

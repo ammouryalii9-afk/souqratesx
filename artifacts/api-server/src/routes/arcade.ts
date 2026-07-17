@@ -560,9 +560,8 @@ router.post(
     const multiplierPct = ROOM_MULTIPLIER[room];
     const finalPoints = Math.round((basePoints * multiplierPct) / 100);
     const stakeAmount = Math.round(finalPoints * 0.25); // 25% upfront stake
-    const MIN_SKX_BALANCE = 100_000;
 
-    // Must have ≥ 100,000 SKX and enough to cover the stake
+    // Must have enough SKX to cover the stake for the chosen duration
     const [balanceRow] = await db
       .select({ skxBalance: vaultUsersTable.skxBalance })
       .from(vaultUsersTable)
@@ -570,10 +569,6 @@ router.post(
       .limit(1);
 
     const currentSkx = balanceRow?.skxBalance ?? 0;
-    if (currentSkx < MIN_SKX_BALANCE) {
-      res.status(402).json({ error: `Need at least ${MIN_SKX_BALANCE.toLocaleString()} SKX to play` });
-      return;
-    }
     if (currentSkx < stakeAmount) {
       res.status(402).json({ error: `Not enough SKX — need ${stakeAmount.toLocaleString()} to stake` });
       return;
