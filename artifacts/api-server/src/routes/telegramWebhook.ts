@@ -387,6 +387,17 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
                 WHERE telegram_id = ${telegramId}
               `);
             }
+            // skx_purchase packages — credit SKX balance directly
+            if (itemType === "skx_50k" || itemType === "skx_150k" || itemType === "skx_500k") {
+              const skxMap: Record<string, number> = { skx_50k: 50_000, skx_150k: 150_000, skx_500k: 500_000 };
+              const skxAmt = skxMap[itemType] ?? 0;
+              if (skxAmt > 0) {
+                await db
+                  .update(vaultUsersTable)
+                  .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${skxAmt}::bigint` })
+                  .where(eq(vaultUsersTable.telegramId, telegramId));
+              }
+            }
             // radar and multi_strike are handled client-side; just record the purchase
             await db
               .insert(arcadePurchasesTable)

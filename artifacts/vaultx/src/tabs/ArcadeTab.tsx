@@ -110,18 +110,23 @@ const ROOMS: Record<
 };
 
 const DURATION_OPTIONS: { hours: number; points: number }[] = [
-  { hours: 6, points: 20_000 },
-  { hours: 12, points: 50_000 },
-  { hours: 24, points: 100_000 },
+  { hours: 1,  points: 8_000 },
+  { hours: 3,  points: 18_000 },
+  { hours: 6,  points: 40_000 },
+  { hours: 12, points: 90_000 },
+  { hours: 24, points: 200_000 },
 ];
 
 const SHOP_ITEMS: { type: string; stars: number; icon: string }[] = [
-  { type: "shield_3h", stars: 20, icon: "🛡️" },
-  { type: "shield_full", stars: 80, icon: "🔰" },
-  { type: "decoy", stars: 50, icon: "💥" },
-  { type: "radar", stars: 15, icon: "📡" },
-  { type: "multi_strike", stars: 30, icon: "⚡" },
-  { type: "extra_cells", stars: 500, icon: "🗺️" },
+  { type: "shield_3h",    stars: 20,  icon: "🛡️" },
+  { type: "shield_full",  stars: 80,  icon: "🔰" },
+  { type: "decoy",        stars: 50,  icon: "💥" },
+  { type: "radar",        stars: 15,  icon: "📡" },
+  { type: "multi_strike", stars: 30,  icon: "⚡" },
+  { type: "extra_cells",  stars: 500, icon: "🗺️" },
+  { type: "skx_50k",      stars: 25,  icon: "💎" },
+  { type: "skx_150k",     stars: 70,  icon: "💎" },
+  { type: "skx_500k",     stars: 200, icon: "💎" },
 ];
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -162,38 +167,48 @@ function formatCountdown(expiresAt: string, expiredText: string, hoursUnit: stri
 
 function shopItemLabel(type: string, tr: ReturnType<typeof useLanguage>["tr"]): string {
   const map: Record<string, string> = {
-    shield_3h: tr.arcade.shield3hLabel,
-    shield_full: tr.arcade.shieldFullLabel,
-    decoy: tr.arcade.decoyLabel,
-    radar: tr.arcade.radarLabel,
+    shield_3h:    tr.arcade.shield3hLabel,
+    shield_full:  tr.arcade.shieldFullLabel,
+    decoy:        tr.arcade.decoyLabel,
+    radar:        tr.arcade.radarLabel,
     multi_strike: tr.arcade.multiStrikeLabel,
-    extra_cells: tr.arcade.extraCellsLabel,
+    extra_cells:  tr.arcade.extraCellsLabel,
+    skx_50k:      tr.arcade.skx50kLabel,
+    skx_150k:     tr.arcade.skx150kLabel,
+    skx_500k:     tr.arcade.skx500kLabel,
   };
   return map[type] ?? type;
 }
 
 function shopItemDesc(type: string, tr: ReturnType<typeof useLanguage>["tr"]): string {
   const map: Record<string, string> = {
-    shield_3h: tr.arcade.shield3hDesc,
-    shield_full: tr.arcade.shieldFullDesc,
-    decoy: tr.arcade.decoyDesc,
-    radar: tr.arcade.radarDesc,
+    shield_3h:    tr.arcade.shield3hDesc,
+    shield_full:  tr.arcade.shieldFullDesc,
+    decoy:        tr.arcade.decoyDesc,
+    radar:        tr.arcade.radarDesc,
     multi_strike: tr.arcade.multiStrikeDesc,
-    extra_cells: tr.arcade.extraCellsDesc,
+    extra_cells:  tr.arcade.extraCellsDesc,
+    skx_50k:      tr.arcade.skx50kDesc,
+    skx_150k:     tr.arcade.skx150kDesc,
+    skx_500k:     tr.arcade.skx500kDesc,
   };
   return map[type] ?? "";
 }
 
 function durationLabel(hours: number, tr: ReturnType<typeof useLanguage>["tr"]): string {
-  if (hours === 6) return tr.arcade.dur6h;
+  if (hours === 1)  return tr.arcade.dur1h;
+  if (hours === 3)  return tr.arcade.dur3h;
+  if (hours === 6)  return tr.arcade.dur6h;
   if (hours === 12) return tr.arcade.dur12h;
   return tr.arcade.dur24h;
 }
 
 function durationRisk(hours: number, tr: ReturnType<typeof useLanguage>["tr"]): string {
-  if (hours === 6) return tr.arcade.riskLow;
-  if (hours === 12) return tr.arcade.riskMed;
-  return tr.arcade.riskHigh;
+  if (hours === 1)  return tr.arcade.riskVeryLow;
+  if (hours === 3)  return tr.arcade.riskLow;
+  if (hours === 6)  return tr.arcade.riskMed;
+  if (hours === 12) return tr.arcade.riskHigh;
+  return tr.arcade.riskVeryHigh;
 }
 
 function roomDesc(room: Room, tr: ReturnType<typeof useLanguage>["tr"]): string {
@@ -614,7 +629,7 @@ function ClaimDialog({
   const { tr } = useLanguage();
   const [selectedHours, setSelectedHours] = useState(6);
   const r = ROOMS[room];
-  const MIN_SKX = 100_000;
+  const MIN_SKX = 10_000;
   const hasMinSkx = skxBalance >= MIN_SKX;
 
   return (
@@ -903,6 +918,15 @@ function GridView({
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
   const [specialMode, setSpecialMode] = useState<SpecialMode>(null);
+  const [strikeResult, setStrikeResult] = useState<{
+    result: string;
+    strikerReward?: number;
+    penalty?: number;
+    victim?: { telegramId: string; firstName: string | null; username: string | null };
+    striker?: { telegramId: string; firstName: string | null; username: string | null };
+    x: number;
+    y: number;
+  } | null>(null);
   // Combo system
   const [combo, setCombo] = useState(0);
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1123,7 +1147,14 @@ function GridView({
         await new Promise((res) => setTimeout(res, 800));
 
         try {
-          const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number; message: string }>(
+          const result = await apiPost<{
+            result: string;
+            strikerReward?: number;
+            penalty?: number;
+            message: string;
+            victim?: { telegramId: string; firstName: string | null; username: string | null };
+            striker?: { telegramId: string; firstName: string | null; username: string | null };
+          }>(
             "/arcade/grid/strike",
             { room, x, y },
           );
@@ -1135,6 +1166,8 @@ function GridView({
             particleExplosion(el);
             spawnFloatingText(el, result.strikerReward ? `+${result.strikerReward.toLocaleString()}` : "💥 DESTROYED", "#fbbf24");
             bumpCombo();
+            // Show detailed strike result card
+            setStrikeResult({ result: result.result, strikerReward: result.strikerReward, victim: result.victim, striker: result.striker, x, y });
           } else if (result.result === "shielded") {
             arcadeSound.shielded();
             haptic("warning");
@@ -1149,13 +1182,15 @@ function GridView({
             setCombo(0);
           }
 
-          const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : "⚔️";
-          const detail = result.strikerReward
-            ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}`
-            : result.penalty
-              ? `−${result.penalty.toLocaleString()} ${tr.arcade.ptsLabel}`
-              : undefined;
-          toast({ title: `${icon} ${result.message}`, description: detail });
+          if (result.result !== "destroyed") {
+            const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : "⚔️";
+            const detail = result.strikerReward
+              ? `+${result.strikerReward.toLocaleString()} SKX`
+              : result.penalty
+                ? `−${result.penalty.toLocaleString()} SKX`
+                : undefined;
+            toast({ title: `${icon} ${result.message}`, description: detail });
+          }
           await Promise.all([loadGrid(), onStatusRefresh()]);
         } catch (strikeErr: unknown) {
           toast({
@@ -1550,6 +1585,105 @@ function GridView({
           onClose={() => setShopOpen(false)}
           onPurchased={handlePurchased}
         />
+      )}
+
+      {/* Strike Result Modal */}
+      {strikeResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-4"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+          onClick={() => setStrikeResult(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl px-5 py-5"
+            style={{
+              background: "linear-gradient(135deg,#0d1f3c 0%,#0a1628 100%)",
+              border: "2px solid rgba(251,191,36,0.4)",
+              boxShadow: "0 0 30px rgba(251,191,36,0.15), 0 0 60px rgba(251,191,36,0.05)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Victory banner */}
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(251,191,36,0.15)", border: "2px solid rgba(251,191,36,0.4)" }}
+              >
+                <span style={{ fontSize: 24 }}>⚔️</span>
+              </div>
+              <div>
+                <p className="font-black text-white text-base leading-tight">{tr.arcade.strikeResultTitle}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  Cell ({strikeResult.x}, {strikeResult.y})
+                </p>
+              </div>
+              <button
+                onClick={() => setStrikeResult(null)}
+                className="ml-auto w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.07)" }}
+              >
+                <X className="w-3.5 h-3.5 text-white/50" />
+              </button>
+            </div>
+
+            {/* SKX won */}
+            {strikeResult.strikerReward != null && strikeResult.strikerReward > 0 && (
+              <div
+                className="flex items-center justify-between px-4 py-3 rounded-2xl mb-3"
+                style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
+              >
+                <span className="text-sm font-bold" style={{ color: "rgba(251,191,36,0.8)" }}>
+                  {tr.arcade.strikerRewardLabel}
+                </span>
+                <span className="text-lg font-black" style={{ color: "#fbbf24", textShadow: "0 0 10px #f59e0b" }}>
+                  +{strikeResult.strikerReward.toLocaleString()} SKX
+                </span>
+              </div>
+            )}
+
+            {/* Victim profile */}
+            {strikeResult.victim && (
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}
+              >
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(239,68,68,0.15)" }}
+                >
+                  <span style={{ fontSize: 18 }}>💀</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {tr.arcade.enemyProfileTitle}
+                  </p>
+                  <p className="text-sm font-black text-white leading-tight truncate">
+                    {strikeResult.victim.firstName ?? (strikeResult.victim.username ? `@${strikeResult.victim.username}` : "Unknown")}
+                  </p>
+                  {strikeResult.victim.username && (
+                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      @{strikeResult.victim.username}
+                    </p>
+                  )}
+                </div>
+                <div
+                  className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-black"
+                  style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
+                >
+                  DESTROYED
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setStrikeResult(null)}
+              className="w-full mt-4 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95"
+              style={{ background: "linear-gradient(135deg,#92400e,#fbbf24)", color: "#000" }}
+            >
+              🔥 Continue
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

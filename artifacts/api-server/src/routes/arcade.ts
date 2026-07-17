@@ -13,6 +13,19 @@ import { logUserActivity } from "../lib/activityLog";
 import { logger } from "../lib/logger";
 import { creditedStateSql } from "../lib/weeklyCredit";
 import { getSettingsMap, asString } from "../lib/settings";
+import { sendReminderToUser } from "../lib/telegramBot";
+
+/** Send a fire-and-forget arcade notification via bot */
+async function arcadeNotify(telegramId: string, text: string): Promise<void> {
+  const domains = (process.env.REPLIT_DOMAINS ?? "").split(",").map((d) => d.trim()).filter(Boolean);
+  const webAppUrl = domains[0] ? `https://${domains[0]}` : "";
+  if (!webAppUrl) return;
+  try {
+    await sendReminderToUser(telegramId, text, webAppUrl);
+  } catch {
+    // non-critical
+  }
+}
 
 /** Returns true if the arcade is open for this telegramId */
 async function isArcadeAccessible(telegramId: string): Promise<boolean> {
@@ -47,28 +60,43 @@ const ROOM_MULTIPLIER: Record<string, number> = {
 };
 
 const DURATION_BASE_POINTS: Record<number, number> = {
-  6: 20_000,
-  12: 50_000,
-  24: 100_000,
+  1:  8_000,
+  3:  18_000,
+  6:  40_000,
+  12: 90_000,
+  24: 200_000,
 };
 
 const VALID_ROOMS = ["easy", "tactical", "hardcore"];
-const VALID_DURATIONS = [6, 12, 24];
+const VALID_DURATIONS = [1, 3, 6, 12, 24];
 const ADS_NEEDED = 5;
 const STARS_FOR_TICKET = 100;
 
 // Resolve all expired-but-still-"active" sessions lazily when a user queries
+// Also fires a "you won!" Telegram notification per session.
 async function settleExpiredSessions(): Promise<void> {
-  const now = new Date();
-  await db
+  const settled = await db
     .update(arcadeSessionsTable)
-    .set({ status: "won", completedAt: now })
+    .set({ status: "won", completedAt: new Date() })
     .where(
       and(
         eq(arcadeSessionsTable.status, "active"),
         sql`${arcadeSessionsTable.expiresAt} <= now()`,
       ),
+    )
+    .returning({
+      telegramId: arcadeSessionsTable.telegramId,
+      finalPoints: arcadeSessionsTable.finalPoints,
+      roomType: arcadeSessionsTable.roomType,
+    });
+
+  // Fire-and-forget notifications
+  for (const s of settled) {
+    void arcadeNotify(
+      s.telegramId,
+      `🏆 Your arcade session in ${s.roomType} just ended — you held your cell!\n+${s.finalPoints.toLocaleString()} SKX will be added to your balance next time you open the app.`,
     );
+  }
 }
 
 // Get user's today ticket
@@ -243,6 +271,13 @@ router.post(
 // ── POST /arcade/shop/invoice ────────────────────────────────────────────────────
 // Creates a REAL Telegram Stars invoice for a shop item.
 // The webhook (successful_payment) applies the item effect after payment.
+// SKX amounts purchasable with Stars (1 Star ≈ some SKX)
+const SKX_STAR_PACKAGES: Record<string, { stars: number; skx: number; label: string; desc: string }> = {
+  skx_50k:  { stars: 25,  skx: 50_000,  label: "💎 50K SKX",  desc: "50,000 SKX instantly" },
+  skx_150k: { stars: 70,  skx: 150_000, label: "💎 150K SKX", desc: "150,000 SKX instantly" },
+  skx_500k: { stars: 200, skx: 500_000, label: "💎 500K SKX", desc: "500,000 SKX instantly" },
+};
+
 const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: string }> = {
   shield_3h:    { stars: 20,  label: "🛡️ Shield 3h",        desc: "Protect your cell for 3 hours" },
   shield_full:  { stars: 80,  label: "🔰 Full Shield",       desc: "Shield lasts the entire session" },
@@ -250,6 +285,9 @@ const ARCADE_SHOP_CATALOG: Record<string, { stars: number; label: string; desc: 
   radar:        { stars: 15,  label: "📡 Radar Scan",        desc: "Reveal enemies in a 3×3 area" },
   multi_strike: { stars: 30,  label: "⚡ Multi-Strike ×5",   desc: "Claim 5 cells simultaneously" },
   extra_cells:  { stars: 500, label: "🗺️ Extra Cells ×3",    desc: "Unlock 3 additional cell slots permanently" },
+  skx_50k:     { stars: 25,  label: "💎 50K SKX",            desc: "50,000 SKX added to your balance" },
+  skx_150k:    { stars: 70,  label: "💎 150K SKX",           desc: "150,000 SKX added to your balance" },
+  skx_500k:    { stars: 200, label: "💎 500K SKX",           desc: "500,000 SKX added to your balance" },
 };
 
 router.post(
@@ -654,7 +692,40 @@ router.post(
     }
 
     await logUserActivity(telegramId, "arcade_strike", { room, x, y, strikerReward: actualPenalty, victimId: target.telegramId });
-    res.json({ result: "struck", strikerReward: actualPenalty, message: `💥 Strike! +${actualPenalty.toLocaleString()} SKX` });
+
+    // Notify victim
+    void arcadeNotify(
+      target.telegramId,
+      `⚔️ Your cell at (${x},${y}) in ${room} was destroyed!\nYou lost ${actualPenalty.toLocaleString()} SKX.\n🛡 Buy a shield next time to protect your earnings.`,
+    );
+
+    // Look up attacker username for response
+    const [strikerRow] = await db
+      .select({ firstName: vaultUsersTable.firstName, username: vaultUsersTable.username })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, telegramId))
+      .limit(1);
+    const [victimRow2] = await db
+      .select({ firstName: vaultUsersTable.firstName, username: vaultUsersTable.username })
+      .from(vaultUsersTable)
+      .where(eq(vaultUsersTable.telegramId, target.telegramId))
+      .limit(1);
+
+    res.json({
+      result: "struck",
+      strikerReward: actualPenalty,
+      message: `💥 Strike! +${actualPenalty.toLocaleString()} SKX`,
+      victim: {
+        telegramId: target.telegramId,
+        firstName: victimRow2?.firstName ?? null,
+        username: victimRow2?.username ?? null,
+      },
+      striker: {
+        telegramId,
+        firstName: strikerRow?.firstName ?? null,
+        username: strikerRow?.username ?? null,
+      },
+    });
   },
 );
 
