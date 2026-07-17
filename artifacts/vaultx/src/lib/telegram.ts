@@ -43,7 +43,6 @@ export function initTelegramWebApp(): TelegramWebApp | null {
   }
   webApp.ready();
   webApp.expand();
-  webApp.requestFullscreen?.();
   webApp.disableVerticalSwipes?.();
   webApp.setHeaderColor?.("#0D0D0F");
   webApp.setBackgroundColor?.("#0D0D0F");
