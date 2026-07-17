@@ -332,22 +332,51 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
             .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
             .where(eq(vaultUsersTable.telegramId, telegramId));
         } else if (payload.effect === "arcade_ticket") {
-          // Grant daily arcade ticket purchased via 100 Stars
+          // Grant daily arcade ticket purchased via Stars.
+          // First purchase of the day: insert/upsert to grant access.
+          // Additional purchases on the same day: ticket already exists, so
+          // convert each extra ticket into +3 extraCellCredits (= 3 more session
+          // slots) so the Stars are never wasted.
           const dayKey = new Date().toISOString().slice(0, 10);
-          await db
-            .insert(arcadeTicketsTable)
-            .values({
-              telegramId,
-              dayKey,
-              entryMethod: "stars" as const,
-              adsWatched: 0,
-              ticketGranted: true,
-              grantedAt: new Date(),
-            })
-            .onConflictDoUpdate({
-              target: [arcadeTicketsTable.telegramId, arcadeTicketsTable.dayKey],
-              set: { ticketGranted: true, entryMethod: "stars" as const, grantedAt: new Date() },
-            });
+          const [existingTicket] = await db
+            .select({ id: arcadeTicketsTable.id, ticketGranted: arcadeTicketsTable.ticketGranted })
+            .from(arcadeTicketsTable)
+            .where(
+              and(
+                eq(arcadeTicketsTable.telegramId, telegramId),
+                eq(arcadeTicketsTable.dayKey, dayKey),
+              ),
+            )
+            .limit(1);
+
+          if (existingTicket?.ticketGranted) {
+            // Already has today's ticket — convert to +3 extra cell slots instead
+            await db.execute(sql`
+              UPDATE vault_users
+              SET state = jsonb_set(
+                COALESCE(state, '{}'),
+                '{extraCellCredits}',
+                to_jsonb(LEAST(COALESCE((state->>'extraCellCredits')::int, 0) + 3, 99))
+              )
+              WHERE telegram_id = ${telegramId}
+            `);
+            req.log.info({ telegramId, dayKey }, "arcade_ticket duplicate — converted to +3 extraCellCredits");
+          } else {
+            await db
+              .insert(arcadeTicketsTable)
+              .values({
+                telegramId,
+                dayKey,
+                entryMethod: "stars" as const,
+                adsWatched: 0,
+                ticketGranted: true,
+                grantedAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: [arcadeTicketsTable.telegramId, arcadeTicketsTable.dayKey],
+                set: { ticketGranted: true, entryMethod: "stars" as const, grantedAt: new Date() },
+              });
+          }
         } else if (payload.effect === "arcade_shop") {
           // Apply arcade shop item purchased via real Telegram Stars
           const shopPayload = payload as { itemType?: string; sessionId?: number | null };
