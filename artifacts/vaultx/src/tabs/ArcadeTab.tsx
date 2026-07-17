@@ -1,9 +1,17 @@
-import { memo, useCallback, useEffect, useState } from "react";
-import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Play, X } from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Trophy, Lock } from "lucide-react";
 import { useVault } from "../context/VaultContext";
 import { haptic } from "../lib/telegram";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "../lib/i18n";
+import {
+  getPublicConfig,
+  claimAdsgramReward,
+  claimMonetagReward,
+  claimOnclickaReward,
+  type PublicConfig,
+} from "../lib/gameApi";
+import { watchRewardedAdWithFallback } from "../lib/adFallback";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,13 +61,25 @@ type Phase = "loading" | "disabled" | "gate" | "rooms" | "grid";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const ROOMS: Record<Room, { label: string; size: number; multiplier: string; color: string; glow: string; viewportCols: number }> = {
+const ROOMS: Record<
+  Room,
+  {
+    label: string;
+    size: number;
+    multiplier: string;
+    color: string;
+    colorDim: string;
+    gradient: string;
+    viewportCols: number;
+  }
+> = {
   easy: {
     label: "Easy Grid",
     size: 100,
     multiplier: "1×",
     color: "#22c55e",
-    glow: "rgba(34,197,94,0.4)",
+    colorDim: "rgba(34,197,94,0.15)",
+    gradient: "linear-gradient(135deg,#052e16 0%,#14532d 100%)",
     viewportCols: 12,
   },
   tactical: {
@@ -67,7 +87,8 @@ const ROOMS: Record<Room, { label: string; size: number; multiplier: string; col
     size: 50,
     multiplier: "1.5×",
     color: "#f59e0b",
-    glow: "rgba(245,158,11,0.4)",
+    colorDim: "rgba(245,158,11,0.15)",
+    gradient: "linear-gradient(135deg,#1c1003 0%,#451a03 100%)",
     viewportCols: 15,
   },
   hardcore: {
@@ -75,7 +96,8 @@ const ROOMS: Record<Room, { label: string; size: number; multiplier: string; col
     size: 20,
     multiplier: "3×",
     color: "#ef4444",
-    glow: "rgba(239,68,68,0.4)",
+    colorDim: "rgba(239,68,68,0.15)",
+    gradient: "linear-gradient(135deg,#1a0303 0%,#450a0a 100%)",
     viewportCols: 20,
   },
 };
@@ -119,7 +141,7 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
-// ── Utility ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatCountdown(expiresAt: string, expiredText: string, hoursUnit: string): string {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -170,117 +192,188 @@ function roomDesc(room: Room, tr: ReturnType<typeof useLanguage>["tr"]): string 
   return tr.arcade.hardcoreDesc;
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Cell color logic ──────────────────────────────────────────────────────────
 
-function EntryGate({ status, onAdWatched, onStarsPaid, loading }: {
+function getCellBg(cell: GridCell | undefined, selected: boolean): string {
+  if (!cell) {
+    return selected ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.04)";
+  }
+  if (cell.owner === "me") {
+    if (cell.isDecoy) return selected ? "#fbbf24" : "#d97706";
+    if (cell.hasShield) return selected ? "#22d3ee" : "#0e7490";
+    return selected ? "#4ade80" : "#16a34a";
+  }
+  // enemy
+  if (cell.hasShield) return selected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)";
+  return selected ? "#f87171" : "#b91c1c";
+}
+
+function getCellBorder(cell: GridCell | undefined, selected: boolean): string {
+  if (!cell) return selected ? "1.5px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.07)";
+  if (cell.owner === "me") {
+    if (cell.isDecoy) return "1.5px solid #fbbf24";
+    if (cell.hasShield) return "1.5px solid #22d3ee";
+    return selected ? "2px solid #86efac" : "1.5px solid #4ade80";
+  }
+  if (cell.hasShield) return "1.5px solid rgba(255,255,255,0.7)";
+  return selected ? "2px solid #fca5a5" : "1px solid #ef4444";
+}
+
+function getCellIcon(cell: GridCell | undefined) {
+  if (!cell) return null;
+  if (cell.owner === "me") {
+    if (cell.isDecoy) return <span className="text-[7px] drop-shadow">💥</span>;
+    if (cell.hasShield) return <span className="text-[7px] drop-shadow">🛡</span>;
+    return <span className="text-[7px] font-black text-white/80">●</span>;
+  }
+  return <span className="text-[7px] font-black text-white/60">●</span>;
+}
+
+// ── EntryGate ────────────────────────────────────────────────────────────────
+
+function EntryGate({
+  status,
+  config,
+  onAdWatched,
+  onStarsPaid,
+  loading,
+}: {
   status: ArcadeStatus;
+  config: PublicConfig | null;
   onAdWatched: () => void;
   onStarsPaid: () => void;
   loading: boolean;
 }) {
   const { tr } = useLanguage();
   const progress = (status.adsWatched / status.adsNeeded) * 100;
+  const hasAd =
+    (config?.adsgram.enabled && config.adsgram.blockId) ||
+    (config?.monetag.enabled && config.monetag.zoneId) ||
+    (config?.onclicka.enabled && config.onclicka.spotId);
+
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Hero Image */}
-      <div className="relative w-full h-52 overflow-hidden">
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Hero */}
+      <div className="relative w-full flex-shrink-0" style={{ height: "220px" }}>
         <img
           src="/arcade-hero.jpeg"
           alt="SKX Arcade"
           className="w-full h-full object-cover object-top"
+          style={{ filter: "brightness(0.75)" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#060b18]" />
-        <div className="absolute bottom-4 left-0 right-0 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-sm border border-[#22c55e]/30">
-            <span className="text-[#22c55e] font-black text-xl tracking-wider" style={{ fontFamily: "monospace" }}>SKX</span>
-            <span className="text-white font-black text-xl tracking-wider">ARCADE</span>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(6,11,24,0.1) 0%, rgba(6,11,24,0.7) 70%, #060b18 100%)" }} />
+        <div className="absolute inset-0 flex flex-col items-center justify-end pb-5 gap-2">
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-2xl backdrop-blur-md" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(34,197,94,0.4)" }}>
+            <span className="font-black text-2xl tracking-widest" style={{ color: "#22c55e", fontFamily: "monospace" }}>SKX</span>
+            <span className="font-black text-2xl tracking-widest text-white">ARCADE</span>
           </div>
+          <p className="text-xs text-white/60 tracking-wide">{tr.arcade.entrySubtitle}</p>
         </div>
       </div>
 
-      <div className="flex-1 px-4 pt-4 pb-6 flex flex-col gap-4">
-        {/* Title */}
-        <div className="text-center">
-          <h2 className="text-lg font-black text-white">{tr.arcade.entryTitle}</h2>
-          <p className="text-xs text-muted-foreground mt-1">{tr.arcade.entrySubtitle}</p>
-        </div>
+      {/* Content */}
+      <div className="flex-1 px-4 pt-4 pb-8 flex flex-col gap-4">
 
         {/* Option A — Ads */}
-        <div className="rounded-2xl border border-[#22c55e]/20 bg-[#22c55e]/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-[#22c55e]/20 flex items-center justify-center">
-              <Play className="w-4 h-4 text-[#22c55e]" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white">{tr.arcade.optionAdsTitle}</p>
-              <p className="text-[10px] text-muted-foreground">{tr.arcade.optionAdsFree}</p>
-            </div>
-            <span className="ml-auto text-xs font-bold text-[#22c55e]">{status.adsWatched}/{status.adsNeeded}</span>
-          </div>
-          {/* Progress bar */}
-          <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-3">
-            <div
-              className="h-full bg-[#22c55e] rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex gap-1.5">
-            {Array.from({ length: status.adsNeeded }, (_, i) => (
-              <div
-                key={i}
-                className={`flex-1 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
-                  i < status.adsWatched
-                    ? "bg-[#22c55e] text-black"
-                    : "bg-white/5 text-muted-foreground"
-                }`}
-              >
-                {i < status.adsWatched ? "✓" : i + 1}
+        <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)" }}>
+          <div className="px-4 pt-4 pb-3">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
+                <Zap className="w-5 h-5" style={{ color: "#22c55e" }} />
               </div>
-            ))}
+              <div className="flex-1">
+                <p className="text-sm font-black text-white">{tr.arcade.optionAdsTitle}</p>
+                <p className="text-[11px]" style={{ color: "#22c55e" }}>{tr.arcade.optionAdsFree}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-lg font-black" style={{ color: "#22c55e" }}>{status.adsWatched}</span>
+                <span className="text-sm text-muted-foreground">/{status.adsNeeded}</span>
+              </div>
+            </div>
+
+            {/* Step dots */}
+            <div className="flex gap-2 mb-3">
+              {Array.from({ length: status.adsNeeded }, (_, i) => (
+                <div
+                  key={i}
+                  className="flex-1 h-1.5 rounded-full transition-all duration-500"
+                  style={{ background: i < status.adsWatched ? "#22c55e" : "rgba(255,255,255,0.1)" }}
+                />
+              ))}
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-9 bg-white/5 rounded-xl overflow-hidden relative mb-0">
+              <div
+                className="h-full rounded-xl transition-all duration-700"
+                style={{
+                  width: `${progress}%`,
+                  background: "linear-gradient(90deg,#16a34a,#22c55e)",
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-white/80">
+                  {status.adsWatched < status.adsNeeded
+                    ? `${status.adsWatched} / ${status.adsNeeded}`
+                    : "✓ Ready!"}
+                </span>
+              </div>
+            </div>
           </div>
-          {status.adsWatched < status.adsNeeded && (
+
+          {status.adsWatched < status.adsNeeded ? (
             <button
               onClick={onAdWatched}
-              disabled={loading}
-              className="mt-3 w-full py-2.5 rounded-xl bg-[#22c55e] text-black font-bold text-sm disabled:opacity-50 transition-all active:scale-95"
+              disabled={loading || !hasAd}
+              className="w-full py-3.5 font-black text-sm transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{
+                background: hasAd
+                  ? "linear-gradient(135deg,#16a34a,#22c55e)"
+                  : "rgba(255,255,255,0.05)",
+                color: hasAd ? "#000" : "#666",
+              }}
             >
-              {loading ? tr.arcade.watchingAd : tr.arcade.watchAdBtn}
+              {loading ? tr.arcade.watchingAd : hasAd ? tr.arcade.watchAdBtn : tr.arcade.starsRequireTelegram}
             </button>
+          ) : (
+            <div className="w-full py-3.5 text-center font-black text-sm" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>
+              ✓ {tr.arcade.ticketGrantedDesc}
+            </div>
           )}
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-widest">{tr.arcade.dividerOr}</span>
-          <div className="flex-1 h-px bg-white/10" />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>{tr.arcade.dividerOr}</span>
+          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
         </div>
 
         {/* Option B — Stars */}
-        <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
-              <Star className="w-4 h-4 text-yellow-400" />
+        <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)" }}>
+          <div className="px-4 pt-4 pb-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(245,158,11,0.15)" }}>
+              <Star className="w-5 h-5 text-yellow-400" />
             </div>
-            <div>
-              <p className="text-sm font-bold text-white">{tr.arcade.optionStarsTitle}</p>
-              <p className="text-[10px] text-muted-foreground">{tr.arcade.optionStarsFast}</p>
+            <div className="flex-1">
+              <p className="text-sm font-black text-white">{tr.arcade.optionStarsTitle}</p>
+              <p className="text-[11px] text-yellow-500/80">{tr.arcade.optionStarsFast}</p>
             </div>
           </div>
           <button
             onClick={onStarsPaid}
             disabled={loading}
-            className="w-full py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 transition-all active:scale-95"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000" }}
+            className="w-full py-3.5 font-black text-sm transition-all active:scale-[0.98] disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg,#b45309,#d97706,#f59e0b)", color: "#000" }}
           >
             {tr.arcade.payStarsBtn}
           </button>
         </div>
 
-        {/* How it works teaser */}
-        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 flex gap-2">
-          <span className="text-base">🗺️</span>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
+        {/* How it works */}
+        <div className="rounded-xl p-3.5 flex gap-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <span className="text-xl shrink-0">🗺️</span>
+          <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
             {tr.arcade.howItWorksText}
           </p>
         </div>
@@ -289,95 +382,108 @@ function EntryGate({ status, onAdWatched, onStarsPaid, loading }: {
   );
 }
 
-function RoomSelector({ status, onRoomSelected }: {
+// ── RoomSelector ──────────────────────────────────────────────────────────────
+
+function RoomSelector({
+  status,
+  onRoomSelected,
+}: {
   status: ArcadeStatus;
   onRoomSelected: (room: Room) => void;
 }) {
   const { tr } = useLanguage();
-  const hasActiveSessions = status.activeSessions.length > 0;
+
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col h-full overflow-y-auto">
       {/* Banner */}
-      <div className="relative w-full h-40 overflow-hidden">
-        <img src="/arcade-4.jpeg" alt="Rooms" className="w-full h-full object-cover object-top" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#060b18]" />
-        <div className="absolute bottom-3 left-4">
-          <p className="text-xs text-[#22c55e] font-bold uppercase tracking-widest">{tr.arcade.ticketActive}</p>
-          <h2 className="text-xl font-black text-white">{tr.arcade.roomTitle}</h2>
+      <div className="relative w-full flex-shrink-0" style={{ height: "150px" }}>
+        <img src="/arcade-4.jpeg" alt="Rooms" className="w-full h-full object-cover" style={{ filter: "brightness(0.65)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom,transparent 0%,#060b18 100%)" }} />
+        <div className="absolute bottom-4 left-4 right-4">
+          <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: "#22c55e" }}>{tr.arcade.ticketActive}</p>
+          <h2 className="text-2xl font-black text-white">{tr.arcade.roomTitle}</h2>
         </div>
       </div>
 
-      <div className="px-4 pt-3 pb-6 flex flex-col gap-3">
+      <div className="flex-1 px-4 pt-3 pb-8 flex flex-col gap-3">
         {/* Active sessions strip */}
-        {hasActiveSessions && (
-          <div className="rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/20 p-3">
-            <p className="text-xs font-bold text-[#22c55e] mb-1.5">{tr.arcade.activeSessions}</p>
-            {status.activeSessions.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 py-1">
-                <span className="text-[10px] text-muted-foreground capitalize">{s.roomType}</span>
-                <span className="text-[10px] text-white/70">({s.gridX},{s.gridY})</span>
-                <span className="ml-auto text-[10px] font-bold text-[#22c55e]">
-                  {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
-                </span>
-                {s.hasShield && <Shield className="w-3 h-3 text-cyan-400" />}
-              </div>
-            ))}
+        {status.activeSessions.length > 0 && (
+          <div className="rounded-xl p-3" style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+            <p className="text-xs font-black mb-2" style={{ color: "#22c55e" }}>{tr.arcade.activeSessions}</p>
+            <div className="flex flex-col gap-1">
+              {status.activeSessions.map((s) => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
+                  <span className="text-[10px] capitalize text-white/70">{s.roomType}</span>
+                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>({s.gridX},{s.gridY})</span>
+                  <span className="ml-auto text-[10px] font-bold" style={{ color: "#22c55e" }}>
+                    {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
+                  </span>
+                  {s.hasShield && <Shield className="w-3 h-3 text-cyan-400" />}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* Room cards */}
         {(["easy", "tactical", "hardcore"] as Room[]).map((room) => {
           const r = ROOMS[room];
-          const myRoomSessions = status.activeSessions.filter((s) => s.roomType === room);
+          const myCount = status.activeSessions.filter((s) => s.roomType === room).length;
           return (
             <button
               key={room}
               onClick={() => { haptic("light"); onRoomSelected(room); }}
-              className="relative overflow-hidden rounded-2xl border text-left transition-all active:scale-[0.98]"
-              style={{
-                borderColor: r.color + "40",
-                background: `linear-gradient(135deg, ${r.color}10 0%, ${r.color}05 100%)`,
-              }}
+              className="relative overflow-hidden rounded-2xl text-left transition-all active:scale-[0.97]"
+              style={{ background: r.gradient, border: `1px solid ${r.color}35` }}
             >
               <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-black text-white text-base">{r.label}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{roomDesc(room, tr)}</p>
+                    <p className="font-black text-white text-lg leading-tight">{r.label}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: `${r.color}bb` }}>{roomDesc(room, tr)}</p>
                   </div>
                   <div
-                    className="px-2.5 py-1 rounded-lg text-xs font-black"
-                    style={{ background: r.color + "20", color: r.color }}
+                    className="px-3 py-1.5 rounded-xl text-sm font-black"
+                    style={{ background: r.color, color: "#000" }}
                   >
                     {r.multiplier}
                   </div>
                 </div>
-                {/* Duration prizes */}
-                <div className="flex gap-1.5 mt-2">
+
+                {/* Duration prizes row */}
+                <div className="flex gap-2">
                   {DURATION_OPTIONS.map((d) => {
                     const pts = Math.round((d.points * (room === "easy" ? 100 : room === "tactical" ? 150 : 300)) / 100);
                     return (
                       <div
                         key={d.hours}
-                        className="flex-1 rounded-lg px-1.5 py-1.5 text-center"
-                        style={{ background: r.color + "15" }}
+                        className="flex-1 rounded-xl py-2 text-center"
+                        style={{ background: `${r.color}18` }}
                       >
-                        <p className="text-[9px] text-muted-foreground">{d.hours}{tr.arcade.hoursUnit}</p>
-                        <p className="text-[10px] font-bold" style={{ color: r.color }}>
-                          {(pts / 1000).toFixed(0)}K
-                        </p>
+                        <p className="text-[9px] font-bold" style={{ color: `${r.color}99` }}>{d.hours}{tr.arcade.hoursUnit}</p>
+                        <p className="text-xs font-black" style={{ color: r.color }}>{(pts / 1000).toFixed(0)}K</p>
                       </div>
                     );
                   })}
                 </div>
-                {myRoomSessions.length > 0 && (
+
+                {myCount > 0 && (
                   <div
-                    className="mt-2 text-[10px] font-bold px-2 py-1 rounded-lg inline-block"
-                    style={{ background: "#22c55e20", color: "#22c55e" }}
+                    className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black"
+                    style={{ background: `${r.color}22`, color: r.color }}
                   >
-                    {tr.arcade.activeHere(myRoomSessions.length)}
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
+                    {tr.arcade.activeHere(myCount)}
                   </div>
                 )}
               </div>
+
+              {/* Subtle right glow */}
+              <div
+                className="absolute right-0 top-0 bottom-0 w-20 pointer-events-none"
+                style={{ background: `linear-gradient(to left,${r.color}18,transparent)` }}
+              />
             </button>
           );
         })}
@@ -386,57 +492,83 @@ function RoomSelector({ status, onRoomSelected }: {
   );
 }
 
-interface ClaimDialogProps {
+// ── ClaimDialog ───────────────────────────────────────────────────────────────
+
+function ClaimDialog({
+  cell,
+  room,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
   cell: { x: number; y: number };
   room: Room;
   onConfirm: (hours: number) => void;
   onCancel: () => void;
   loading: boolean;
-}
-
-function ClaimDialog({ cell, room, onConfirm, onCancel, loading }: ClaimDialogProps) {
+}) {
   const { tr } = useLanguage();
   const [selectedHours, setSelectedHours] = useState(6);
   const r = ROOMS[room];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-t-3xl bg-[#0d1526] border-t border-[#22c55e]/20 p-5 pb-8">
-        <div className="w-8 h-1 bg-white/20 rounded-full mx-auto mb-4" />
-        <h3 className="text-center font-black text-white mb-1">{tr.arcade.claimTitle(cell.x, cell.y)}</h3>
-        <p className="text-center text-[11px] text-muted-foreground mb-4">{tr.arcade.claimDesc}</p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
+      <div
+        className="w-full max-w-md rounded-t-3xl p-5 pb-10"
+        style={{ background: "#0a1628", borderTop: `2px solid ${r.color}40` }}
+      >
+        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <h3 className="text-center font-black text-white text-base mb-1">{tr.arcade.claimTitle(cell.x, cell.y)}</h3>
+        <p className="text-center text-xs mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.claimDesc}</p>
+
         <div className="flex flex-col gap-2 mb-5">
           {DURATION_OPTIONS.map((d) => {
             const pts = Math.round((d.points * (room === "easy" ? 100 : room === "tactical" ? 150 : 300)) / 100);
+            const isSelected = selectedHours === d.hours;
             return (
               <button
                 key={d.hours}
                 onClick={() => setSelectedHours(d.hours)}
-                className="flex items-center gap-3 p-3 rounded-xl border transition-all"
+                className="flex items-center gap-3 p-3.5 rounded-2xl transition-all"
                 style={{
-                  borderColor: selectedHours === d.hours ? r.color : "rgba(255,255,255,0.08)",
-                  background: selectedHours === d.hours ? r.color + "15" : "transparent",
+                  background: isSelected ? `${r.color}18` : "rgba(255,255,255,0.04)",
+                  border: isSelected ? `1.5px solid ${r.color}` : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
-                <Clock className="w-4 h-4" style={{ color: r.color }} />
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ background: isSelected ? r.color : "rgba(255,255,255,0.06)" }}
+                >
+                  <Clock className="w-4 h-4" style={{ color: isSelected ? "#000" : r.color }} />
+                </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-bold text-white">{durationLabel(d.hours, tr)}</p>
-                  <p className="text-[10px] text-muted-foreground">{tr.arcade.riskPrefix} {durationRisk(d.hours, tr)}</p>
+                  <p className="text-sm font-black text-white">{durationLabel(d.hours, tr)}</p>
+                  <p className="text-[10px]" style={{ color: isSelected ? `${r.color}bb` : "rgba(255,255,255,0.35)" }}>
+                    {tr.arcade.riskPrefix} {durationRisk(d.hours, tr)}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
-                  <p className="text-[9px] text-muted-foreground">{tr.arcade.ptsLabel}</p>
+                  <p className="text-base font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
+                  <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.ptsLabel}</p>
                 </div>
               </button>
             );
           })}
         </div>
-        <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-xl bg-white/5 text-muted-foreground text-sm font-bold">{tr.arcade.cancel}</button>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
+            style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
+          >
+            {tr.arcade.cancel}
+          </button>
           <button
             onClick={() => onConfirm(selectedHours)}
             disabled={loading}
-            className="flex-1 py-3 rounded-xl text-black text-sm font-black disabled:opacity-50 transition-all active:scale-95"
-            style={{ background: r.color }}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: r.color, color: "#000" }}
           >
             {loading ? "..." : tr.arcade.claimBtn}
           </button>
@@ -446,30 +578,47 @@ function ClaimDialog({ cell, room, onConfirm, onCancel, loading }: ClaimDialogPr
   );
 }
 
-interface StrikeDialogProps {
+// ── StrikeDialog ──────────────────────────────────────────────────────────────
+
+function StrikeDialog({
+  cell,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
   cell: { x: number; y: number };
   onConfirm: () => void;
   onCancel: () => void;
   loading: boolean;
-}
-
-function StrikeDialog({ cell, onConfirm, onCancel, loading }: StrikeDialogProps) {
+}) {
   const { tr } = useLanguage();
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-t-3xl bg-[#0d1526] border-t border-red-500/20 p-5 pb-8">
-        <div className="w-8 h-1 bg-white/20 rounded-full mx-auto mb-4" />
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <img src="/arcade-3.jpeg" alt="Strike" className="w-20 h-20 rounded-2xl object-cover" />
-          <h3 className="font-black text-white text-center">{tr.arcade.strikeTitle(cell.x, cell.y)}</h3>
-          <p className="text-[11px] text-muted-foreground text-center">{tr.arcade.strikeDesc}</p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
+      <div className="w-full max-w-md rounded-t-3xl p-5 pb-10" style={{ background: "#0a1628", borderTop: "2px solid rgba(239,68,68,0.4)" }}>
+        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="flex flex-col items-center gap-3 mb-5">
+          <div className="w-16 h-16 rounded-2xl overflow-hidden">
+            <img src="/arcade-3.jpeg" alt="Strike" className="w-full h-full object-cover" />
+          </div>
+          <div className="text-center">
+            <h3 className="font-black text-white text-base">{tr.arcade.strikeTitle(cell.x, cell.y)}</h3>
+            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.strikeDesc}</p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-xl bg-white/5 text-muted-foreground text-sm font-bold">{tr.arcade.cancel}</button>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
+            style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
+          >
+            {tr.arcade.cancel}
+          </button>
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-black disabled:opacity-50 transition-all active:scale-95"
+            className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg,#b91c1c,#ef4444)", color: "#fff" }}
           >
             {loading ? "..." : tr.arcade.strikeBtn}
           </button>
@@ -479,44 +628,59 @@ function StrikeDialog({ cell, onConfirm, onCancel, loading }: StrikeDialogProps)
   );
 }
 
-interface ShopModalProps {
+// ── ShopModal ─────────────────────────────────────────────────────────────────
+
+function ShopModal({
+  starsBalance,
+  activeSessions,
+  onBuy,
+  onClose,
+  loading,
+}: {
   starsBalance: number;
   activeSessions: ActiveSession[];
   onBuy: (itemType: string, sessionId?: number) => void;
   onClose: () => void;
   loading: boolean;
-}
-
-function ShopModal({ starsBalance, activeSessions, onBuy, onClose, loading }: ShopModalProps) {
+}) {
   const { tr } = useLanguage();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-t-3xl bg-[#0d1526] border-t border-yellow-500/20 p-5 pb-8 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
+      <div
+        className="w-full max-w-md rounded-t-3xl p-5 pb-10"
+        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)", maxHeight: "85vh", overflowY: "auto" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="font-black text-white text-base">{tr.arcade.shopTitle}</h3>
-            <p className="text-[10px] text-yellow-400">{tr.arcade.shopBalance(starsBalance)}</p>
+            <p className="text-xs font-bold text-yellow-400">{tr.arcade.shopBalance(starsBalance)}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-            <X className="w-4 h-4 text-muted-foreground" />
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.07)" }}
+          >
+            <X className="w-4 h-4 text-white/60" />
           </button>
         </div>
 
-        {/* Session selector for shield/decoy */}
+        {/* Session selector */}
         {activeSessions.length > 0 && (
           <div className="mb-4">
-            <p className="text-[10px] text-muted-foreground mb-1.5">{tr.arcade.applyTo}</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.applyTo}</p>
+            <div className="flex flex-wrap gap-2">
               {activeSessions.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => setSelectedSession(s.id)}
-                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all"
+                  className="px-3 py-1.5 rounded-xl text-[10px] font-black transition-all"
                   style={{
-                    borderColor: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.1)",
-                    background: selectedSession === s.id ? "#22c55e20" : "transparent",
-                    color: selectedSession === s.id ? "#22c55e" : "#888",
+                    background: selectedSession === s.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)",
+                    border: selectedSession === s.id ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.08)",
+                    color: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.5)",
                   }}
                 >
                   ({s.gridX},{s.gridY})
@@ -526,25 +690,32 @@ function ShopModal({ starsBalance, activeSessions, onBuy, onClose, loading }: Sh
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
+        {/* Items */}
+        <div className="flex flex-col gap-2.5">
           {SHOP_ITEMS.map((item) => {
             const needsSession = item.type.startsWith("shield") || item.type === "decoy";
             const canBuy = starsBalance >= item.stars && (!needsSession || selectedSession !== null);
             return (
               <div
                 key={item.type}
-                className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/[0.02]"
+                className="flex items-center gap-3 p-3.5 rounded-2xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
               >
-                <span className="text-2xl w-8 text-center">{item.icon}</span>
+                <span className="text-2xl w-9 text-center">{item.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white">{shopItemLabel(item.type, tr)}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{shopItemDesc(item.type, tr)}</p>
+                  <p className="text-sm font-black text-white">{shopItemLabel(item.type, tr)}</p>
+                  <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {shopItemDesc(item.type, tr)}
+                  </p>
                 </div>
                 <button
                   onClick={() => onBuy(item.type, needsSession ? selectedSession ?? undefined : undefined)}
                   disabled={!canBuy || loading}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-black disabled:opacity-40 transition-all active:scale-95"
-                  style={{ background: canBuy ? "#f59e0b" : "rgba(255,255,255,0.05)", color: canBuy ? "#000" : "#888" }}
+                  className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all active:scale-95 disabled:opacity-35"
+                  style={{
+                    background: canBuy ? "linear-gradient(135deg,#b45309,#f59e0b)" : "rgba(255,255,255,0.06)",
+                    color: canBuy ? "#000" : "rgba(255,255,255,0.3)",
+                  }}
                 >
                   {item.stars} ⭐
                 </button>
@@ -557,23 +728,28 @@ function ShopModal({ starsBalance, activeSessions, onBuy, onClose, loading }: Sh
   );
 }
 
-// ── Grid View ─────────────────────────────────────────────────────────────────
+// ── GridView ──────────────────────────────────────────────────────────────────
 
-interface GridViewProps {
+function GridView({
+  room,
+  status,
+  onBack,
+  onStatusRefresh,
+}: {
   room: Room;
   status: ArcadeStatus;
   onBack: () => void;
   onStatusRefresh: () => void;
-}
-
-function GridView({ room, status, onBack, onStatusRefresh }: GridViewProps) {
+}) {
   const { skxBalance } = useVault();
   const { toast } = useToast();
   const { tr } = useLanguage();
   const r = ROOMS[room];
+
   const [gridData, setGridData] = useState<GridData | null>(null);
   const [viewOx, setViewOx] = useState(0);
   const [viewOy, setViewOy] = useState(0);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [claimCell, setClaimCell] = useState<{ x: number; y: number } | null>(null);
   const [strikeCell, setStrikeCell] = useState<{ x: number; y: number } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
@@ -601,7 +777,6 @@ function GridView({ room, status, onBack, onStatusRefresh }: GridViewProps) {
     return () => clearInterval(interval);
   }, [loadGrid]);
 
-  // Center view on user's first cell if any
   useEffect(() => {
     if (!gridData) return;
     const myCells = gridData.cells.filter((c) => c.owner === "me");
@@ -611,30 +786,8 @@ function GridView({ room, status, onBack, onStatusRefresh }: GridViewProps) {
     }
   }, [gridData, vp]);
 
-  // Build cell map for fast lookup
   const cellMap = new Map<string, GridCell>();
   gridData?.cells.forEach((c) => cellMap.set(`${c.x},${c.y}`, c));
-
-  function getCellStyle(cell: GridCell | undefined): React.CSSProperties {
-    if (!cell) return { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)" };
-    if (cell.owner === "me") {
-      if (cell.isDecoy) return { background: "#eab30820", border: "1px solid #eab308" };
-      if (cell.hasShield) return { background: "#06b6d420", border: "1px solid #06b6d4" };
-      return { background: "#22c55e25", border: "1px solid #22c55e" };
-    }
-    if (cell.hasShield) return { background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)" };
-    return { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" };
-  }
-
-  function getCellContent(cell: GridCell | undefined) {
-    if (!cell) return null;
-    if (cell.owner === "me") {
-      if (cell.isDecoy) return <span className="text-[7px]">💥</span>;
-      if (cell.hasShield) return <span className="text-[7px]">🛡️</span>;
-      return <span className="text-[7px]">●</span>;
-    }
-    return <span className="text-[7px] opacity-50">●</span>;
-  }
 
   function onCellTap(absX: number, absY: number) {
     haptic("light");
@@ -670,12 +823,15 @@ function GridView({ room, status, onBack, onStatusRefresh }: GridViewProps) {
     if (!strikeCell) return;
     setLoading(true);
     try {
-      const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number; message: string }>(
+      const result = await apiPost<{ result: string; strikerReward?: number; message: string }>(
         "/arcade/grid/strike",
         { room, x: strikeCell.x, y: strikeCell.y },
       );
       haptic(result.result === "shielded" ? "warning" : "success");
-      toast({ title: result.message, description: result.strikerReward ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}` : undefined });
+      toast({
+        title: result.message,
+        description: result.strikerReward ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}` : undefined,
+      });
       setStrikeCell(null);
       await Promise.all([loadGrid(), onStatusRefresh()]);
     } catch (err: unknown) {
@@ -712,142 +868,182 @@ function GridView({ room, status, onBack, onStatusRefresh }: GridViewProps) {
   const mySessions = status.activeSessions.filter((s) => s.roomType === room);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ background: "#060b18" }}>
       {/* Header */}
-      <div
-        className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5"
-        style={{ background: r.color + "12" }}
-      >
-        <button onClick={onBack} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-          <ChevronLeft className="w-4 h-4 text-white" />
+      <div className="shrink-0 flex items-center gap-3 px-4 py-3" style={{ background: r.gradient, borderBottom: `1px solid ${r.color}30` }}>
+        <button
+          onClick={onBack}
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.3)" }}
+        >
+          <ChevronLeft className="w-5 h-5 text-white" />
         </button>
         <div className="flex-1">
           <p className="text-sm font-black text-white">{r.label}</p>
-          <p className="text-[10px]" style={{ color: r.color }}>
+          <p className="text-[10px]" style={{ color: `${r.color}cc` }}>
             {gridData ? tr.arcade.activeCells(gridData.totalActive) : tr.arcade.loadingGrid}
             {" · "}({viewOx}–{Math.min(viewOx + vp - 1, gridSize - 1)}, {viewOy}–{Math.min(viewOy + vp - 1, gridSize - 1)})
           </p>
         </div>
-        <button
-          onClick={() => { haptic("light"); setShopOpen(true); }}
-          className="w-8 h-8 rounded-full flex items-center justify-center"
-          style={{ background: "#f59e0b20", border: "1px solid #f59e0b40" }}
-        >
-          <Star className="w-4 h-4 text-yellow-400" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadGrid()}
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.25)" }}
+          >
+            <span className="text-sm">↻</span>
+          </button>
+          <button
+            onClick={() => { haptic("light"); setShopOpen(true); }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(245,158,11,0.25)", border: "1px solid rgba(245,158,11,0.4)" }}
+          >
+            <Star className="w-4 h-4 text-yellow-400" />
+          </button>
+        </div>
       </div>
 
-      {/* Grid container */}
-      <div className="flex-1 flex flex-col items-center justify-center px-3 py-2 gap-2">
-        {/* Up arrow */}
+      {/* Grid area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-2 py-2 gap-1.5 min-h-0">
+        {/* Up */}
         <button
           onClick={() => pan(0, -1)}
           disabled={viewOy === 0}
-          className="w-8 h-6 rounded-lg bg-white/5 flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          style={{ background: "rgba(255,255,255,0.07)" }}
         >
-          <ChevronUp className="w-4 h-4 text-white/60" />
+          <ChevronUp className="w-4 h-4 text-white/70" />
         </button>
 
-        <div className="flex items-center gap-2 w-full">
-          {/* Left arrow */}
+        <div className="flex items-center gap-1.5 w-full flex-1 min-h-0">
+          {/* Left */}
           <button
             onClick={() => pan(-1, 0)}
             disabled={viewOx === 0}
-            className="w-6 h-8 rounded-lg bg-white/5 flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            style={{ background: "rgba(255,255,255,0.07)" }}
           >
-            <ChevronLeft className="w-4 h-4 text-white/60" />
+            <ChevronLeft className="w-4 h-4 text-white/70" />
           </button>
 
           {/* Grid */}
-          <div
-            className="flex-1 relative"
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${vp}, 1fr)`,
-              gap: "2px",
-              aspectRatio: "1",
-            }}
-          >
-            {gridLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 rounded-xl">
-                <div className="w-6 h-6 border-2 border-[#22c55e] border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-            {Array.from({ length: vp * vp }, (_, i) => {
-              const col = i % vp;
-              const row = Math.floor(i / vp);
-              const absX = viewOx + col;
-              const absY = viewOy + row;
-              const cell = cellMap.get(`${absX},${absY}`);
-              return (
-                <button
-                  key={i}
-                  onClick={() => onCellTap(absX, absY)}
-                  className="rounded-[2px] flex items-center justify-center transition-all active:scale-90"
-                  style={getCellStyle(cell)}
-                >
-                  {getCellContent(cell)}
-                </button>
-              );
-            })}
+          <div className="flex-1 relative" style={{ aspectRatio: "1", maxWidth: "100%", maxHeight: "100%" }}>
+            <div
+              className="absolute inset-0"
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${vp}, 1fr)`,
+                gap: "2px",
+                padding: "2px",
+                background: "rgba(255,255,255,0.04)",
+                borderRadius: "12px",
+              }}
+            >
+              {gridLoading && (
+                <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl" style={{ background: "rgba(6,11,24,0.7)" }}>
+                  <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${r.color}`, borderTopColor: "transparent" }} />
+                </div>
+              )}
+              {Array.from({ length: vp * vp }, (_, i) => {
+                const col = i % vp;
+                const row = Math.floor(i / vp);
+                const absX = viewOx + col;
+                const absY = viewOy + row;
+                const key = `${absX},${absY}`;
+                const cell = cellMap.get(key);
+                const isHovered = hoveredKey === key;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => onCellTap(absX, absY)}
+                    onMouseEnter={() => setHoveredKey(key)}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    className="rounded-[3px] flex items-center justify-center transition-all duration-100 active:scale-90"
+                    style={{
+                      background: getCellBg(cell, isHovered),
+                      border: getCellBorder(cell, isHovered),
+                      boxShadow: isHovered && cell ? `0 0 6px ${cell.owner === "me" ? "#22c55e" : "#ef4444"}60` : undefined,
+                    }}
+                  >
+                    {getCellIcon(cell)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Right arrow */}
+          {/* Right */}
           <button
             onClick={() => pan(1, 0)}
             disabled={viewOx >= gridSize - vp}
-            className="w-6 h-8 rounded-lg bg-white/5 flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            style={{ background: "rgba(255,255,255,0.07)" }}
           >
-            <ChevronRight className="w-4 h-4 text-white/60" />
+            <ChevronRight className="w-4 h-4 text-white/70" />
           </button>
         </div>
 
-        {/* Down arrow */}
+        {/* Down */}
         <button
           onClick={() => pan(0, 1)}
           disabled={viewOy >= gridSize - vp}
-          className="w-8 h-6 rounded-lg bg-white/5 flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          style={{ background: "rgba(255,255,255,0.07)" }}
         >
-          <ChevronDown className="w-4 h-4 text-white/60" />
+          <ChevronDown className="w-4 h-4 text-white/70" />
         </button>
 
         {/* Legend */}
-        <div className="flex gap-3 text-[10px] text-muted-foreground">
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#22c55e] inline-block" />{tr.arcade.legendMine}</div>
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-white/20 inline-block" />{tr.arcade.legendOther}</div>
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#06b6d4] inline-block" />{tr.arcade.legendShield}</div>
-          <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-white/4 inline-block border border-white/8" />{tr.arcade.legendEmpty}</div>
+        <div className="flex gap-4 pt-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm" style={{ background: "#16a34a", border: "1px solid #4ade80" }} />
+            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendMine}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm" style={{ background: "#b91c1c", border: "1px solid #f87171" }} />
+            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendOther}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm" style={{ background: "#0e7490", border: "1px solid #22d3ee" }} />
+            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendShield}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }} />
+            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendEmpty}</span>
+          </div>
         </div>
       </div>
 
       {/* My sessions panel */}
       {mySessions.length > 0 && (
-        <div className="shrink-0 border-t border-white/5 px-4 py-3">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{tr.arcade.mySessions}</p>
+        <div className="shrink-0 px-4 py-3" style={{ borderTop: `1px solid ${r.color}20`, background: `${r.color}08` }}>
+          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: `${r.color}80` }}>
+            {tr.arcade.mySessions}
+          </p>
           <div className="flex flex-col gap-1.5">
             {mySessions.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                style={{ background: "#22c55e10", border: "1px solid #22c55e20" }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                style={{ background: `${r.color}10`, border: `1px solid ${r.color}20` }}
               >
-                <span className="text-[10px] text-white/60">({s.gridX},{s.gridY})</span>
-                <div className="flex-1">
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#22c55e] rounded-full"
-                      style={{
-                        width: `${Math.max(5, ((new Date(s.expiresAt).getTime() - Date.now()) / (s.durationHours * 3_600_000)) * 100)}%`,
-                      }}
-                    />
-                  </div>
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>({s.gridX},{s.gridY})</span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(4, ((new Date(s.expiresAt).getTime() - Date.now()) / (s.durationHours * 3_600_000)) * 100)}%`,
+                      background: r.color,
+                    }}
+                  />
                 </div>
-                <span className="text-[10px] font-bold text-[#22c55e]">
+                <span className="text-[10px] font-bold" style={{ color: r.color }}>
                   {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
                 </span>
-                <span className="text-[10px] text-yellow-400">+{s.finalPoints.toLocaleString()}</span>
+                <span className="text-[10px] font-black text-yellow-400">+{s.finalPoints.toLocaleString()}</span>
                 {s.hasShield && <Shield className="w-3 h-3 text-cyan-400" />}
-                {s.isDecoy && <span className="text-[10px]">💥</span>}
+                {s.isDecoy && <span className="text-[9px]">💥</span>}
               </div>
             ))}
           </div>
@@ -891,10 +1087,17 @@ function ArcadeTabInner() {
   const { refreshFromServer } = useVault();
   const { toast } = useToast();
   const { tr } = useLanguage();
+
   const [phase, setPhase] = useState<Phase>("loading");
   const [status, setStatus] = useState<ArcadeStatus | null>(null);
+  const [config, setConfig] = useState<PublicConfig | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Load public config once
+  useEffect(() => {
+    getPublicConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -918,22 +1121,39 @@ function ArcadeTabInner() {
     loadStatus();
   }, [loadStatus]);
 
+  // ── Watch real ad, then record on backend ──────────────────────────────────
   async function handleAdWatched() {
+    const hasAny =
+      (config?.adsgram.enabled && config.adsgram.blockId) ||
+      (config?.monetag.enabled && config.monetag.zoneId) ||
+      (config?.onclicka.enabled && config.onclicka.spotId);
+
+    if (!hasAny || actionLoading) return;
     setActionLoading(true);
     try {
+      // 1. Show the real rewarded ad
+      await watchRewardedAdWithFallback(config);
+
+      // 2. Record the view on the arcade backend
       const result = await apiPost<{ granted: boolean; adsWatched: number }>("/arcade/ticket/watch-ad");
       haptic("light");
+
       if (result.granted) {
         haptic("success");
         toast({ title: tr.arcade.ticketGranted, description: tr.arcade.ticketGrantedDesc });
         await loadStatus();
       } else {
-        const remaining = status?.adsNeeded ? status.adsNeeded - result.adsWatched : 0;
+        const remaining = (status?.adsNeeded ?? 5) - result.adsWatched;
         toast({ title: tr.arcade.adsProgress(result.adsWatched, status?.adsNeeded ?? 5, remaining) });
-        setStatus((s) => s ? { ...s, adsWatched: result.adsWatched } : s);
+        setStatus((s) => (s ? { ...s, adsWatched: result.adsWatched } : s));
       }
     } catch (err: unknown) {
-      toast({ title: tr.arcade.error, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
+      haptic("error");
+      toast({
+        title: tr.arcade.error,
+        description: err instanceof Error ? err.message : tr.arcade.tryAgain,
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -957,30 +1177,41 @@ function ArcadeTabInner() {
         toast({ title: tr.arcade.openInTelegram, description: tr.arcade.starsRequireTelegram });
       }
     } catch (err: unknown) {
-      toast({ title: tr.arcade.error, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
+      toast({
+        title: tr.arcade.error,
+        description: err instanceof Error ? err.message : tr.arcade.tryAgain,
+        variant: "destructive",
+      });
     } finally {
       setActionLoading(false);
     }
   }
 
+  // ── Render phases ─────────────────────────────────────────────────────────
+
   if (phase === "loading" || !status) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="w-12 h-12 border-2 border-[#22c55e] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">{tr.arcade.loading}</p>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+          <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#22c55e", borderTopColor: "transparent" }} />
+        </div>
+        <p className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.loading}</p>
       </div>
     );
   }
 
   if (phase === "disabled") {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-5 px-8 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-4xl">
-          🔒
+      <div className="flex flex-col items-center justify-center h-full gap-6 px-8 text-center">
+        <div
+          className="w-24 h-24 rounded-3xl flex items-center justify-center"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <Lock className="w-10 h-10" style={{ color: "rgba(255,255,255,0.3)" }} />
         </div>
         <div>
-          <h3 className="text-lg font-black text-white mb-1">{tr.arcade.disabledTitle}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <h3 className="text-xl font-black text-white mb-2">{tr.arcade.disabledTitle}</h3>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
             {tr.arcade.disabledDesc}
           </p>
         </div>
@@ -1011,6 +1242,7 @@ function ArcadeTabInner() {
   return (
     <EntryGate
       status={status}
+      config={config}
       onAdWatched={handleAdWatched}
       onStarsPaid={handleStarsPurchase}
       loading={actionLoading}
