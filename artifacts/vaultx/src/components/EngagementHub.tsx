@@ -81,7 +81,7 @@ export function EngagementHub() {
     try {
       const r = await claimStreak();
       haptic('medium');
-      toast({ title: '🔥 Streak Claimed!', description: `+${r.reward.toLocaleString()} pts · Day ${r.streakCount}` });
+      toast({ title: 'Streak Claimed!', description: `+${r.reward.toLocaleString()} pts · Day ${r.streakCount}`, variant: 'success' });
       await afterReward();
     } catch (err) {
       toast({ title: 'Could not claim', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
@@ -113,7 +113,7 @@ export function EngagementHub() {
     try {
       const r = await claimChallenge();
       haptic('medium');
-      toast({ title: '🎯 Daily Bonus!', description: `+${r.reward.toLocaleString()} pts` });
+      toast({ title: 'Daily Bonus!', description: `+${r.reward.toLocaleString()} pts`, variant: 'success' });
       await afterReward();
     } catch (err) {
       toast({ title: 'Could not claim', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });

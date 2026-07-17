@@ -160,8 +160,9 @@ export function AchievementsSection({ state, addLifetimePoints, onClaimed }: Pro
       addLifetimePoints(result.reward);
       onClaimed(achievement.id);
       toast({
-        title: `🎉 ${achievement.title} Unlocked!`,
+        title: `${achievement.title} Unlocked!`,
         description: `+${result.reward.toLocaleString()} points added`,
+        variant: 'success',
       });
     } catch (err) {
       toast({

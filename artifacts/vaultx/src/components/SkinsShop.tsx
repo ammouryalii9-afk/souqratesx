@@ -135,8 +135,9 @@ export function SkinsShop() {
     if (isOwned) {
       equipSkin(skinId);
       toast({
-        title: isAr ? '✅ تم تفعيل الـ Skin' : '✅ Skin Equipped',
+        title: isAr ? 'تم تفعيل الـ Skin' : 'Skin Equipped',
         description: SKINS[skinId]?.name,
+        variant: 'success',
       });
       return;
     }
@@ -155,10 +156,11 @@ export function SkinsShop() {
     if (ok) {
       haptic('success');
       toast({
-        title: isAr ? '🎨 تم فتح الـ Skin!' : '🎨 Skin Unlocked!',
+        title: isAr ? 'تم فتح الـ Skin!' : 'Skin Unlocked!',
         description: isAr
           ? `${SKINS[skinId]?.name} مفعّل الآن`
           : `${SKINS[skinId]?.name} equipped`,
+        variant: 'success',
       });
     }
   }

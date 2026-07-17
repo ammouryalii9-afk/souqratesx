@@ -126,7 +126,7 @@ function PixelsTabInner() {
     try {
       await requestPixelUsdWithdrawal();
       haptic('medium');
-      toast({ title: tr.pixels.withdrawalRequested, description: tr.pixels.withdrawalRequestedDesc });
+      toast({ title: tr.pixels.withdrawalRequested, description: tr.pixels.withdrawalRequestedDesc, variant: 'success' });
       setPixelUsdCents(0);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -145,6 +145,7 @@ function PixelsTabInner() {
       toast({
         title: tr.pixels.boughtTitle,
         description: tr.pixels.bought(res.purchasedQuantity, res.pricePaidSkx.toLocaleString()),
+        variant: 'success',
       });
       setQuantity(1);
       await refreshFromServer();

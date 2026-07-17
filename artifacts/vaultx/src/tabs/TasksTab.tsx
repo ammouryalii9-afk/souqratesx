@@ -176,7 +176,7 @@ export const TasksTab = () => {
       const result = await claimAd(ad.id);
       await refreshFromServer();
       setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, claimed: true } : a));
-      toast({ title: tr.tasks.rewardClaimed, description: tr.tasks.adWatchedDesc(result.creditedPoints) });
+      toast({ title: tr.tasks.rewardClaimed, description: tr.tasks.adWatchedDesc(result.creditedPoints), variant: 'success' });
     } catch (err) {
       toast({ title: tr.tasks.couldNotClaimReward, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
     } finally {
@@ -196,7 +196,7 @@ export const TasksTab = () => {
         : provider === 'monetag' ? await claimMonetagReward()
         : await claimOnclickaReward();
       void refreshFromServer();
-      toast({ title: tr.tasks.adWatched, description: tr.tasks.adWatchedDesc(result.creditedPoints) });
+      toast({ title: tr.tasks.adWatched, description: tr.tasks.adWatchedDesc(result.creditedPoints), variant: 'success' });
     } catch (err) {
       toast({ title: tr.tasks.couldNotOpenAd, description: err instanceof Error ? err.message : tr.tasks.tryAgainLater, variant: 'destructive' });
     } finally {
@@ -212,7 +212,7 @@ export const TasksTab = () => {
       const provider = await watchRewardedAdWithFallback(bannerConfig);
       const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimOnclickaReward();
       void refreshFromServer();
-      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
@@ -228,7 +228,7 @@ export const TasksTab = () => {
       await showMonetagRewardedAd(config.monetag.zoneId);
       const result = await claimMonetagReward();
       void refreshFromServer();
-      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
@@ -244,7 +244,7 @@ export const TasksTab = () => {
       await showOnclickaRewardedAd(config.onclicka.spotId);
       const result = await claimOnclickaReward();
       void refreshFromServer();
-      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points` });
+      toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });
     } catch (err) {
       toast({ title: 'Ad not completed', description: err instanceof Error ? err.message : 'Try again later', variant: 'destructive' });
     } finally {
@@ -327,7 +327,7 @@ export const TasksTab = () => {
       setCipherSolved(true);
       localStorage.setItem('dailyCipherDate', todayStr);
       localStorage.setItem('dailyCipherSolved', 'true');
-      toast({ title: tr.tasks.taskComplete, description: '+15,000 pts' });
+      toast({ title: tr.tasks.taskComplete, description: '+15,000 pts', variant: 'success' });
       setCipherError(false);
     } else {
       setCipherError(true);
@@ -362,7 +362,7 @@ export const TasksTab = () => {
       setSpinHasSpun(true);
       localStorage.setItem('lastSpinDate', todayStr);
       setIsSpinning(false);
-      toast({ title: 'Spin Complete!', description: `You won ${reward} points!` });
+      toast({ title: 'Spin Complete!', description: `You won ${reward} points!`, variant: 'success' });
     }, 3000);
   };
 
@@ -412,7 +412,7 @@ export const TasksTab = () => {
           setPartnerTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: true } : t));
           if (!result.alreadyClaimed && result.creditedPoints > 0) {
             await refreshFromServer();
-            toast({ title: tr.tasks.taskComplete, description: tr.tasks.taskCompleteDesc(result.creditedPoints) });
+            toast({ title: tr.tasks.taskComplete, description: tr.tasks.taskCompleteDesc(result.creditedPoints), variant: 'success' });
           } else {
             toast({ title: tr.tasks.alreadyClaimed, description: tr.tasks.alreadyClaimedDesc });
           }
@@ -437,10 +437,10 @@ export const TasksTab = () => {
       const result = await joinReferralRace(comp.id);
       if (result.ok) {
         if (result.alreadyJoined) {
-          toast({ title: tr.tasks.raceAlreadyJoined, description: tr.tasks.raceAlreadyJoinedDesc });
+          toast({ title: tr.tasks.raceAlreadyJoined, description: tr.tasks.raceAlreadyJoinedDesc, variant: 'success' });
         } else {
           haptic('success');
-          toast({ title: tr.tasks.raceJoined, description: tr.tasks.raceJoinedDesc });
+          toast({ title: tr.tasks.raceJoined, description: tr.tasks.raceJoinedDesc, variant: 'success' });
           setRaceComps(prev => prev.map(c => c.id === comp.id ? { ...c, entered: true } : c));
         }
       }
@@ -466,7 +466,7 @@ export const TasksTab = () => {
         setGroupChallenges(prev => prev.map(c => c.id === challenge.id ? { ...c, completed: true } : c));
         if (!result.alreadyClaimed && result.creditedPoints > 0) {
           await refreshFromServer();
-          toast({ title: tr.tasks.challengeCongrats, description: tr.tasks.challengeCongratsDesc(result.creditedPoints) });
+          toast({ title: tr.tasks.challengeCongrats, description: tr.tasks.challengeCongratsDesc(result.creditedPoints), variant: 'success' });
         } else {
           toast({ title: tr.tasks.alreadyClaimed, description: tr.tasks.challengeAlreadyClaimedDesc });
         }
@@ -491,7 +491,7 @@ export const TasksTab = () => {
       setTimeout(() => {
         setClaimedTasks(prev => [...prev, taskId]);
         if (reward) { setTempMiningPoints(prev => prev + reward); addLifetimePoints(reward); }
-        toast({ title: tr.tasks.taskCompleteSimple, description: `+${reward?.toLocaleString()} points` });
+        toast({ title: tr.tasks.taskCompleteSimple, description: `+${reward?.toLocaleString()} points`, variant: 'success' });
       }, 3000);
     }
   };
@@ -502,7 +502,7 @@ export const TasksTab = () => {
     addLifetimePoints(pts);
     setClaimedTasks(prev => [...prev, 't3']);
     setShowSurveyModal(false);
-    toast({ title: tr.tasks.surveyComplete, description: tr.tasks.surveyCompleteDesc(pts) });
+    toast({ title: tr.tasks.surveyComplete, description: tr.tasks.surveyCompleteDesc(pts), variant: 'success' });
   };
 
   const toggleCombo = (id: string) => {
@@ -521,7 +521,7 @@ export const TasksTab = () => {
       setComboResult('success');
       setTempMiningPoints(p => p + 25000);
       addLifetimePoints(25000);
-      toast({ title: 'Combo Correct!', description: '+25,000 points added!' });
+      toast({ title: 'Combo Correct!', description: '+25,000 points added!', variant: 'success' });
     } else {
       setComboResult('failed');
       toast({ title: 'Wrong Combo', description: 'Try again tomorrow.', variant: 'destructive' });

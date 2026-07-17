@@ -1363,7 +1363,7 @@ function GridView({
       particleClaim(el);
       const stakeAmt = claimResult.session.stakeAmount;
       spawnFloatingText(el, `−${stakeAmt.toLocaleString()} SKX`, "#f59e0b");
-      toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(x, y) });
+      toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(x, y), variant: "success" });
       bumpCombo();
       setClaimCell(null);
       await Promise.all([loadGrid(), onStatusRefresh()]);
@@ -1459,7 +1459,7 @@ function GridView({
 
   // Called by ShopModal after openInvoice() confirms "paid"
   async function handlePurchased(itemType: string) {
-    toast({ title: tr.arcade.buySuccess, description: shopItemLabel(itemType, tr) });
+    toast({ title: tr.arcade.buySuccess, description: shopItemLabel(itemType, tr), variant: "success" });
     // Activate client-side special modes
     if (itemType === "radar") setSpecialMode({ type: "radar" });
     else if (itemType === "multi_strike") setSpecialMode({ type: "multi_strike", remaining: 5 });
@@ -1477,14 +1477,14 @@ function GridView({
       if (result.limitReached) return;
       haptic("success");
       if (itemType === "shield_15m") {
-        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostShieldBtn });
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostShieldBtn, variant: "success" });
         await Promise.all([loadGrid(), onStatusRefresh()]);
       } else if (itemType === "radar_free") {
-        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostRadarBtn });
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostRadarBtn, variant: "success" });
         setSpecialMode({ type: "radar" });
         await onStatusRefresh();
       } else if (itemType === "extra_slot") {
-        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostSlotBtn });
+        toast({ title: tr.arcade.adBoostApplied, description: tr.arcade.adBoostSlotBtn, variant: "success" });
         await onStatusRefresh();
       }
     } finally {
@@ -2233,7 +2233,7 @@ function ArcadeTabInner() {
       haptic("light");
       if (result.granted) {
         haptic("success");
-        toast({ title: tr.arcade.ticketGranted, description: tr.arcade.ticketGrantedDesc });
+        toast({ title: tr.arcade.ticketGranted, description: tr.arcade.ticketGrantedDesc, variant: "success" });
         await loadStatus();
       } else {
         const needed = result.adsNeeded ?? status?.adsNeeded ?? 5;
@@ -2258,7 +2258,7 @@ function ArcadeTabInner() {
         tg.openInvoice(invoiceUrl, async (payStatus: string) => {
           if (payStatus === "paid") {
             haptic("success");
-            toast({ title: tr.arcade.starsPaid, description: tr.arcade.starsActivating });
+            toast({ title: tr.arcade.starsPaid, description: tr.arcade.starsActivating, variant: "success" });
             await new Promise((r) => setTimeout(r, 2000));
             await loadStatus();
           }
