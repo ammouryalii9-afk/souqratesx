@@ -677,8 +677,17 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Scrollable items — min-h-0 is critical for overflow-y-auto inside flex */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-10">
+        {/* Scrollable items — explicit maxHeight avoids WebKit flex-1 scroll bug */}
+        <div
+          className="px-5 pb-10"
+          style={{
+            overflowY: "scroll",
+            maxHeight: "calc(82dvh - 90px)",
+            WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y",
+            overscrollBehavior: "contain",
+          }}
+        >
           {activeSessions.length > 0 && (
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
