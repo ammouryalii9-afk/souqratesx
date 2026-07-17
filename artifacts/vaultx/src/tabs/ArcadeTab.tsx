@@ -1288,139 +1288,144 @@ function GridView({
         </div>
       )}
 
-      {/* Grid area */}
-      <div className="flex-1 flex flex-col items-center justify-center px-2 py-2 gap-1.5 min-h-0">
-        {/* Up nav */}
-        <button
-          onClick={() => pan(0, -1)}
-          disabled={viewOy === 0}
-          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 active:scale-95"
-          style={{ background: "rgba(255,255,255,0.07)" }}
-        >
-          <ChevronUp className="w-4 h-4 text-white/70" />
-        </button>
+      {/* Grid area — full-width square, nav arrows overlaid */}
+      <div className="flex-1 flex flex-col min-h-0 px-3 pt-2 pb-1 gap-2">
+        {/* Square grid wrapper: width drives height via padding-bottom trick */}
+        <div className="relative w-full" style={{ paddingBottom: "100%" }}>
+          {/* Absolute fill — the actual grid */}
+          <div
+            className="absolute inset-0 arcade-grid-glow"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${vp}, 1fr)`,
+              gridAutoRows: "1fr",
+              gap: "3px",
+              padding: "5px",
+              borderRadius: "18px",
+              background: "linear-gradient(135deg,#04091c 0%,#060d26 50%,#030810 100%)",
+              border: `1px solid ${r.color}22`,
+              overflow: "hidden",
+            }}
+          >
+            {/* Scan beam */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[16px] z-10"
+              style={{ mixBlendMode: "screen" }}>
+              <div style={{
+                position: "absolute", left: 0, right: 0, height: "35%",
+                background: `linear-gradient(to bottom,transparent,${r.color}07,transparent)`,
+                animation: "arcadeScanBeam 8s linear infinite",
+              }} />
+            </div>
+            {/* Scanline texture */}
+            <div className="pointer-events-none absolute inset-0 z-[9] rounded-[16px]"
+              style={{
+                backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.007) 3px,rgba(255,255,255,0.007) 4px)",
+              }} />
+            {/* Loading overlay */}
+            {gridLoading && (
+              <div
+                className="absolute inset-0 flex items-center justify-center z-20 rounded-[16px]"
+                style={{ background: "rgba(4,9,28,0.9)", backdropFilter: "blur(4px)" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full border-2 animate-spin"
+                  style={{ borderColor: `${r.color}33`, borderTopColor: r.color, boxShadow: `0 0 16px ${r.color}88` }}
+                />
+              </div>
+            )}
+            {/* Cells */}
+            {Array.from({ length: vp * vp }, (_, i) => {
+              const col = i % vp;
+              const row = Math.floor(i / vp);
+              const absX = viewOx + col;
+              const absY = viewOy + row;
+              const key = `${absX},${absY}`;
+              const cell = cellMap.get(key);
+              const isHovered = hoveredKey === key;
+              const isRevealed = revealedKeys.has(key);
+              const style = getCellStyle(cell, isHovered, isRevealed, vp);
+              const isFeverTarget = specialMode !== null && !cell;
+              const radius = vp <= 8 ? "8px" : vp <= 11 ? "6px" : "4px";
 
-        <div className="flex items-center gap-1.5 w-full flex-1 min-h-0">
-          {/* Left nav */}
+              return (
+                <button
+                  key={i}
+                  ref={(el) => {
+                    if (el) cellRefs.current.set(key, el);
+                    else cellRefs.current.delete(key);
+                  }}
+                  onClick={() => onCellTap(absX, absY)}
+                  onMouseEnter={() => setHoveredKey(key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                  className={`flex items-center justify-center transition-all duration-100 active:scale-75 ${style.animationClass ?? ""}`}
+                  style={{
+                    borderRadius: radius,
+                    background: style.background,
+                    border: isFeverTarget ? `1px solid rgba(245,158,11,0.45)` : style.border,
+                    boxShadow: isFeverTarget
+                      ? "inset 0 0 4px rgba(245,158,11,0.15)"
+                      : (style.animationClass ? undefined : style.boxShadow),
+                    transform: style.transform,
+                    minWidth: 0,
+                    minHeight: 0,
+                  }}
+                >
+                  {getCellIcon(cell, vp)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Nav arrows — overlaid on grid edges */}
+          <button
+            onClick={() => pan(0, -1)}
+            disabled={viewOy === 0}
+            className="absolute top-1 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center disabled:opacity-0 active:scale-90"
+            style={{
+              width: 36, height: 28, borderRadius: 10,
+              background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <ChevronUp className="w-4 h-4 text-white/80" />
+          </button>
+          <button
+            onClick={() => pan(0, 1)}
+            disabled={viewOy >= gridSize - vp}
+            className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center disabled:opacity-0 active:scale-90"
+            style={{
+              width: 36, height: 28, borderRadius: 10,
+              background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <ChevronDown className="w-4 h-4 text-white/80" />
+          </button>
           <button
             onClick={() => pan(-1, 0)}
             disabled={viewOx === 0}
-            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 active:scale-95"
-            style={{ background: "rgba(255,255,255,0.07)" }}
+            className="absolute left-1 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center disabled:opacity-0 active:scale-90"
+            style={{
+              width: 28, height: 36, borderRadius: 10,
+              background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(4px)",
+            }}
           >
-            <ChevronLeft className="w-4 h-4 text-white/70" />
+            <ChevronLeft className="w-4 h-4 text-white/80" />
           </button>
-
-          {/* Grid — container-query sizing guarantees a true square that fills the space */}
-          <div className="flex-1 relative min-w-0 min-h-0 self-stretch" style={{ containerType: "size" }}>
-            <div
-              className="arcade-grid-glow"
-              style={{
-                position: "absolute",
-                width: "min(100cqw, 100cqh)",
-                height: "min(100cqw, 100cqh)",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                display: "grid",
-                gridTemplateColumns: `repeat(${vp}, 1fr)`,
-                gridAutoRows: "1fr",
-                gap: "3px",
-                padding: "5px",
-                borderRadius: "16px",
-                background: "linear-gradient(135deg,#04091c 0%,#060d26 50%,#030810 100%)",
-                border: `1px solid ${r.color}22`,
-                overflow: "hidden",
-              }}
-            >
-              {/* Horizontal scan beam */}
-              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[14px] z-10"
-                style={{ mixBlendMode: "screen" }}>
-                <div style={{
-                  position: "absolute", left: 0, right: 0, height: "35%",
-                  background: `linear-gradient(to bottom,transparent,${r.color}06,transparent)`,
-                  animation: "arcadeScanBeam 8s linear infinite",
-                }} />
-              </div>
-              {/* Subtle scanline texture */}
-              <div className="pointer-events-none absolute inset-0 z-[9] rounded-[14px]"
-                style={{
-                  backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.006) 3px,rgba(255,255,255,0.006) 4px)",
-                }} />
-              {gridLoading && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center z-20 rounded-[14px]"
-                  style={{ background: "rgba(4,9,28,0.85)", backdropFilter: "blur(2px)" }}
-                >
-                  <div
-                    className="w-8 h-8 rounded-full border-2 animate-spin"
-                    style={{ borderColor: `${r.color}33`, borderTopColor: r.color, boxShadow: `0 0 12px ${r.color}66` }}
-                  />
-                </div>
-              )}
-              {Array.from({ length: vp * vp }, (_, i) => {
-                const col = i % vp;
-                const row = Math.floor(i / vp);
-                const absX = viewOx + col;
-                const absY = viewOy + row;
-                const key = `${absX},${absY}`;
-                const cell = cellMap.get(key);
-                const isHovered = hoveredKey === key;
-                const isRevealed = revealedKeys.has(key);
-                const style = getCellStyle(cell, isHovered, isRevealed, vp);
-                const isFeverTarget = specialMode !== null && !cell;
-                const radius = vp <= 8 ? "7px" : vp <= 11 ? "5px" : "4px";
-
-                return (
-                  <button
-                    key={i}
-                    ref={(el) => {
-                      if (el) cellRefs.current.set(key, el);
-                      else cellRefs.current.delete(key);
-                    }}
-                    onClick={() => onCellTap(absX, absY)}
-                    onMouseEnter={() => setHoveredKey(key)}
-                    onMouseLeave={() => setHoveredKey(null)}
-                    className={`flex items-center justify-center transition-all duration-100 active:scale-75 ${style.animationClass ?? ""}`}
-                    style={{
-                      borderRadius: radius,
-                      background: style.background,
-                      border: isFeverTarget
-                        ? `1px solid rgba(245,158,11,0.45)`
-                        : style.border,
-                      boxShadow: isFeverTarget
-                        ? "inset 0 0 4px rgba(245,158,11,0.15)"
-                        : (style.animationClass ? undefined : style.boxShadow),
-                      transform: style.transform,
-                    }}
-                  >
-                    {getCellIcon(cell, vp)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Right nav */}
           <button
             onClick={() => pan(1, 0)}
             disabled={viewOx >= gridSize - vp}
-            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 active:scale-95"
-            style={{ background: "rgba(255,255,255,0.07)" }}
+            className="absolute right-1 top-1/2 -translate-y-1/2 z-30 flex items-center justify-center disabled:opacity-0 active:scale-90"
+            style={{
+              width: 28, height: 36, borderRadius: 10,
+              background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: "blur(4px)",
+            }}
           >
-            <ChevronRight className="w-4 h-4 text-white/70" />
+            <ChevronRight className="w-4 h-4 text-white/80" />
           </button>
         </div>
-
-        {/* Down nav */}
-        <button
-          onClick={() => pan(0, 1)}
-          disabled={viewOy >= gridSize - vp}
-          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 active:scale-95"
-          style={{ background: "rgba(255,255,255,0.07)" }}
-        >
-          <ChevronDown className="w-4 h-4 text-white/70" />
-        </button>
 
         {/* Combo Meter */}
         {combo >= 2 && (
