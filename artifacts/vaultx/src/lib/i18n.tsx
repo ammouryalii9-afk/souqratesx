@@ -113,6 +113,8 @@ const en = {
     withdrawalRequested: 'Withdrawal Requested ✅',
     withdrawalRequestedDesc: 'Your request has been submitted. You will be notified once approved.',
     withdrawalFailed: 'Withdrawal failed',
+    pixelsSubTab: 'Pixels',
+    arcadeSubTab: 'SKX Arcade',
   },
   withdraw: {
     title: 'SKX Balance',
@@ -632,6 +634,8 @@ const ar: typeof en = {
     withdrawalRequested: 'طلب السحب ✅',
     withdrawalRequestedDesc: 'تم تقديم طلبك. ستتلقى إشعاراً عند الموافقة.',
     withdrawalFailed: 'فشل السحب',
+    pixelsSubTab: 'البكسلات',
+    arcadeSubTab: 'SKX Arcade',
   },
   withdraw: {
     title: 'رصيد SKX',
@@ -1097,6 +1101,8 @@ const es: typeof en = {
     withdrawalRequested: 'Retiro Solicitado ✅',
     withdrawalRequestedDesc: 'Tu solicitud ha sido enviada. Se te notificará una vez aprobada.',
     withdrawalFailed: 'Fallo en el retiro',
+    pixelsSubTab: 'Píxeles',
+    arcadeSubTab: 'SKX Arcade',
   },
   withdraw: {
     title: 'Saldo SKX', subtitle: 'Ganancias de dividendos de píxeles', skxBalance: 'Tu Saldo SKX',
@@ -1439,6 +1445,8 @@ const ru: typeof en = {
     withdrawalRequested: 'Вывод запрошен ✅',
     withdrawalRequestedDesc: 'Ваш запрос отправлен. Вы получите уведомление после одобрения.',
     withdrawalFailed: 'Ошибка вывода',
+    pixelsSubTab: 'Пиксели',
+    arcadeSubTab: 'SKX Arcade',
   },
   withdraw: {
     title: 'Баланс SKX', subtitle: 'Заработок от дивидендов пикселей', skxBalance: 'Ваш баланс SKX',

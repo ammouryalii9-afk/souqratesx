@@ -178,14 +178,14 @@ function PixelsTabInner() {
           onClick={() => setSubTab('pixels')}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${subTab === 'pixels' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
         >
-          🏛️ البكسلات
+          🏛️ {tr.pixels.pixelsSubTab}
         </button>
         <button
           onClick={() => { setArcadeMounted(true); setSubTab('arcade'); }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${subTab === 'arcade' ? 'text-white' : 'text-muted-foreground hover:text-white'}`}
           style={subTab === 'arcade' ? { background: 'linear-gradient(135deg,#22c55e,#16a34a)' } : {}}
         >
-          🎮 SKX Arcade
+          🎮 {tr.pixels.arcadeSubTab}
         </button>
       </div>
 
