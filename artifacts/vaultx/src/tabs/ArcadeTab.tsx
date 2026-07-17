@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface ArcadeStatus {
+  enabled?: boolean;
   hasTicket: boolean;
   adsWatched: number;
   adsNeeded: number;
@@ -47,7 +48,7 @@ interface GridData {
 }
 
 type Room = "easy" | "tactical" | "hardcore";
-type Phase = "loading" | "gate" | "rooms" | "grid";
+type Phase = "loading" | "disabled" | "gate" | "rooms" | "grid";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -851,6 +852,10 @@ function ArcadeTabInner() {
     try {
       const data = await apiGet<ArcadeStatus>("/arcade/status");
       setStatus(data);
+      if (data.enabled === false) {
+        setPhase("disabled");
+        return;
+      }
       if (data.wonSessionsAwarded > 0) {
         toast({ title: `🏆 ربحت ${data.wonSessionsAwarded.toLocaleString()} نقطة!`, description: "تم إضافة مكافأة الفوز إلى رصيدك" });
         refreshFromServer();
@@ -915,6 +920,22 @@ function ArcadeTabInner() {
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="w-12 h-12 border-2 border-[#22c55e] border-t-transparent rounded-full animate-spin" />
         <p className="text-sm text-muted-foreground">جارٍ تحميل الأركيد...</p>
+      </div>
+    );
+  }
+
+  if (phase === "disabled") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-5 px-8 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-4xl">
+          🔒
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-white mb-1">اللعبة قيد التجهيز</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            SKX Arcade غير متاح حالياً.<br />ترقّب الإطلاق قريباً!
+          </p>
+        </div>
       </div>
     );
   }
