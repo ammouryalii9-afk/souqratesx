@@ -1793,10 +1793,10 @@ function GridView({
                 animation: "arcadeShimmer 1.8s linear infinite",
                 marginBottom: 4,
               }}>
-                تم التدمير! 💥
+                {tr.arcade.winOverlayTitle}
               </p>
               <p style={{ fontSize: 12, color: "rgba(134,239,172,0.6)", marginBottom: 20 }}>
-                الخلية ({winOverlay.x}, {winOverlay.y})
+                {tr.arcade.winOverlayCell(winOverlay.x, winOverlay.y)}
               </p>
 
               {/* Reward */}
@@ -1807,7 +1807,7 @@ function GridView({
                   border: "1px solid rgba(34,197,94,0.35)",
                   borderRadius: 16, padding: "14px 20px", marginBottom: 16,
                 }}>
-                  <p style={{ fontSize: 11, color: "rgba(134,239,172,0.6)", marginBottom: 2 }}>مكافأتك</p>
+                  <p style={{ fontSize: 11, color: "rgba(134,239,172,0.6)", marginBottom: 2 }}>{tr.arcade.winOverlayRewardLabel}</p>
                   <p style={{ fontSize: 32, fontWeight: 900, color: "#4ade80", textShadow: "0 0 20px rgba(74,222,128,0.7)" }}>
                     +{winOverlay.reward.toLocaleString()} SKX
                   </p>
@@ -1823,12 +1823,12 @@ function GridView({
               }}>
                 <span style={{ fontSize: 22 }}>💀</span>
                 <div style={{ textAlign: "left", flex: 1 }}>
-                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 1 }}>تم تدمير خلية</p>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 1 }}>{tr.arcade.winOverlayVictimLabel}</p>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{winOverlay.victimName}</p>
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 900, color: "#f87171",
                   background: "rgba(239,68,68,0.2)", padding: "3px 8px", borderRadius: 8 }}>
-                  DESTROYED
+                  {tr.arcade.winOverlayDestroyedBadge}
                 </span>
               </div>
 
@@ -1841,7 +1841,7 @@ function GridView({
                   letterSpacing: 1,
                 }}
               >
-                🔥 استمر في القتال
+                {tr.arcade.winOverlayContinue}
               </button>
             </div>
           </div>
@@ -1901,10 +1901,10 @@ function GridView({
                 color: "#ef4444", textShadow: "0 0 30px rgba(239,68,68,0.8)",
                 marginBottom: 6,
               }}>
-                تم تدميرك!
+                {tr.arcade.loseOverlayTitle}
               </p>
               <p style={{ fontSize: 13, color: "rgba(252,165,165,0.6)", marginBottom: 24 }}>
-                خليتك ({loseOverlay.x}, {loseOverlay.y}) تم اختراقها من قِبَل عدو
+                {tr.arcade.loseOverlayDesc(loseOverlay.x, loseOverlay.y)}
               </p>
 
               {/* Destroyed cell badge */}
@@ -1913,7 +1913,7 @@ function GridView({
                 border: "1px solid rgba(239,68,68,0.3)",
                 borderRadius: 16, padding: "14px 20px", marginBottom: 24,
               }}>
-                <p style={{ fontSize: 12, color: "rgba(252,165,165,0.5)", marginBottom: 4 }}>الخلية المدمرة</p>
+                <p style={{ fontSize: 12, color: "rgba(252,165,165,0.5)", marginBottom: 4 }}>{tr.arcade.loseOverlayCellLabel}</p>
                 <p style={{ fontSize: 22, fontWeight: 900, color: "#fca5a5" }}>
                   ({loseOverlay.x}, {loseOverlay.y})
                 </p>
@@ -1928,7 +1928,7 @@ function GridView({
                   letterSpacing: 1,
                 }}
               >
-                ⚔️ الانتقام
+                {tr.arcade.loseOverlayRevenge}
               </button>
             </div>
           </div>
