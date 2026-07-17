@@ -275,19 +275,6 @@ export const GamesTab = () => {
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-500">
 
-      {/* ── Header ── */}
-      <div className="px-4 pt-5 pb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black text-white tracking-tight">{tr.games.title}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{tr.games.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20"
-          style={{ background: 'rgba(52,211,153,0.08)' }}>
-          <Zap className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs font-black text-primary">+{profitPerHour.toLocaleString()}/hr</span>
-        </div>
-      </div>
-
       {/* ── Passive Income Cards ── */}
       <div className="px-4">
         <div className="flex items-center gap-2 mb-3">
