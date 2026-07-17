@@ -89,7 +89,7 @@ const ROOMS: Record<
     multiplier: "1×",
     color: "#22c55e",
     gradient: "linear-gradient(135deg,#052e16 0%,#14532d 100%)",
-    viewportCols: 20,   // large viewport → many tiny cells = big open battlefield
+    viewportCols: 14,   // big clear cells while keeping an open battlefield feel
   },
   tactical: {
     label: "Tactical Grid",
@@ -97,7 +97,7 @@ const ROOMS: Record<
     multiplier: "1.5×",
     color: "#f59e0b",
     gradient: "linear-gradient(135deg,#1c1003 0%,#451a03 100%)",
-    viewportCols: 14,   // medium
+    viewportCols: 11,   // medium
   },
   hardcore: {
     label: "Hardcore Arena",
@@ -105,7 +105,7 @@ const ROOMS: Record<
     multiplier: "3×",
     color: "#ef4444",
     gradient: "linear-gradient(135deg,#1a0303 0%,#450a0a 100%)",
-    viewportCols: 10,   // small viewport → fewer but larger cells = intense close combat
+    viewportCols: 8,    // small viewport → fewer but larger cells = intense close combat
   },
 };
 
@@ -285,8 +285,8 @@ function getCellStyle(
 
 function getCellIcon(cell: GridCell | undefined, vp: number) {
   if (!cell || cell.owner !== "me") return null;
-  const sz = vp <= 10 ? "12px" : vp <= 14 ? "9px" : "8px";
-  const dotSz = vp <= 10 ? 7 : vp <= 14 ? 5 : 4;
+  const sz = vp <= 8 ? "15px" : vp <= 11 ? "12px" : "10px";
+  const dotSz = vp <= 8 ? 9 : vp <= 11 ? 7 : 6;
   if (cell.isDecoy) return (
     <span style={{ fontSize: sz, lineHeight: 1, filter: "drop-shadow(0 0 4px #f59e0b)" }}>⚠️</span>
   );
@@ -1311,20 +1311,26 @@ function GridView({
             <ChevronLeft className="w-4 h-4 text-white/70" />
           </button>
 
-          {/* Grid */}
-          <div className="flex-1 relative min-w-0" style={{ aspectRatio: "1", maxHeight: "100%" }}>
+          {/* Grid — container-query sizing guarantees a true square that fills the space */}
+          <div className="flex-1 relative min-w-0 min-h-0 self-stretch" style={{ containerType: "size" }}>
             <div
-              className="absolute inset-0 arcade-grid-glow"
+              className="arcade-grid-glow"
               style={{
+                position: "absolute",
+                width: "min(100cqw, 100cqh)",
+                height: "min(100cqw, 100cqh)",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
                 display: "grid",
                 gridTemplateColumns: `repeat(${vp}, 1fr)`,
-                gap: "2px",
-                padding: "4px",
+                gridAutoRows: "1fr",
+                gap: "3px",
+                padding: "5px",
                 borderRadius: "16px",
                 background: "linear-gradient(135deg,#04091c 0%,#060d26 50%,#030810 100%)",
                 border: `1px solid ${r.color}22`,
                 overflow: "hidden",
-                position: "relative",
               }}
             >
               {/* Horizontal scan beam */}
@@ -1363,7 +1369,7 @@ function GridView({
                 const isRevealed = revealedKeys.has(key);
                 const style = getCellStyle(cell, isHovered, isRevealed, vp);
                 const isFeverTarget = specialMode !== null && !cell;
-                const radius = vp <= 10 ? "5px" : vp <= 14 ? "3px" : "2px";
+                const radius = vp <= 8 ? "7px" : vp <= 11 ? "5px" : "4px";
 
                 return (
                   <button
