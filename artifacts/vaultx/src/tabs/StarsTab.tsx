@@ -20,6 +20,8 @@ const EFFECT_META: Record<string, { icon: React.ElementType; color: string; bg: 
   points:              { icon: Coins,    color: 'text-primary',    bg: 'from-primary/20 to-primary/5',       category: 'points' },
   badge:               { icon: Star,     color: 'text-orange-300', bg: 'from-orange-400/20 to-orange-400/5', category: 'cosmetic' },
   skin:                { icon: Star,     color: 'text-pink-300',   bg: 'from-pink-400/20 to-pink-400/5',     category: 'cosmetic' },
+  squad_gold:          { icon: Coins,    color: 'text-yellow-300', bg: 'from-yellow-400/20 to-yellow-400/5', category: 'points' },
+  competition_entry:   { icon: Rocket,   color: 'text-rose-300',   bg: 'from-rose-400/20 to-rose-400/5',     category: 'boost' },
 };
 
 const CATEGORY_LABELS: Record<string, { en: string; ar: string }> = {

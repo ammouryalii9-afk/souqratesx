@@ -22,6 +22,7 @@ import logo from "@assets/logo_pro_1_transparent_1783761968725.png";
 import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 import { MaintenancePage } from "./components/MaintenancePage";
+import { AppTour, TourButton, checkTourSeen } from "./components/AppTour";
 
 const LANG_OPTIONS: { code: Lang; flag: string; label: string; native: string }[] = [
   { code: 'en', flag: '🇺🇸', label: 'English',  native: 'English'  },
@@ -108,7 +109,9 @@ function LangPicker() {
   );
 }
 
-function Header() {
+interface HeaderProps { onOpenTour: () => void; }
+
+function Header({ onOpenTour }: HeaderProps) {
   const { tempMiningPoints, skxBalance, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
   const { tr } = useLanguage();
   const league = getLeague(lifetimePoints);
@@ -158,6 +161,7 @@ function Header() {
 
       {/* Right — min-w-0 so it can shrink, items-end keeps pills right-aligned */}
       <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+        <TourButton onOpen={onOpenTour} />
         <LangPicker />
         <div className="flex flex-col items-end gap-1 min-w-0">
           {/* SKP pill */}
@@ -197,7 +201,15 @@ function MainLayout() {
   const [activeTab, setActiveTab] = useState<TabId>('vault');
   const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(new Set(['vault']));
   const [bannerBlockId, setBannerBlockId] = useState<string | null>(null);
+  const [showTour, setShowTour] = useState(false);
   const { isTelegramUser } = useVault();
+
+  // Auto-show tour once for every user (new + existing)
+  useEffect(() => {
+    if (checkTourSeen()) return;
+    const t = setTimeout(() => setShowTour(true), 800);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSetActiveTab = (tab: string) => {
     const t = tab as TabId;
@@ -222,13 +234,14 @@ function MainLayout() {
   return (
     <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
-      <Header />
+      <Header onOpenTour={() => setShowTour(true)} />
       <AnnouncementBanner isTelegramUser={isTelegramUser} />
       <EventBanner />
       <CelebrationOverlay />
       <WelcomeReward />
       <OfflineEarningsModal />
       <BonusRewardModal />
+      {showTour && <AppTour onClose={() => setShowTour(false)} />}
 
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0">
