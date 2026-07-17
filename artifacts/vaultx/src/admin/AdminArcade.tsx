@@ -110,11 +110,20 @@ async function cancelSession(id: number): Promise<void> {
   return adminDelete(`/api/arcade/admin/sessions/${id}`);
 }
 
-async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWhitelist: string }> {
+interface PhantomSettings {
+  phantomEnabled: boolean;
+  phantomDensity: number;
+  phantomMinRealPlayers: number;
+}
+
+async function fetchArcadeSettings(): Promise<{ arcadeEnabled: boolean; arcadeWhitelist: string } & PhantomSettings> {
   const data = await adminGet<Record<string, unknown>>("/api/admin/settings");
   return {
     arcadeEnabled: data.arcadeEnabled === true || data.arcadeEnabled === "true",
     arcadeWhitelist: typeof data.arcadeWhitelist === "string" ? data.arcadeWhitelist : "",
+    phantomEnabled: data.arcadePhantomEnabled === true || data.arcadePhantomEnabled === "true",
+    phantomDensity: typeof data.arcadePhantomDensity === "number" ? data.arcadePhantomDensity : 15,
+    phantomMinRealPlayers: typeof data.arcadePhantomMinRealPlayers === "number" ? data.arcadePhantomMinRealPlayers : 30,
   };
 }
 
@@ -122,6 +131,14 @@ async function saveArcadeSettings(enabled: boolean, whitelist: string): Promise<
   await adminPut("/api/admin/settings", {
     arcadeEnabled: enabled,
     arcadeWhitelist: whitelist.trim(),
+  });
+}
+
+async function savePhantomSettings(s: PhantomSettings): Promise<void> {
+  await adminPut("/api/admin/settings", {
+    arcadePhantomEnabled: s.phantomEnabled,
+    arcadePhantomDensity: s.phantomDensity,
+    arcadePhantomMinRealPlayers: s.phantomMinRealPlayers,
   });
 }
 
@@ -180,12 +197,23 @@ export function AdminArcade() {
   const [shopSaved, setShopSaved] = useState(false);
   const shopSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Phantom players state
+  const [phantomEnabled, setPhantomEnabled] = useState(false);
+  const [phantomDensity, setPhantomDensity] = useState(15);
+  const [phantomMinReal, setPhantomMinReal] = useState(30);
+  const [phantomSaving, setPhantomSaving] = useState(false);
+  const [phantomSaved, setPhantomSaved] = useState(false);
+  const phantomSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
     try {
       const s = await fetchArcadeSettings();
       setArcadeEnabled(s.arcadeEnabled);
       setWhitelist(s.arcadeWhitelist);
+      setPhantomEnabled(s.phantomEnabled);
+      setPhantomDensity(s.phantomDensity);
+      setPhantomMinReal(s.phantomMinRealPlayers);
     } catch { /* ignore */ } finally {
       setSettingsLoading(false);
     }
@@ -226,6 +254,19 @@ export function AdminArcade() {
       setSettingsSaving(false);
     }
   }, []);
+
+  const handleSavePhantom = useCallback(async () => {
+    setPhantomSaving(true);
+    setPhantomSaved(false);
+    try {
+      await savePhantomSettings({ phantomEnabled, phantomDensity, phantomMinRealPlayers: phantomMinReal });
+      setPhantomSaved(true);
+      if (phantomSavedTimer.current) clearTimeout(phantomSavedTimer.current);
+      phantomSavedTimer.current = setTimeout(() => setPhantomSaved(false), 2500);
+    } catch { /* ignore */ } finally {
+      setPhantomSaving(false);
+    }
+  }, [phantomEnabled, phantomDensity, phantomMinReal]);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -360,6 +401,91 @@ export function AdminArcade() {
           <p className="text-[10px] text-muted-foreground/60">
             المستخدمون في هذه القائمة يمكنهم اللعب حتى لو كانت اللعبة مُعطَّلة — مفيد للاختبار
           </p>
+        </div>
+      </div>
+
+      {/* ── Phantom Players Card ── */}
+      <div className={`rounded-2xl border p-4 transition-all ${
+        phantomEnabled
+          ? "bg-purple-500/10 border-purple-500/30"
+          : "bg-white/[0.03] border-white/10"
+      }`}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+            phantomEnabled ? "bg-purple-500/20" : "bg-white/5"
+          }`}>
+            <span className="text-lg">👻</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white">لاعبون وهميون (Phantom Players)</p>
+            <p className="text-[10px] text-muted-foreground">
+              خلايا وهمية تملأ الشبكة — تُعطَّل تلقائياً عند وجود لاعبين حقيقيين كافيين
+            </p>
+          </div>
+          {settingsLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          ) : (
+            <button
+              onClick={() => setPhantomEnabled((v) => !v)}
+              disabled={phantomSaving}
+              className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                phantomEnabled ? "bg-purple-500" : "bg-white/10"
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                phantomEnabled ? "translate-x-5" : "translate-x-0"
+              }`} />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {/* Density */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-muted-foreground">كثافة الخلايا الوهمية</p>
+              <span className="text-[11px] font-black text-purple-400">{phantomDensity}%</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={60}
+              value={phantomDensity}
+              onChange={(e) => setPhantomDensity(Number(e.target.value))}
+              className="w-full accent-purple-500"
+            />
+            <p className="text-[10px] text-muted-foreground/60">
+              نسبة الخلايا الوهمية من إجمالي الشبكة (1–60%)
+            </p>
+          </div>
+
+          {/* Min real players */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-muted-foreground">حد التعطيل التلقائي</p>
+              <span className="text-[11px] font-black text-purple-400">{phantomMinReal} لاعب</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={200}
+              value={phantomMinReal}
+              onChange={(e) => setPhantomMinReal(Number(e.target.value))}
+              className="w-full accent-purple-500"
+            />
+            <p className="text-[10px] text-muted-foreground/60">
+              عندما يبلغ عدد اللاعبين الحقيقيين هذا الرقم، تُوقَف الخلايا الوهمية تلقائياً
+            </p>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={handleSavePhantom}
+            disabled={phantomSaving}
+            className="w-full text-xs bg-purple-600 hover:bg-purple-500"
+          >
+            {phantomSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : phantomSaved ? "✓ حُفظ" : "حفظ إعدادات الـ Phantom"}
+          </Button>
         </div>
       </div>
 

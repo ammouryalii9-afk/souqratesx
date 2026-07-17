@@ -72,6 +72,16 @@ const VALID_DURATIONS = [1, 3, 6, 12, 24];
 const ADS_NEEDED = 5;
 const STARS_FOR_TICKET = 100;
 
+// Deterministic pseudo-random (LCG) — stable seed = same sequence every call
+function seededRnd(seed: number): () => number {
+  let s = (seed ^ 0xdeadbeef) >>> 0;
+  return () => {
+    s = Math.imul(s ^ (s >>> 15), s | 1);
+    s ^= s + Math.imul(s ^ (s >>> 7), s | 61);
+    return ((s ^ (s >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+
 // Resolve all expired-but-still-"active" sessions lazily when a user queries
 // Also fires a "you won!" Telegram notification per session.
 async function settleExpiredSessions(): Promise<void> {
@@ -469,10 +479,49 @@ router.get("/arcade/grid/:room", async (req, res): Promise<void> => {
     };
   });
 
+  // ── Phantom player injection ──────────────────────────────────────────────
+  const phSettings = await getSettingsMap();
+  const phantomEnabled =
+    phSettings.arcadePhantomEnabled === true ||
+    phSettings.arcadePhantomEnabled === "true";
+  const phantomDensity = asNumber(phSettings.arcadePhantomDensity, 15);
+  const phantomMinReal = asNumber(phSettings.arcadePhantomMinRealPlayers, 30);
+
+  let phantomInjected = 0;
+  if (phantomEnabled && activeCells.length < phantomMinReal) {
+    const gSize = ROOM_GRID_SIZE[room];
+    const totalCells = gSize * gSize;
+    const want = Math.min(
+      Math.round((phantomDensity / 100) * totalCells),
+      Math.floor(totalCells * 0.65),
+    );
+    if (want > 0) {
+      // Daily seed per room — stable throughout the day so grid doesn't flicker
+      const today = new Date().toISOString().slice(0, 10);
+      let seedNum = 0;
+      const seedStr = `${room}:${today}`;
+      for (let i = 0; i < seedStr.length; i++) {
+        seedNum = (Math.imul(31, seedNum) + seedStr.charCodeAt(i)) | 0;
+      }
+      const rnd = seededRnd(seedNum >>> 0);
+      const occupied = new Set<string>(activeCells.map((c) => `${c.gridX},${c.gridY}`));
+      for (let attempt = 0; attempt < want * 8 && phantomInjected < want; attempt++) {
+        const px = Math.floor(rnd() * gSize);
+        const py = Math.floor(rnd() * gSize);
+        const key = `${px},${py}`;
+        if (!occupied.has(key)) {
+          occupied.add(key);
+          cells.push({ x: px, y: py, owner: "other", hasShield: false, isDecoy: false });
+          phantomInjected++;
+        }
+      }
+    }
+  }
+
   res.json({
     room,
     gridSize: ROOM_GRID_SIZE[room],
-    totalActive: activeCells.length,
+    totalActive: activeCells.length + phantomInjected,
     cells,
   });
 });
@@ -661,6 +710,15 @@ router.post(
       .limit(1);
 
     if (!target) {
+      // Phantom mode: the cell was visual-only (no DB row) — return "evaded" instead of 404
+      const phCheck = await getSettingsMap();
+      const phEnabled =
+        phCheck.arcadePhantomEnabled === true ||
+        phCheck.arcadePhantomEnabled === "true";
+      if (phEnabled) {
+        res.json({ result: "phantom_evaded", strikerReward: 0, message: "👻 اختفى العدو!" });
+        return;
+      }
       res.status(404).json({ error: "No active cell at this position" });
       return;
     }

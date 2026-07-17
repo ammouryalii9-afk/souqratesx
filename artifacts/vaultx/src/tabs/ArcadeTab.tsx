@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Lock, Target } from "lucide-react";
 import { useVault } from "../context/VaultContext";
 import { haptic } from "../lib/telegram";
@@ -347,6 +347,59 @@ function getCellIcon(cell: GridCell | undefined, vp: number) {
       background: "radial-gradient(circle,#fff 30%,rgba(74,222,128,0.8) 100%)",
       boxShadow: "0 0 6px #fff,0 0 14px rgba(74,222,128,0.9)",
     }} />
+  );
+}
+
+// ── LiveTicker ────────────────────────────────────────────────────────────────
+
+function LiveTicker({ totalActive, roomColor }: { totalActive: number; roomColor: string }) {
+  const [idx, setIdx] = useState(0);
+
+  const events = useMemo(() => {
+    const day = new Date().toISOString().slice(0, 10);
+    let s = 0;
+    for (let i = 0; i < day.length; i++) s = (Math.imul(31, s) + day.charCodeAt(i)) | 0;
+    s = (s ^ Math.imul(totalActive, 2654435761)) >>> 0;
+    const r = () => {
+      s = Math.imul(s ^ (s >>> 15), s | 1);
+      s ^= s + Math.imul(s ^ (s >>> 7), s | 61);
+      return ((s ^ (s >>> 14)) >>> 0) / 0x100000000;
+    };
+    const pid = () => `#${Math.floor(r() * 9000) + 1000}`;
+    const skx = () => ((Math.floor(r() * 95) + 5) * 1000).toLocaleString();
+    const rooms = ["Easy", "Tactical", "Hardcore"];
+    return Array.from({ length: 10 }, () => {
+      const t = Math.floor(r() * 5);
+      if (t === 0) return `⚔️ P${pid()} struck P${pid()} · +${skx()} SKX`;
+      if (t === 1) return `🏆 P${pid()} survived · won ${skx()} SKX`;
+      if (t === 2) return `💥 P${pid()} destroyed P${pid()} · +${skx()} SKX`;
+      if (t === 3) return `🎯 P${pid()} claimed cell in ${rooms[Math.floor(r() * 3)]}`;
+      return `🛡️ P${pid()} blocked attack · shield held`;
+    });
+  }, [totalActive]);
+
+  useEffect(() => {
+    const t = setInterval(() => setIdx((i) => (i + 1) % events.length), 3800);
+    return () => clearInterval(t);
+  }, [events.length]);
+
+  return (
+    <div
+      className="shrink-0"
+      style={{ borderBottom: `1px solid ${roomColor}18`, background: `${roomColor}07` }}
+    >
+      <div className="flex items-center gap-2 px-3 py-1">
+        <span
+          className="text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 animate-pulse"
+          style={{ background: `${roomColor}22`, color: roomColor }}
+        >
+          ● LIVE
+        </span>
+        <p className="flex-1 text-[10px] text-white/45 truncate" key={idx}>
+          {events[idx]}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -1280,7 +1333,7 @@ function GridView({
           "/arcade/grid/strike",
           { room, x: t.x, y: t.y },
         );
-        if (result.result === "destroyed") {
+        if (result.result === "destroyed" || result.result === "struck") {
           hits++;
           totalReward += result.strikerReward ?? 0;
           particleExplosion(tEl);
@@ -1291,6 +1344,8 @@ function GridView({
           screenFlash("rgba(239,68,68,0.3)", 200);
           spawnFloatingText(tEl, "💥 DECOY!", "#ef4444");
           setCombo(0);
+        } else if (result.result === "phantom_evaded") {
+          spawnFloatingText(tEl, "👻", "#a78bfa");
         }
       } catch {
         // cell was empty — skip
@@ -1397,7 +1452,7 @@ function GridView({
             { room, x, y },
           );
 
-          if (result.result === "destroyed") {
+          if (result.result === "destroyed" || result.result === "struck") {
             arcadeSound.explosion();
             haptic("success");
             screenFlash("rgba(34,197,94,0.3)", 300);
@@ -1419,10 +1474,14 @@ function GridView({
             particleExplosion(el);
             spawnFloatingText(el, result.penalty ? `−${result.penalty.toLocaleString()}` : "💥 DECOY!", "#ef4444");
             setCombo(0);
+          } else if (result.result === "phantom_evaded") {
+            arcadeSound.tap();
+            haptic("warning");
+            spawnFloatingText(el, "👻 EVADED", "#a78bfa");
           }
 
-          if (result.result !== "destroyed") {
-            const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : "⚔️";
+          if (result.result !== "destroyed" && result.result !== "struck") {
+            const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : result.result === "phantom_evaded" ? "👻" : "⚔️";
             const detail = result.strikerReward
               ? `+${result.strikerReward.toLocaleString()} SKX`
               : result.penalty
@@ -1560,6 +1619,11 @@ function GridView({
           <Star className="w-3.5 h-3.5 text-yellow-400" />
         </button>
       </div>
+
+      {/* Live activity ticker */}
+      {gridData && gridData.totalActive >= 2 && (
+        <LiveTicker totalActive={gridData.totalActive} roomColor={r.color} />
+      )}
 
       {/* Special mode banner */}
       {specialMode && (
