@@ -125,67 +125,96 @@ function Header({ onOpenTour }: HeaderProps) {
     }).catch(() => {});
   }, []);
   
+  const pph = profitPerHour >= 1_000_000
+    ? `+${(profitPerHour / 1_000_000).toFixed(1)}M/hr`
+    : profitPerHour >= 1_000
+      ? `+${(profitPerHour / 1_000).toFixed(0)}K/hr`
+      : `+${profitPerHour}/hr`;
+
+  const usdVal = (skxBalance / pointsPerDollar).toFixed(2);
+
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 h-20 flex items-center gap-2">
-      {/* Left — shrink-0 so it never collapses */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <div className="w-9 h-9 flex items-center justify-center">
+    <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3 pb-2.5 flex flex-col gap-2">
+      {/* ── Row 1: identity + controls ───────────────────────────────────── */}
+      <div className="flex items-center gap-2">
+        {/* Logo */}
+        <div className="w-8 h-8 shrink-0 flex items-center justify-center">
           <img
             src={logo}
             alt="SouqrateX"
             style={{
-              width: 36,
-              height: 36,
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 0 8px rgba(212,175,55,0.5)) drop-shadow(0 0 4px rgba(52,211,153,0.3))',
+              width: 32, height: 32, objectFit: 'contain',
+              filter: 'drop-shadow(0 0 7px rgba(212,175,55,0.5)) drop-shadow(0 0 3px rgba(52,211,153,0.3))',
             }}
           />
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="font-extrabold tracking-tight text-base text-white leading-none truncate">SouqrateX</span>
-          <div className="flex gap-1 mt-0.5 flex-wrap">
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90 whitespace-nowrap">
-              {league.name}
+
+        {/* Name + league */}
+        <div className="flex flex-col min-w-0 shrink-0">
+          <span className="font-extrabold tracking-tight text-[15px] text-white leading-none">SouqrateX</span>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span
+              className="text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+              style={{ background: `${league.color}22`, color: league.color, border: `1px solid ${league.color}44` }}
+            >
+              {league.icon} {league.name}
             </span>
             {badge && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/90 whitespace-nowrap">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/70">
                 {badge.label}
               </span>
             )}
           </div>
         </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Tour + Lang */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <TourButton onOpen={onOpenTour} />
+          <LangPicker />
+        </div>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right — min-w-0 so it can shrink, items-end keeps pills right-aligned */}
-      <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-        <TourButton onOpen={onOpenTour} />
-        <LangPicker />
-        <div className="flex flex-col items-end gap-1 min-w-0">
-          {/* SKP pill */}
-          <div className="px-2.5 py-1 rounded-xl flex items-center gap-1 surface-primary overflow-hidden max-w-[168px]">
-            <span className="text-[9px] text-primary/60 font-bold uppercase tracking-wider shrink-0">SKP</span>
-            <span className="text-[13px] font-black text-white tabular-nums tracking-tight leading-none truncate">{Math.floor(tempMiningPoints).toLocaleString()}</span>
-            <div className="w-1 h-1 rounded-full bg-primary animate-pulse shrink-0" />
-            <span className="text-[9px] text-primary/60 font-semibold tabular-nums shrink-0 whitespace-nowrap">+{
-              profitPerHour >= 1_000_000
-                ? `${(profitPerHour / 1_000_000).toFixed(1)}M`
-                : profitPerHour >= 1_000
-                  ? `${(profitPerHour / 1_000).toFixed(0)}K`
-                  : profitPerHour
-            }</span>
+      {/* ── Row 2: balance pills — full width, side by side ──────────────── */}
+      <div className="flex items-stretch gap-2">
+        {/* SKP */}
+        <div
+          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl min-w-0"
+          style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.18)' }}
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider leading-none mb-0.5">SKP</span>
+            <span className="text-[13px] font-black text-white tabular-nums leading-none truncate">
+              {Math.floor(tempMiningPoints).toLocaleString()}
+            </span>
           </div>
-          {/* SKX pill */}
-          <div className="px-2.5 py-1 rounded-xl flex items-center gap-1 surface-gold overflow-hidden max-w-[168px]">
-            <span className="text-[9px] text-gold/60 font-bold uppercase tracking-wider shrink-0">SKX</span>
-            <span className="text-[13px] font-black text-gold tabular-nums tracking-tight leading-none truncate">{skxBalance.toLocaleString()}</span>
-            <span className="text-[9px] text-gold/50 font-semibold tabular-nums shrink-0 whitespace-nowrap">≈${(skxBalance / pointsPerDollar).toFixed(2)}</span>
+          <span
+            className="text-[10px] font-bold shrink-0 px-1.5 py-0.5 rounded-lg whitespace-nowrap"
+            style={{ background: 'rgba(52,211,153,0.12)', color: 'rgba(52,211,153,0.8)' }}
+          >
+            {pph}
+          </span>
+        </div>
+
+        {/* SKX */}
+        <div
+          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl min-w-0"
+          style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.22)' }}
+        >
+          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#d4af37' }} />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-[9px] font-bold text-gold/60 uppercase tracking-wider leading-none mb-0.5">SKX</span>
+            <span className="text-[13px] font-black text-gold tabular-nums leading-none truncate">
+              {skxBalance.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex flex-col items-end shrink-0">
+            <span className="text-[10px] font-bold text-gold/70 tabular-nums whitespace-nowrap">≈${usdVal}</span>
             {dollarBonus > 0 && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full text-gold tabular-nums surface-gold shrink-0 whitespace-nowrap">
-                +${dollarBonus.toFixed(2)}
-              </span>
+              <span className="text-[9px] font-black text-gold whitespace-nowrap">+${dollarBonus.toFixed(2)}</span>
             )}
           </div>
         </div>
