@@ -746,10 +746,9 @@ function ShopModal({
           </div>
         )}
 
-        {/* Items — compact 2-col grid, no scroll needed */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {SHOP_ITEMS.map((item, i) => {
-            const isLast = i === SHOP_ITEMS.length - 1;
+        {/* Items — single-row list, ~52px per row × 5 = fits any phone with zero scroll */}
+        <div className="flex flex-col gap-2">
+          {SHOP_ITEMS.map((item) => {
             const isLoading = loadingItem === item.type;
             const isBusy = loadingItem !== null;
             return (
@@ -757,19 +756,23 @@ function ShopModal({
                 key={item.type}
                 onClick={() => buyItem(item.type)}
                 disabled={isBusy}
-                className={`flex flex-col items-center gap-1.5 p-3.5 rounded-2xl active:scale-95 transition-all disabled:opacity-50${isLast && SHOP_ITEMS.length % 2 !== 0 ? " col-span-2" : ""}`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-2xl active:scale-[0.98] transition-all disabled:opacity-50 w-full"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
               >
-                <span style={{ fontSize: 28, lineHeight: 1 }}>{item.icon}</span>
-                <p className="text-xs font-black text-white text-center leading-tight">{shopItemLabel(item.type, tr)}</p>
-                <p className="text-[9px] text-center leading-tight" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  {shopItemDesc(item.type, tr)}
-                </p>
+                <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-black text-white leading-tight">{shopItemLabel(item.type, tr)}</p>
+                  <p className="text-[10px] leading-tight truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {shopItemDesc(item.type, tr)}
+                  </p>
+                </div>
                 <div
-                  className="mt-1 px-3 py-1.5 rounded-xl text-xs font-black"
+                  className="shrink-0 px-3.5 py-1.5 rounded-xl text-sm font-black"
                   style={{
                     background: isLoading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#b45309,#f59e0b)",
                     color: isLoading ? "rgba(255,255,255,0.4)" : "#000",
+                    minWidth: 64,
+                    textAlign: "center",
                   }}
                 >
                   {isLoading ? "⏳" : `${item.stars} ⭐`}
