@@ -28,7 +28,7 @@ const DAILY_WORDS = ['GOLD', 'MINE', 'RICH', 'KING', 'LUCK', 'BOSS', 'CASH', 'SA
 
 const SPIN_SEGMENTS = [250, 500, 1000, 2500, 250, 5000, 750, 1500];
 
-type TaskTabId = 'daily' | 'earn' | 'store' | 'challenges';
+type TaskTabId = 'daily' | 'earn' | 'challenges';
 
 const TASK_TABS: {
   id: TaskTabId;
@@ -37,10 +37,9 @@ const TASK_TABS: {
   icon: React.ElementType;
   color: string;
 }[] = [
-  { id: 'daily',      en: 'Daily',  ar: 'يومي',  icon: Gift,        color: '#34d399' },
-  { id: 'earn',       en: 'Earn',   ar: 'اكسب',  icon: Zap,         color: '#f5c518' },
-  { id: 'store',      en: 'Store',  ar: 'متجر',  icon: ShoppingBag, color: '#f59e0b' },
-  { id: 'challenges', en: 'Goals',  ar: 'أهداف', icon: Trophy,      color: '#a78bfa' },
+  { id: 'daily',      en: 'Daily',  ar: 'يومي',  icon: Gift,   color: '#34d399' },
+  { id: 'earn',       en: 'Earn',   ar: 'اكسب',  icon: Zap,    color: '#f5c518' },
+  { id: 'challenges', en: 'Goals',  ar: 'أهداف', icon: Trophy, color: '#a78bfa' },
 ];
 
 export const TasksTab = () => {
@@ -1045,143 +1044,6 @@ export const TasksTab = () => {
             );
           })()}
 
-          {/* Empty earn state */}
-          {!config?.adsgram.enabled && sponsoredAds.length === 0 &&
-            (config?.offerwalls ?? []).filter(o => o.enabled && o.id !== 'adgem').length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.15)' }}>
-                <Zap className="w-7 h-7" style={{ color: '#f5c518', opacity: 0.4 }} />
-              </div>
-              <p className="text-sm text-white/30 font-medium text-center">
-                {isAr ? 'قريباً — شبكات الإعلانات قيد التفعيل' : 'Coming soon — ad networks pending activation'}
-              </p>
-            </div>
-          )}
-
-        </>}
-
-        {/* ────── STORE TAB ────── */}
-        {taskTab === 'store' && <>
-
-          {/* Stars Store */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                  style={{ background: 'linear-gradient(145deg,rgba(245,158,11,0.18) 0%,rgba(245,158,11,0.04) 100%)', border: '1px solid rgba(245,158,11,0.22)' }}>
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
-                </div>
-                <div className="flex flex-col">
-                  <h2 className="text-base font-black text-white leading-none">{isAr ? 'متجر النجوم' : 'Stars Store'}</h2>
-                  <span className="text-[10px] text-amber-400/50 font-semibold uppercase tracking-widest mt-0.5">{tr.tasks.telegramStars}</span>
-                </div>
-              </div>
-            </div>
-
-            {!config?.stars.enabled ? (
-              <div className="rounded-2xl p-8 text-center"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Lock className="w-8 h-8 mx-auto mb-3 text-white/20" />
-                <p className="text-xs text-white/30">{tr.tasks.notActivated}</p>
-              </div>
-            ) : starProducts.length === 0 ? (
-              <div className="rounded-2xl p-8 text-center"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <ShoppingBag className="w-8 h-8 mx-auto mb-3 text-white/20" />
-                <p className="text-xs text-white/30">{tr.tasks.noItems}</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-1.5 mb-4 overflow-x-auto pb-0.5 scrollbar-none">
-                  {STORE_CATS.filter(cat =>
-                    cat.id === 'all' || starProducts.some(p => CATEGORY_MAP[cat.id]?.includes(p.effectType))
-                  ).map(cat => {
-                    const isActive = storeCategory === cat.id;
-                    const CatIcon = cat.Icon;
-                    return (
-                      <button key={cat.id} onClick={() => setStoreCategory(cat.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all active:scale-95 shrink-0"
-                        style={isActive
-                          ? { background: 'rgba(245,158,11,0.14)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.35)' }
-                          : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <CatIcon className="w-3 h-3 shrink-0" /><span>{cat.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {filteredProducts.length === 0 ? (
-                  <div className="rounded-2xl p-6 text-center"
-                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p className="text-xs text-white/30">{tr.tasks.storeCatEmpty}</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {filteredProducts.map((product, idx) => {
-                      const meta = getStarMeta(product.effectType);
-                      const isBuying = purchasingProduct === product.id;
-                      const isFeatured = idx === 0 || product.sortOrder === 0;
-                      const ProductIcon = meta.Icon;
-                      return (
-                        <button key={product.id} onClick={() => handleBuyWithStars(product.id)} disabled={isBuying}
-                          className="relative rounded-2xl overflow-hidden text-left flex flex-col transition-all duration-200 active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ background: meta.gradient, border: `1px solid ${isFeatured ? meta.color + '55' : meta.color + '28'}`, boxShadow: isFeatured ? `0 6px 28px ${meta.glow}70` : `0 3px 14px ${meta.glow}38` }}>
-                          <div className="absolute top-0 left-0 right-0 h-px"
-                            style={{ background: `linear-gradient(90deg,transparent 0%,${meta.color}88 50%,transparent 100%)` }} />
-                          <div className="absolute top-2.5 right-2.5">
-                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md tracking-wider"
-                              style={{ color: meta.color, background: `${meta.color}14`, border: `1px solid ${meta.color}25` }}>{meta.label}</span>
-                          </div>
-                          {isFeatured && (
-                            <div className="absolute top-2.5 left-2.5">
-                              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md" style={{ background: meta.color, color: '#000' }}>
-                                <Star className="w-2 h-2 fill-black" strokeWidth={0} /><span className="text-[8px] font-black">TOP</span>
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-center pt-9 pb-3 px-4">
-                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                              style={{ background: `linear-gradient(145deg,${meta.color}30 0%,${meta.color}10 100%)`, border: `1px solid ${meta.color}40`, boxShadow: `0 4px 20px ${meta.glow}80` }}>
-                              {product.imageUrl
-                                ? <img src={product.imageUrl} alt={product.title} className="w-8 h-8 rounded-xl object-cover" />
-                                : <ProductIcon className="w-6 h-6" style={{ color: meta.color }} strokeWidth={1.5} />}
-                            </div>
-                          </div>
-                          <div className="px-3 pb-3 flex flex-col gap-2 flex-1">
-                            <div className="text-center">
-                              <p className="text-[13px] font-black text-white leading-tight line-clamp-1">{product.title}</p>
-                              {product.description && <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{product.description}</p>}
-                            </div>
-                            {product.benefitsBullets && (
-                              <div className="flex flex-col gap-0.5 px-1">
-                                {product.benefitsBullets.split('\n').filter(Boolean).slice(0, 2).map((b, i) => (
-                                  <div key={i} className="flex items-start gap-1 text-[9px] text-white/50 leading-snug">
-                                    <ChevronRight className="w-2.5 h-2.5 shrink-0 mt-px" style={{ color: meta.color }} />
-                                    <span className="line-clamp-1">{b}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="mt-auto flex flex-col gap-1.5">
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-base font-black text-white tabular-nums">{product.priceStars.toLocaleString()}</span>
-                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" strokeWidth={0} />
-                              </div>
-                              <div className="w-full h-7 rounded-xl flex items-center justify-center text-[11px] font-black gap-1 overflow-hidden"
-                                style={{ background: `linear-gradient(135deg,${meta.color} 0%,${meta.color}cc 100%)`, color: '#000', boxShadow: `0 2px 12px ${meta.glow}` }}>
-                                {isBuying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tr.tasks.storeBuyBtn}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-
           {/* Partner Tasks */}
           {partnerTasks.length > 0 && (
             <section>
@@ -1231,6 +1093,21 @@ export const TasksTab = () => {
                 })}
               </div>
             </section>
+          )}
+
+          {/* Empty earn state */}
+          {!config?.adsgram.enabled && sponsoredAds.length === 0 &&
+            (config?.offerwalls ?? []).filter(o => o.enabled && o.id !== 'adgem').length === 0 &&
+            partnerTasks.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.15)' }}>
+                <Zap className="w-7 h-7" style={{ color: '#f5c518', opacity: 0.4 }} />
+              </div>
+              <p className="text-sm text-white/30 font-medium text-center">
+                {isAr ? 'قريباً — شبكات الإعلانات قيد التفعيل' : 'Coming soon — ad networks pending activation'}
+              </p>
+            </div>
           )}
 
         </>}
