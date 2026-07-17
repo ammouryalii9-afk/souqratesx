@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Trophy, Lock } from "lucide-react";
+import { memo, useCallback, useEffect, useState } from "react";
+import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Lock, Target } from "lucide-react";
 import { useVault } from "../context/VaultContext";
 import { haptic } from "../lib/telegram";
 import { useToast } from "@/hooks/use-toast";
@@ -68,7 +68,6 @@ const ROOMS: Record<
     size: number;
     multiplier: string;
     color: string;
-    colorDim: string;
     gradient: string;
     viewportCols: number;
   }
@@ -78,27 +77,24 @@ const ROOMS: Record<
     size: 100,
     multiplier: "1×",
     color: "#22c55e",
-    colorDim: "rgba(34,197,94,0.15)",
     gradient: "linear-gradient(135deg,#052e16 0%,#14532d 100%)",
-    viewportCols: 12,
+    viewportCols: 20,   // large viewport → many tiny cells = big open battlefield
   },
   tactical: {
     label: "Tactical Grid",
     size: 50,
     multiplier: "1.5×",
     color: "#f59e0b",
-    colorDim: "rgba(245,158,11,0.15)",
     gradient: "linear-gradient(135deg,#1c1003 0%,#451a03 100%)",
-    viewportCols: 15,
+    viewportCols: 14,   // medium
   },
   hardcore: {
     label: "Hardcore Arena",
     size: 20,
     multiplier: "3×",
     color: "#ef4444",
-    colorDim: "rgba(239,68,68,0.15)",
     gradient: "linear-gradient(135deg,#1a0303 0%,#450a0a 100%)",
-    viewportCols: 20,
+    viewportCols: 10,   // small viewport → fewer but larger cells = intense close combat
   },
 };
 
@@ -122,7 +118,7 @@ async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`/api${path}`, { credentials: "include" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Network error" }));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    throw Object.assign(new Error(err.error ?? `HTTP ${res.status}`), { status: res.status });
   }
   return res.json();
 }
@@ -136,7 +132,7 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Network error" }));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    throw Object.assign(new Error(err.error ?? `HTTP ${res.status}`), { status: res.status });
   }
   return res.json();
 }
@@ -192,41 +188,73 @@ function roomDesc(room: Room, tr: ReturnType<typeof useLanguage>["tr"]): string 
   return tr.arcade.hardcoreDesc;
 }
 
-// ── Cell color logic ──────────────────────────────────────────────────────────
-
-function getCellBg(cell: GridCell | undefined, selected: boolean): string {
-  if (!cell) {
-    return selected ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.04)";
-  }
-  if (cell.owner === "me") {
-    if (cell.isDecoy) return selected ? "#fbbf24" : "#d97706";
-    if (cell.hasShield) return selected ? "#22d3ee" : "#0e7490";
-    return selected ? "#4ade80" : "#16a34a";
-  }
-  // enemy
-  if (cell.hasShield) return selected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)";
-  return selected ? "#f87171" : "#b91c1c";
+function finalPts(basePoints: number, room: Room): number {
+  const mult = room === "easy" ? 100 : room === "tactical" ? 150 : 300;
+  return Math.round((basePoints * mult) / 100);
 }
 
-function getCellBorder(cell: GridCell | undefined, selected: boolean): string {
-  if (!cell) return selected ? "1.5px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.07)";
-  if (cell.owner === "me") {
-    if (cell.isDecoy) return "1.5px solid #fbbf24";
-    if (cell.hasShield) return "1.5px solid #22d3ee";
-    return selected ? "2px solid #86efac" : "1.5px solid #4ade80";
+// ── Cell rendering ─────────────────────────────────────────────────────────────
+// IMPORTANT: enemy cells are intentionally INVISIBLE (look like empty cells).
+// This is the core hidden-battle mechanic — you never know which cells are occupied.
+// Discovery happens when a claim attempt hits a 409, which auto-triggers a strike.
+
+function getCellStyle(
+  cell: GridCell | undefined,
+  isHovered: boolean,
+  isRevealed: boolean,
+): { background: string; border: string; boxShadow?: string } {
+  // My cell — always fully colored
+  if (cell?.owner === "me") {
+    if (cell.isDecoy) {
+      return {
+        background: isHovered ? "#fbbf24" : "#d97706",
+        border: `1.5px solid ${isHovered ? "#fde68a" : "#fbbf24"}`,
+        boxShadow: isHovered ? "0 0 8px #fbbf2480" : undefined,
+      };
+    }
+    if (cell.hasShield) {
+      return {
+        background: isHovered ? "#22d3ee" : "#0e7490",
+        border: `1.5px solid ${isHovered ? "#67e8f9" : "#22d3ee"}`,
+        boxShadow: isHovered ? "0 0 8px #22d3ee80" : undefined,
+      };
+    }
+    return {
+      background: isHovered ? "#4ade80" : "#16a34a",
+      border: `2px solid ${isHovered ? "#86efac" : "#4ade80"}`,
+      boxShadow: isHovered ? "0 0 8px #22c55e80" : "0 0 3px #22c55e30",
+    };
   }
-  if (cell.hasShield) return "1.5px solid rgba(255,255,255,0.7)";
-  return selected ? "2px solid #fca5a5" : "1px solid #ef4444";
+
+  // Enemy cell — HIDDEN from grid display (same as empty)
+  // But if temporarily revealed (right after discovery), flash red
+  if (cell?.owner === "other") {
+    if (isRevealed) {
+      return {
+        background: "#7f1d1d",
+        border: "2px solid #ef4444",
+        boxShadow: "0 0 10px #ef444490",
+      };
+    }
+    // Looks exactly like empty — the game's core mystery
+    return {
+      background: isHovered ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
+      border: isHovered ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+    };
+  }
+
+  // Empty cell
+  return {
+    background: isHovered ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
+    border: isHovered ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.06)",
+  };
 }
 
 function getCellIcon(cell: GridCell | undefined) {
-  if (!cell) return null;
-  if (cell.owner === "me") {
-    if (cell.isDecoy) return <span className="text-[7px] drop-shadow">💥</span>;
-    if (cell.hasShield) return <span className="text-[7px] drop-shadow">🛡</span>;
-    return <span className="text-[7px] font-black text-white/80">●</span>;
-  }
-  return <span className="text-[7px] font-black text-white/60">●</span>;
+  if (!cell || cell.owner !== "me") return null;
+  if (cell.isDecoy) return <span className="text-[8px]">💥</span>;
+  if (cell.hasShield) return <span className="text-[8px]">🛡</span>;
+  return <div className="w-1.5 h-1.5 rounded-full bg-white/60" />;
 }
 
 // ── EntryGate ────────────────────────────────────────────────────────────────
@@ -245,7 +273,7 @@ function EntryGate({
   loading: boolean;
 }) {
   const { tr } = useLanguage();
-  const progress = (status.adsWatched / status.adsNeeded) * 100;
+  const progress = Math.min(1, status.adsWatched / status.adsNeeded) * 100;
   const hasAd =
     (config?.adsgram.enabled && config.adsgram.blockId) ||
     (config?.monetag.enabled && config.monetag.zoneId) ||
@@ -253,26 +281,29 @@ function EntryGate({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Hero */}
-      <div className="relative w-full flex-shrink-0" style={{ height: "220px" }}>
+      {/* Hero — show center to display the face */}
+      <div className="relative w-full flex-shrink-0" style={{ height: "230px" }}>
         <img
           src="/arcade-hero.jpeg"
           alt="SKX Arcade"
-          className="w-full h-full object-cover object-top"
-          style={{ filter: "brightness(0.75)" }}
+          className="w-full h-full object-cover"
+          style={{ objectPosition: "50% 20%", filter: "brightness(0.8)" }}
         />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(6,11,24,0.1) 0%, rgba(6,11,24,0.7) 70%, #060b18 100%)" }} />
-        <div className="absolute inset-0 flex flex-col items-center justify-end pb-5 gap-2">
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-2xl backdrop-blur-md" style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(34,197,94,0.4)" }}>
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom,transparent 30%,#060b18 100%)" }} />
+        <div className="absolute bottom-4 inset-x-0 flex flex-col items-center gap-1.5">
+          <div
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-2xl"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", border: "1px solid rgba(34,197,94,0.4)" }}
+          >
             <span className="font-black text-2xl tracking-widest" style={{ color: "#22c55e", fontFamily: "monospace" }}>SKX</span>
             <span className="font-black text-2xl tracking-widest text-white">ARCADE</span>
           </div>
-          <p className="text-xs text-white/60 tracking-wide">{tr.arcade.entrySubtitle}</p>
+          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>{tr.arcade.entrySubtitle}</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-4 pt-4 pb-8 flex flex-col gap-4">
+      <div className="flex-1 px-4 pt-4 pb-10 flex flex-col gap-4">
 
         {/* Option A — Ads */}
         <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)" }}>
@@ -292,7 +323,7 @@ function EntryGate({
             </div>
 
             {/* Step dots */}
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-1.5 mb-3">
               {Array.from({ length: status.adsNeeded }, (_, i) => (
                 <div
                   key={i}
@@ -303,13 +334,10 @@ function EntryGate({
             </div>
 
             {/* Progress bar */}
-            <div className="h-9 bg-white/5 rounded-xl overflow-hidden relative mb-0">
+            <div className="h-8 bg-white/5 rounded-xl overflow-hidden relative">
               <div
                 className="h-full rounded-xl transition-all duration-700"
-                style={{
-                  width: `${progress}%`,
-                  background: "linear-gradient(90deg,#16a34a,#22c55e)",
-                }}
+                style={{ width: `${progress}%`, background: "linear-gradient(90deg,#16a34a,#22c55e)" }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xs font-bold text-white/80">
@@ -327,26 +355,24 @@ function EntryGate({
               disabled={loading || !hasAd}
               className="w-full py-3.5 font-black text-sm transition-all active:scale-[0.98] disabled:opacity-50"
               style={{
-                background: hasAd
-                  ? "linear-gradient(135deg,#16a34a,#22c55e)"
-                  : "rgba(255,255,255,0.05)",
-                color: hasAd ? "#000" : "#666",
+                background: hasAd ? "linear-gradient(135deg,#16a34a,#22c55e)" : "rgba(255,255,255,0.05)",
+                color: hasAd ? "#000" : "#555",
               }}
             >
-              {loading ? tr.arcade.watchingAd : hasAd ? tr.arcade.watchAdBtn : tr.arcade.starsRequireTelegram}
+              {loading ? tr.arcade.watchingAd : hasAd ? tr.arcade.watchAdBtn : "Ads not configured"}
             </button>
           ) : (
             <div className="w-full py-3.5 text-center font-black text-sm" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>
-              ✓ {tr.arcade.ticketGrantedDesc}
+              ✅ {tr.arcade.ticketGrantedDesc}
             </div>
           )}
         </div>
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
           <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>{tr.arcade.dividerOr}</span>
-          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
         </div>
 
         {/* Option B — Stars */}
@@ -357,7 +383,7 @@ function EntryGate({
             </div>
             <div className="flex-1">
               <p className="text-sm font-black text-white">{tr.arcade.optionStarsTitle}</p>
-              <p className="text-[11px] text-yellow-500/80">{tr.arcade.optionStarsFast}</p>
+              <p className="text-[11px]" style={{ color: "#f59e0b99" }}>{tr.arcade.optionStarsFast}</p>
             </div>
           </div>
           <button
@@ -373,7 +399,7 @@ function EntryGate({
         {/* How it works */}
         <div className="rounded-xl p-3.5 flex gap-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <span className="text-xl shrink-0">🗺️</span>
-          <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+          <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
             {tr.arcade.howItWorksText}
           </p>
         </div>
@@ -384,10 +410,7 @@ function EntryGate({
 
 // ── RoomSelector ──────────────────────────────────────────────────────────────
 
-function RoomSelector({
-  status,
-  onRoomSelected,
-}: {
+function RoomSelector({ status, onRoomSelected }: {
   status: ArcadeStatus;
   onRoomSelected: (room: Room) => void;
 }) {
@@ -395,12 +418,19 @@ function RoomSelector({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Banner */}
-      <div className="relative w-full flex-shrink-0" style={{ height: "150px" }}>
-        <img src="/arcade-4.jpeg" alt="Rooms" className="w-full h-full object-cover" style={{ filter: "brightness(0.65)" }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom,transparent 0%,#060b18 100%)" }} />
+      {/* Banner — use arcade-5.jpeg which shows a different angle */}
+      <div className="relative w-full flex-shrink-0" style={{ height: "160px" }}>
+        <img
+          src="/arcade-5.jpeg"
+          alt="Rooms"
+          className="w-full h-full object-cover"
+          style={{ objectPosition: "50% 35%", filter: "brightness(0.7)" }}
+        />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom,transparent 20%,#060b18 100%)" }} />
         <div className="absolute bottom-4 left-4 right-4">
-          <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: "#22c55e" }}>{tr.arcade.ticketActive}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: "#22c55e" }}>
+            🎟️ {tr.arcade.ticketActive}
+          </p>
           <h2 className="text-2xl font-black text-white">{tr.arcade.roomTitle}</h2>
         </div>
       </div>
@@ -410,12 +440,12 @@ function RoomSelector({
         {status.activeSessions.length > 0 && (
           <div className="rounded-xl p-3" style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
             <p className="text-xs font-black mb-2" style={{ color: "#22c55e" }}>{tr.arcade.activeSessions}</p>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {status.activeSessions.map((s) => (
                 <div key={s.id} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
                   <span className="text-[10px] capitalize text-white/70">{s.roomType}</span>
-                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>({s.gridX},{s.gridY})</span>
+                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>({s.gridX},{s.gridY})</span>
                   <span className="ml-auto text-[10px] font-bold" style={{ color: "#22c55e" }}>
                     {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
                   </span>
@@ -451,17 +481,16 @@ function RoomSelector({
                   </div>
                 </div>
 
-                {/* Duration prizes row */}
                 <div className="flex gap-2">
                   {DURATION_OPTIONS.map((d) => {
-                    const pts = Math.round((d.points * (room === "easy" ? 100 : room === "tactical" ? 150 : 300)) / 100);
+                    const pts = finalPts(d.points, room);
                     return (
                       <div
                         key={d.hours}
                         className="flex-1 rounded-xl py-2 text-center"
                         style={{ background: `${r.color}18` }}
                       >
-                        <p className="text-[9px] font-bold" style={{ color: `${r.color}99` }}>{d.hours}{tr.arcade.hoursUnit}</p>
+                        <p className="text-[9px] font-bold" style={{ color: `${r.color}88` }}>{d.hours}{tr.arcade.hoursUnit}</p>
                         <p className="text-xs font-black" style={{ color: r.color }}>{(pts / 1000).toFixed(0)}K</p>
                       </div>
                     );
@@ -478,10 +507,8 @@ function RoomSelector({
                   </div>
                 )}
               </div>
-
-              {/* Subtle right glow */}
               <div
-                className="absolute right-0 top-0 bottom-0 w-20 pointer-events-none"
+                className="absolute right-0 top-0 bottom-0 w-16 pointer-events-none"
                 style={{ background: `linear-gradient(to left,${r.color}18,transparent)` }}
               />
             </button>
@@ -512,53 +539,80 @@ function ClaimDialog({
   const r = ROOMS[room];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+    >
       <div
-        className="w-full max-w-md rounded-t-3xl p-5 pb-10"
-        style={{ background: "#0a1628", borderTop: `2px solid ${r.color}40` }}
+        className="w-full max-w-md flex flex-col"
+        style={{
+          background: "#0a1628",
+          borderRadius: "24px 24px 0 0",
+          borderTop: `2px solid ${r.color}50`,
+          maxHeight: "78vh",
+        }}
       >
-        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.15)" }} />
-        <h3 className="text-center font-black text-white text-base mb-1">{tr.arcade.claimTitle(cell.x, cell.y)}</h3>
-        <p className="text-center text-xs mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.claimDesc}</p>
-
-        <div className="flex flex-col gap-2 mb-5">
-          {DURATION_OPTIONS.map((d) => {
-            const pts = Math.round((d.points * (room === "easy" ? 100 : room === "tactical" ? 150 : 300)) / 100);
-            const isSelected = selectedHours === d.hours;
-            return (
-              <button
-                key={d.hours}
-                onClick={() => setSelectedHours(d.hours)}
-                className="flex items-center gap-3 p-3.5 rounded-2xl transition-all"
-                style={{
-                  background: isSelected ? `${r.color}18` : "rgba(255,255,255,0.04)",
-                  border: isSelected ? `1.5px solid ${r.color}` : "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
-                  style={{ background: isSelected ? r.color : "rgba(255,255,255,0.06)" }}
-                >
-                  <Clock className="w-4 h-4" style={{ color: isSelected ? "#000" : r.color }} />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-black text-white">{durationLabel(d.hours, tr)}</p>
-                  <p className="text-[10px]" style={{ color: isSelected ? `${r.color}bb` : "rgba(255,255,255,0.35)" }}>
-                    {tr.arcade.riskPrefix} {durationRisk(d.hours, tr)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-base font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
-                  <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.ptsLabel}</p>
-                </div>
-              </button>
-            );
-          })}
+        {/* Handle */}
+        <div className="flex-shrink-0 flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
         </div>
 
-        <div className="flex gap-3">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: `${r.color}20` }}
+            >
+              <Target className="w-5 h-5" style={{ color: r.color }} />
+            </div>
+            <div>
+              <h3 className="font-black text-white text-base leading-tight">{tr.arcade.claimTitle(cell.x, cell.y)}</h3>
+              <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.claimDesc}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 mb-3">
+            {DURATION_OPTIONS.map((d) => {
+              const pts = finalPts(d.points, room);
+              const isSelected = selectedHours === d.hours;
+              return (
+                <button
+                  key={d.hours}
+                  onClick={() => setSelectedHours(d.hours)}
+                  className="flex items-center gap-3 p-3 rounded-2xl transition-all"
+                  style={{
+                    background: isSelected ? `${r.color}18` : "rgba(255,255,255,0.04)",
+                    border: isSelected ? `1.5px solid ${r.color}` : "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: isSelected ? r.color : "rgba(255,255,255,0.06)" }}
+                  >
+                    <Clock className="w-4 h-4" style={{ color: isSelected ? "#000" : r.color }} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-black text-white">{durationLabel(d.hours, tr)}</p>
+                    <p className="text-[10px]" style={{ color: isSelected ? `${r.color}bb` : "rgba(255,255,255,0.35)" }}>
+                      {tr.arcade.riskPrefix} {durationRisk(d.hours, tr)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-base font-black" style={{ color: r.color }}>{pts.toLocaleString()}</p>
+                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>{tr.arcade.ptsLabel}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Sticky bottom buttons — always visible */}
+        <div className="flex-shrink-0 flex gap-3 px-5 py-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <button
             onClick={onCancel}
+            disabled={loading}
             className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
             style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
           >
@@ -570,57 +624,7 @@ function ClaimDialog({
             className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
             style={{ background: r.color, color: "#000" }}
           >
-            {loading ? "..." : tr.arcade.claimBtn}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── StrikeDialog ──────────────────────────────────────────────────────────────
-
-function StrikeDialog({
-  cell,
-  onConfirm,
-  onCancel,
-  loading,
-}: {
-  cell: { x: number; y: number };
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading: boolean;
-}) {
-  const { tr } = useLanguage();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
-      <div className="w-full max-w-md rounded-t-3xl p-5 pb-10" style={{ background: "#0a1628", borderTop: "2px solid rgba(239,68,68,0.4)" }}>
-        <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.15)" }} />
-        <div className="flex flex-col items-center gap-3 mb-5">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden">
-            <img src="/arcade-3.jpeg" alt="Strike" className="w-full h-full object-cover" />
-          </div>
-          <div className="text-center">
-            <h3 className="font-black text-white text-base">{tr.arcade.strikeTitle(cell.x, cell.y)}</h3>
-            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.strikeDesc}</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
-            style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)" }}
-          >
-            {tr.arcade.cancel}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg,#b91c1c,#ef4444)", color: "#fff" }}
-          >
-            {loading ? "..." : tr.arcade.strikeBtn}
+            {loading ? "⏳" : tr.arcade.claimBtn}
           </button>
         </div>
       </div>
@@ -647,13 +651,16 @@ function ShopModal({
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+    >
       <div
-        className="w-full max-w-md rounded-t-3xl p-5 pb-10"
-        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)", maxHeight: "85vh", overflowY: "auto" }}
+        className="w-full max-w-md rounded-t-3xl flex flex-col"
+        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)", maxHeight: "82vh" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-3">
           <div>
             <h3 className="font-black text-white text-base">{tr.arcade.shopTitle}</h3>
             <p className="text-xs font-bold text-yellow-400">{tr.arcade.shopBalance(starsBalance)}</p>
@@ -667,61 +674,60 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Session selector */}
-        {activeSessions.length > 0 && (
-          <div className="mb-4">
-            <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.applyTo}</p>
-            <div className="flex flex-wrap gap-2">
-              {activeSessions.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedSession(s.id)}
-                  className="px-3 py-1.5 rounded-xl text-[10px] font-black transition-all"
-                  style={{
-                    background: selectedSession === s.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)",
-                    border: selectedSession === s.id ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.08)",
-                    color: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  ({s.gridX},{s.gridY})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Items */}
-        <div className="flex flex-col gap-2.5">
-          {SHOP_ITEMS.map((item) => {
-            const needsSession = item.type.startsWith("shield") || item.type === "decoy";
-            const canBuy = starsBalance >= item.stars && (!needsSession || selectedSession !== null);
-            return (
-              <div
-                key={item.type}
-                className="flex items-center gap-3 p-3.5 rounded-2xl"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <span className="text-2xl w-9 text-center">{item.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-white">{shopItemLabel(item.type, tr)}</p>
-                  <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    {shopItemDesc(item.type, tr)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => onBuy(item.type, needsSession ? selectedSession ?? undefined : undefined)}
-                  disabled={!canBuy || loading}
-                  className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all active:scale-95 disabled:opacity-35"
-                  style={{
-                    background: canBuy ? "linear-gradient(135deg,#b45309,#f59e0b)" : "rgba(255,255,255,0.06)",
-                    color: canBuy ? "#000" : "rgba(255,255,255,0.3)",
-                  }}
-                >
-                  {item.stars} ⭐
-                </button>
+        {/* Scrollable items */}
+        <div className="flex-1 overflow-y-auto px-5 pb-8">
+          {activeSessions.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>{tr.arcade.applyTo}</p>
+              <div className="flex flex-wrap gap-2">
+                {activeSessions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedSession(s.id)}
+                    className="px-3 py-1.5 rounded-xl text-[10px] font-black transition-all"
+                    style={{
+                      background: selectedSession === s.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.06)",
+                      border: selectedSession === s.id ? "1px solid #22c55e" : "1px solid rgba(255,255,255,0.08)",
+                      color: selectedSession === s.id ? "#22c55e" : "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    ({s.gridX},{s.gridY})
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2.5">
+            {SHOP_ITEMS.map((item) => {
+              const needsSession = item.type.startsWith("shield") || item.type === "decoy";
+              const canBuy = starsBalance >= item.stars && (!needsSession || selectedSession !== null);
+              return (
+                <div
+                  key={item.type}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <span className="text-2xl w-9 text-center">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-white">{shopItemLabel(item.type, tr)}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>{shopItemDesc(item.type, tr)}</p>
+                  </div>
+                  <button
+                    onClick={() => onBuy(item.type, needsSession ? selectedSession ?? undefined : undefined)}
+                    disabled={!canBuy || loading}
+                    className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all active:scale-95 disabled:opacity-35"
+                    style={{
+                      background: canBuy ? "linear-gradient(135deg,#b45309,#f59e0b)" : "rgba(255,255,255,0.06)",
+                      color: canBuy ? "#000" : "rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {item.stars} ⭐
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -750,8 +756,9 @@ function GridView({
   const [viewOx, setViewOx] = useState(0);
   const [viewOy, setViewOy] = useState(0);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  // Keys of cells briefly "revealed" during auto-strike discovery
+  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [claimCell, setClaimCell] = useState<{ x: number; y: number } | null>(null);
-  const [strikeCell, setStrikeCell] = useState<{ x: number; y: number } | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [gridLoading, setGridLoading] = useState(true);
@@ -781,62 +788,101 @@ function GridView({
     if (!gridData) return;
     const myCells = gridData.cells.filter((c) => c.owner === "me");
     if (myCells.length > 0) {
-      setViewOx(Math.max(0, myCells[0].x - Math.floor(vp / 2)));
-      setViewOy(Math.max(0, myCells[0].y - Math.floor(vp / 2)));
+      const cx = Math.max(0, Math.min(gridSize - vp, myCells[0].x - Math.floor(vp / 2)));
+      const cy = Math.max(0, Math.min(gridSize - vp, myCells[0].y - Math.floor(vp / 2)));
+      setViewOx(cx);
+      setViewOy(cy);
     }
-  }, [gridData, vp]);
+  }, [gridData, gridSize, vp]);
 
   const cellMap = new Map<string, GridCell>();
   gridData?.cells.forEach((c) => cellMap.set(`${c.x},${c.y}`, c));
 
   function onCellTap(absX: number, absY: number) {
-    haptic("light");
     const key = `${absX},${absY}`;
     const cell = cellMap.get(key);
-    if (!cell) {
-      setClaimCell({ x: absX, y: absY });
-    } else if (cell.owner === "me") {
+
+    if (cell?.owner === "me") {
+      // Tap own cell → open shop to manage it
+      haptic("light");
       setShopOpen(true);
-    } else {
-      setStrikeCell({ x: absX, y: absY });
+      return;
     }
+
+    // Tap empty OR enemy-looking cell → try to claim
+    // Enemy cells are intentionally hidden, so both look the same.
+    // If claim fails (409 "Cell already claimed"), we auto-strike.
+    haptic("medium");
+    setClaimCell({ x: absX, y: absY });
   }
 
+  // ── Claim handler ────────────────────────────────────────────────────────────
+  // Core hidden-battle mechanic: try claim → if taken, auto-strike with reveal
   async function handleClaim(hours: number) {
     if (!claimCell) return;
+    const { x, y } = claimCell;
     setLoading(true);
+
     try {
-      await apiPost("/arcade/grid/claim", { room, x: claimCell.x, y: claimCell.y, durationHours: hours });
+      // Try to claim the cell
+      await apiPost("/arcade/grid/claim", { room, x, y, durationHours: hours });
       haptic("success");
-      toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(claimCell.x, claimCell.y) });
+      toast({ title: tr.arcade.claimed, description: tr.arcade.claimedDesc(x, y) });
       setClaimCell(null);
       await Promise.all([loadGrid(), onStatusRefresh()]);
-    } catch (err: unknown) {
-      haptic("error");
-      toast({ title: tr.arcade.claimFailed, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }
+    } catch (claimErr: unknown) {
+      const status = (claimErr as { status?: number }).status;
+      const msg = claimErr instanceof Error ? claimErr.message : "";
 
-  async function handleStrike() {
-    if (!strikeCell) return;
-    setLoading(true);
-    try {
-      const result = await apiPost<{ result: string; strikerReward?: number; message: string }>(
-        "/arcade/grid/strike",
-        { room, x: strikeCell.x, y: strikeCell.y },
-      );
-      haptic(result.result === "shielded" ? "warning" : "success");
-      toast({
-        title: result.message,
-        description: result.strikerReward ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}` : undefined,
-      });
-      setStrikeCell(null);
-      await Promise.all([loadGrid(), onStatusRefresh()]);
-    } catch (err: unknown) {
-      haptic("error");
-      toast({ title: tr.arcade.strikeFailed, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
+      if (status === 409 && msg.toLowerCase().includes("already")) {
+        // 🎯 DISCOVERY MOMENT: this cell is actually enemy-owned!
+        setClaimCell(null);
+        haptic("warning");
+
+        // Flash the enemy cell briefly
+        const key = `${x},${y}`;
+        setRevealedKeys((prev) => new Set([...prev, key]));
+        toast({ title: "⚔️ Enemy detected! Striking...", description: `(${x}, ${y})` });
+
+        await new Promise((res) => setTimeout(res, 900));
+
+        // Auto-strike
+        try {
+          const result = await apiPost<{ result: string; strikerReward?: number; penalty?: number; message: string }>(
+            "/arcade/grid/strike",
+            { room, x, y },
+          );
+          haptic(result.result === "shielded" ? "warning" : result.result === "decoy_trap" ? "error" : "success");
+          const icon = result.result === "shielded" ? "🛡️" : result.result === "decoy_trap" ? "💥" : "⚔️";
+          const detail = result.strikerReward
+            ? `+${result.strikerReward.toLocaleString()} ${tr.arcade.ptsLabel}`
+            : result.penalty
+              ? `−${result.penalty.toLocaleString()} ${tr.arcade.ptsLabel}`
+              : undefined;
+          toast({ title: `${icon} ${result.message}`, description: detail });
+          await Promise.all([loadGrid(), onStatusRefresh()]);
+        } catch (strikeErr: unknown) {
+          toast({
+            title: tr.arcade.strikeFailed,
+            description: strikeErr instanceof Error ? strikeErr.message : tr.arcade.tryAgain,
+            variant: "destructive",
+          });
+        }
+
+        // Clear reveal flash
+        setRevealedKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      } else {
+        haptic("error");
+        toast({
+          title: tr.arcade.claimFailed,
+          description: msg || tr.arcade.tryAgain,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -859,7 +905,7 @@ function GridView({
   }
 
   function pan(dx: number, dy: number) {
-    const step = Math.max(3, Math.floor(vp / 3));
+    const step = Math.max(2, Math.floor(vp / 3));
     setViewOx((x) => Math.max(0, Math.min(gridSize - vp, x + dx * step)));
     setViewOy((y) => Math.max(0, Math.min(gridSize - vp, y + dy * step)));
     haptic("light");
@@ -878,70 +924,74 @@ function GridView({
         >
           <ChevronLeft className="w-5 h-5 text-white" />
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-black text-white">{r.label}</p>
-          <p className="text-[10px]" style={{ color: `${r.color}cc` }}>
+          <p className="text-[10px] truncate" style={{ color: `${r.color}cc` }}>
             {gridData ? tr.arcade.activeCells(gridData.totalActive) : tr.arcade.loadingGrid}
-            {" · "}({viewOx}–{Math.min(viewOx + vp - 1, gridSize - 1)}, {viewOy}–{Math.min(viewOy + vp - 1, gridSize - 1)})
+            {" · "}{viewOx}–{Math.min(viewOx + vp - 1, gridSize - 1)}, {viewOy}–{Math.min(viewOy + vp - 1, gridSize - 1)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loadGrid()}
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.25)" }}
-          >
-            <span className="text-sm">↻</span>
-          </button>
-          <button
-            onClick={() => { haptic("light"); setShopOpen(true); }}
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "rgba(245,158,11,0.25)", border: "1px solid rgba(245,158,11,0.4)" }}
-          >
-            <Star className="w-4 h-4 text-yellow-400" />
-          </button>
-        </div>
+        <button
+          onClick={() => loadGrid()}
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-sm"
+          style={{ background: "rgba(0,0,0,0.25)" }}
+        >
+          ↻
+        </button>
+        <button
+          onClick={() => { haptic("light"); setShopOpen(true); }}
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(245,158,11,0.25)", border: "1px solid rgba(245,158,11,0.4)" }}
+        >
+          <Star className="w-4 h-4 text-yellow-400" />
+        </button>
       </div>
 
       {/* Grid area */}
       <div className="flex-1 flex flex-col items-center justify-center px-2 py-2 gap-1.5 min-h-0">
-        {/* Up */}
+        {/* Up nav */}
         <button
           onClick={() => pan(0, -1)}
           disabled={viewOy === 0}
-          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 active:scale-95"
           style={{ background: "rgba(255,255,255,0.07)" }}
         >
           <ChevronUp className="w-4 h-4 text-white/70" />
         </button>
 
         <div className="flex items-center gap-1.5 w-full flex-1 min-h-0">
-          {/* Left */}
+          {/* Left nav */}
           <button
             onClick={() => pan(-1, 0)}
             disabled={viewOx === 0}
-            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 active:scale-95"
             style={{ background: "rgba(255,255,255,0.07)" }}
           >
             <ChevronLeft className="w-4 h-4 text-white/70" />
           </button>
 
           {/* Grid */}
-          <div className="flex-1 relative" style={{ aspectRatio: "1", maxWidth: "100%", maxHeight: "100%" }}>
+          <div className="flex-1 relative min-w-0" style={{ aspectRatio: "1", maxHeight: "100%" }}>
             <div
               className="absolute inset-0"
               style={{
                 display: "grid",
                 gridTemplateColumns: `repeat(${vp}, 1fr)`,
                 gap: "2px",
-                padding: "2px",
-                background: "rgba(255,255,255,0.04)",
+                padding: "3px",
                 borderRadius: "12px",
+                background: "rgba(255,255,255,0.03)",
               }}
             >
               {gridLoading && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl" style={{ background: "rgba(6,11,24,0.7)" }}>
-                  <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${r.color}`, borderTopColor: "transparent" }} />
+                <div
+                  className="absolute inset-0 flex items-center justify-center z-10 rounded-xl"
+                  style={{ background: "rgba(6,11,24,0.75)" }}
+                >
+                  <div
+                    className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
+                    style={{ borderColor: r.color, borderTopColor: "transparent" }}
+                  />
                 </div>
               )}
               {Array.from({ length: vp * vp }, (_, i) => {
@@ -952,17 +1002,20 @@ function GridView({
                 const key = `${absX},${absY}`;
                 const cell = cellMap.get(key);
                 const isHovered = hoveredKey === key;
+                const isRevealed = revealedKeys.has(key);
+                const style = getCellStyle(cell, isHovered, isRevealed);
+
                 return (
                   <button
                     key={i}
                     onClick={() => onCellTap(absX, absY)}
                     onMouseEnter={() => setHoveredKey(key)}
                     onMouseLeave={() => setHoveredKey(null)}
-                    className="rounded-[3px] flex items-center justify-center transition-all duration-100 active:scale-90"
+                    className="rounded-[3px] flex items-center justify-center transition-all duration-75 active:scale-75"
                     style={{
-                      background: getCellBg(cell, isHovered),
-                      border: getCellBorder(cell, isHovered),
-                      boxShadow: isHovered && cell ? `0 0 6px ${cell.owner === "me" ? "#22c55e" : "#ef4444"}60` : undefined,
+                      background: style.background,
+                      border: style.border,
+                      boxShadow: style.boxShadow,
                     }}
                   >
                     {getCellIcon(cell)}
@@ -972,80 +1025,73 @@ function GridView({
             </div>
           </div>
 
-          {/* Right */}
+          {/* Right nav */}
           <button
             onClick={() => pan(1, 0)}
             disabled={viewOx >= gridSize - vp}
-            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 transition-all active:scale-95"
+            className="w-7 h-10 rounded-xl flex items-center justify-center disabled:opacity-20 shrink-0 active:scale-95"
             style={{ background: "rgba(255,255,255,0.07)" }}
           >
             <ChevronRight className="w-4 h-4 text-white/70" />
           </button>
         </div>
 
-        {/* Down */}
+        {/* Down nav */}
         <button
           onClick={() => pan(0, 1)}
           disabled={viewOy >= gridSize - vp}
-          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 transition-all active:scale-95"
+          className="w-10 h-7 rounded-xl flex items-center justify-center disabled:opacity-20 active:scale-95"
           style={{ background: "rgba(255,255,255,0.07)" }}
         >
           <ChevronDown className="w-4 h-4 text-white/70" />
         </button>
 
         {/* Legend */}
-        <div className="flex gap-4 pt-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ background: "#16a34a", border: "1px solid #4ade80" }} />
-            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendMine}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ background: "#b91c1c", border: "1px solid #f87171" }} />
-            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendOther}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ background: "#0e7490", border: "1px solid #22d3ee" }} />
-            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendShield}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }} />
-            <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.45)" }}>{tr.arcade.legendEmpty}</span>
-          </div>
+        <div className="flex gap-4 pt-1 pb-0.5">
+          {[
+            { bg: "#16a34a", border: "#4ade80", label: tr.arcade.legendMine },
+            { bg: "#0e7490", border: "#22d3ee", label: tr.arcade.legendShield },
+            { bg: "#d97706", border: "#fbbf24", label: "Decoy" },
+            { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", label: tr.arcade.legendEmpty },
+          ].map(({ bg, border, label }) => (
+            <div key={label} className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-[2px]" style={{ background: bg, border: `1px solid ${border}` }} />
+              <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* My sessions panel */}
       {mySessions.length > 0 && (
-        <div className="shrink-0 px-4 py-3" style={{ borderTop: `1px solid ${r.color}20`, background: `${r.color}08` }}>
-          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: `${r.color}80` }}>
+        <div className="shrink-0 px-4 py-2.5" style={{ borderTop: `1px solid ${r.color}20`, background: `${r.color}07` }}>
+          <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{ color: `${r.color}70` }}>
             {tr.arcade.mySessions}
           </p>
           <div className="flex flex-col gap-1.5">
-            {mySessions.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                style={{ background: `${r.color}10`, border: `1px solid ${r.color}20` }}
-              >
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>({s.gridX},{s.gridY})</span>
-                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max(4, ((new Date(s.expiresAt).getTime() - Date.now()) / (s.durationHours * 3_600_000)) * 100)}%`,
-                      background: r.color,
-                    }}
-                  />
+            {mySessions.map((s) => {
+              const elapsed = Date.now() - (new Date(s.expiresAt).getTime() - s.durationHours * 3_600_000);
+              const pct = Math.max(4, Math.min(100, (elapsed / (s.durationHours * 3_600_000)) * 100));
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  style={{ background: `${r.color}10`, border: `1px solid ${r.color}20` }}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: r.color }} />
+                  <span className="text-[10px] shrink-0" style={{ color: "rgba(255,255,255,0.5)" }}>({s.gridX},{s.gridY})</span>
+                  <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: r.color }} />
+                  </div>
+                  <span className="text-[10px] font-bold shrink-0" style={{ color: r.color }}>
+                    {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
+                  </span>
+                  <span className="text-[10px] font-black text-yellow-400 shrink-0">+{s.finalPoints.toLocaleString()}</span>
+                  {s.hasShield && <Shield className="w-3 h-3 text-cyan-400 shrink-0" />}
+                  {s.isDecoy && <span className="text-[9px] shrink-0">💥</span>}
                 </div>
-                <span className="text-[10px] font-bold" style={{ color: r.color }}>
-                  {formatCountdown(s.expiresAt, tr.arcade.expired, tr.arcade.hoursUnit)}
-                </span>
-                <span className="text-[10px] font-black text-yellow-400">+{s.finalPoints.toLocaleString()}</span>
-                {s.hasShield && <Shield className="w-3 h-3 text-cyan-400" />}
-                {s.isDecoy && <span className="text-[9px]">💥</span>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -1057,14 +1103,6 @@ function GridView({
           room={room}
           onConfirm={handleClaim}
           onCancel={() => setClaimCell(null)}
-          loading={loading}
-        />
-      )}
-      {strikeCell && (
-        <StrikeDialog
-          cell={strikeCell}
-          onConfirm={handleStrike}
-          onCancel={() => setStrikeCell(null)}
           loading={loading}
         />
       )}
@@ -1094,7 +1132,6 @@ function ArcadeTabInner() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load public config once
   useEffect(() => {
     getPublicConfig().then(setConfig).catch(() => setConfig(null));
   }, []);
@@ -1103,10 +1140,7 @@ function ArcadeTabInner() {
     try {
       const data = await apiGet<ArcadeStatus>("/arcade/status");
       setStatus(data);
-      if (data.enabled === false) {
-        setPhase("disabled");
-        return;
-      }
+      if (data.enabled === false) { setPhase("disabled"); return; }
       if (data.wonSessionsAwarded > 0) {
         toast({ title: tr.arcade.wonPoints(data.wonSessionsAwarded), description: tr.arcade.wonPointsDesc });
         refreshFromServer();
@@ -1117,43 +1151,33 @@ function ArcadeTabInner() {
     }
   }, [toast, refreshFromServer, tr]);
 
-  useEffect(() => {
-    loadStatus();
-  }, [loadStatus]);
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
-  // ── Watch real ad, then record on backend ──────────────────────────────────
+  // ── Watch real ad ──────────────────────────────────────────────────────────
   async function handleAdWatched() {
     const hasAny =
       (config?.adsgram.enabled && config.adsgram.blockId) ||
       (config?.monetag.enabled && config.monetag.zoneId) ||
       (config?.onclicka.enabled && config.onclicka.spotId);
-
     if (!hasAny || actionLoading) return;
     setActionLoading(true);
     try {
-      // 1. Show the real rewarded ad
       await watchRewardedAdWithFallback(config);
-
-      // 2. Record the view on the arcade backend
-      const result = await apiPost<{ granted: boolean; adsWatched: number }>("/arcade/ticket/watch-ad");
+      const result = await apiPost<{ granted: boolean; adsWatched: number; adsNeeded?: number }>("/arcade/ticket/watch-ad");
       haptic("light");
-
       if (result.granted) {
         haptic("success");
         toast({ title: tr.arcade.ticketGranted, description: tr.arcade.ticketGrantedDesc });
         await loadStatus();
       } else {
-        const remaining = (status?.adsNeeded ?? 5) - result.adsWatched;
-        toast({ title: tr.arcade.adsProgress(result.adsWatched, status?.adsNeeded ?? 5, remaining) });
+        const needed = result.adsNeeded ?? status?.adsNeeded ?? 5;
+        const remaining = needed - result.adsWatched;
+        toast({ title: tr.arcade.adsProgress(result.adsWatched, needed, remaining) });
         setStatus((s) => (s ? { ...s, adsWatched: result.adsWatched } : s));
       }
     } catch (err: unknown) {
       haptic("error");
-      toast({
-        title: tr.arcade.error,
-        description: err instanceof Error ? err.message : tr.arcade.tryAgain,
-        variant: "destructive",
-      });
+      toast({ title: tr.arcade.error, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -1163,7 +1187,7 @@ function ArcadeTabInner() {
     setActionLoading(true);
     try {
       const { invoiceUrl } = await apiPost<{ invoiceUrl: string }>("/arcade/ticket/stars");
-      const tg = (window as any).Telegram?.WebApp;
+      const tg = (window as { Telegram?: { WebApp?: { openInvoice?: (url: string, cb: (s: string) => void) => void } } }).Telegram?.WebApp;
       if (tg?.openInvoice) {
         tg.openInvoice(invoiceUrl, async (payStatus: string) => {
           if (payStatus === "paid") {
@@ -1177,23 +1201,25 @@ function ArcadeTabInner() {
         toast({ title: tr.arcade.openInTelegram, description: tr.arcade.starsRequireTelegram });
       }
     } catch (err: unknown) {
-      toast({
-        title: tr.arcade.error,
-        description: err instanceof Error ? err.message : tr.arcade.tryAgain,
-        variant: "destructive",
-      });
+      toast({ title: tr.arcade.error, description: err instanceof Error ? err.message : tr.arcade.tryAgain, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
   }
 
-  // ── Render phases ─────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (phase === "loading" || !status) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
-          <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#22c55e", borderTopColor: "transparent" }} />
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}
+        >
+          <div
+            className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: "#22c55e", borderTopColor: "transparent" }}
+          />
         </div>
         <p className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.loading}</p>
       </div>
@@ -1211,9 +1237,7 @@ function ArcadeTabInner() {
         </div>
         <div>
           <h3 className="text-xl font-black text-white mb-2">{tr.arcade.disabledTitle}</h3>
-          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
-            {tr.arcade.disabledDesc}
-          </p>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{tr.arcade.disabledDesc}</p>
         </div>
       </div>
     );
