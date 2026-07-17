@@ -660,16 +660,29 @@ function ShopModal({
   const { tr } = useLanguage();
   const [selectedSession, setSelectedSession] = useState<number | null>(activeSessions[0]?.id ?? null);
 
+  // JS-driven scroll — body has `touch-action:none` globally which blocks CSS-based
+  // touch scrolling even when the child sets `touch-action:pan-y` (browser takes the
+  // intersection across ancestors = none). Manually tracking delta + setting scrollTop
+  // bypasses this entirely and works in every Telegram WebView.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchState = useRef({ startY: 0, startScroll: 0 });
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* min-h-0 on parent ensures flex-1 child can scroll properly */}
+      {/* Modal panel — absolutely pinned to bottom, no flex column needed */}
       <div
-        className="w-full max-w-md rounded-t-3xl flex flex-col min-h-0"
-        style={{ background: "#0a1628", borderTop: "2px solid rgba(245,158,11,0.35)", maxHeight: "82vh" }}
+        className="absolute bottom-0 left-0 right-0 w-full max-w-md mx-auto rounded-t-3xl"
+        style={{
+          background: "#0a1628",
+          borderTop: "2px solid rgba(245,158,11,0.35)",
+          maxHeight: "82dvh",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
         {/* Handle */}
         <div className="flex-shrink-0 flex justify-center pt-2.5 pb-1">
@@ -691,15 +704,22 @@ function ShopModal({
           </button>
         </div>
 
-        {/* Scrollable items — explicit maxHeight avoids WebKit flex-1 scroll bug */}
+        {/* Scrollable items — JS-driven scroll to bypass body touch-action:none */}
         <div
+          ref={scrollRef}
           className="px-5 pb-10"
-          style={{
-            overflowY: "scroll",
-            maxHeight: "calc(82dvh - 90px)",
-            WebkitOverflowScrolling: "touch",
-            touchAction: "pan-y",
-            overscrollBehavior: "contain",
+          style={{ overflowY: "auto", flex: "1 1 0", minHeight: 0 }}
+          onTouchStart={(e) => {
+            touchState.current = {
+              startY: e.touches[0].clientY,
+              startScroll: scrollRef.current?.scrollTop ?? 0,
+            };
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation();
+            if (!scrollRef.current) return;
+            const delta = touchState.current.startY - e.touches[0].clientY;
+            scrollRef.current.scrollTop = touchState.current.startScroll + delta;
           }}
         >
           {activeSessions.length > 0 && (
