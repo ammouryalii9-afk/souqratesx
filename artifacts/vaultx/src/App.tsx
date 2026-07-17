@@ -123,7 +123,7 @@ function Header() {
   }, []);
   
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 h-20 flex items-center gap-2 overflow-hidden">
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-4 h-20 flex items-center gap-2">
       {/* Left — shrink-0 so it never collapses */}
       <div className="flex items-center gap-2.5 shrink-0">
         <div className="w-9 h-9 flex items-center justify-center">
