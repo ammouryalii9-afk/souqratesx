@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ArcadeTab } from './ArcadeTab';
 import { Grid3x3, Loader2, Minus, Plus, TrendingUp, Clock, Coins, Info, DollarSign, ArrowDownToLine } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useLanguage } from '../lib/i18n';
@@ -42,6 +43,7 @@ function PixelsTabInner() {
   const [withdrawing, setWithdrawing] = useState(false);
   // Tick every 60s so the countdown display updates without needing parent re-renders
   const [, setTick] = useState(0);
+  const [subTab, setSubTab] = useState<'pixels' | 'arcade'>('pixels');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -173,7 +175,32 @@ function PixelsTabInner() {
   }
 
   return (
-    <div className="flex flex-col space-y-4 pb-24 px-4 pt-4 animate-in fade-in duration-300 overflow-y-auto h-full">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Sub-tab navigation */}
+      <div className="shrink-0 flex gap-1 p-1 mx-4 mt-3 mb-1 rounded-2xl bg-white/[0.04] border border-white/5">
+        <button
+          onClick={() => setSubTab('pixels')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${subTab === 'pixels' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+        >
+          🏛️ البكسلات
+        </button>
+        <button
+          onClick={() => setSubTab('arcade')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${subTab === 'arcade' ? 'text-white' : 'text-muted-foreground hover:text-white'}`}
+          style={subTab === 'arcade' ? { background: 'linear-gradient(135deg,#22c55e,#16a34a)' } : {}}
+        >
+          🎮 SKX Arcade
+        </button>
+      </div>
+
+      {subTab === 'arcade' && (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <ArcadeTab />
+        </div>
+      )}
+
+      {subTab === 'pixels' && (
+    <div className="flex flex-col space-y-4 pb-24 px-4 pt-2 animate-in fade-in duration-300 overflow-y-auto flex-1">
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-black text-white flex items-center justify-center gap-2">
@@ -412,6 +439,8 @@ function PixelsTabInner() {
           </div>
         )}
       </div>
+    </div>
+      )}
     </div>
   );
 }

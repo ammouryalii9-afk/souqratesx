@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable, competitionsTable } from "@workspace/db";
+import { db, vaultUsersTable, processedTransactionsTable, starProductsTable, squadsTable, competitionEntriesTable, competitionsTable, arcadeTicketsTable } from "@workspace/db";
 import { answerPreCheckoutQuery, sendTelegramMessage, sendStartMessage, answerCallbackQuery, sendCallbackReply, verifyWebhookSecretToken, type TelegramUpdate } from "../lib/telegramBot";
 import { getSettingsMap, asString } from "../lib/settings";
 import { logUserActivity } from "../lib/activityLog";
@@ -331,6 +331,23 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
             .update(vaultUsersTable)
             .set({ starsBalance: sql`${vaultUsersTable.starsBalance} + ${payment.total_amount}` })
             .where(eq(vaultUsersTable.telegramId, telegramId));
+        } else if (payload.effect === "arcade_ticket") {
+          // Grant daily arcade ticket purchased via 100 Stars
+          const dayKey = new Date().toISOString().slice(0, 10);
+          await db
+            .insert(arcadeTicketsTable)
+            .values({
+              telegramId,
+              dayKey,
+              entryMethod: "stars" as const,
+              adsWatched: 0,
+              ticketGranted: true,
+              grantedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [arcadeTicketsTable.telegramId, arcadeTicketsTable.dayKey],
+              set: { ticketGranted: true, entryMethod: "stars" as const, grantedAt: new Date() },
+            });
         } else {
           await db
             .update(vaultUsersTable)

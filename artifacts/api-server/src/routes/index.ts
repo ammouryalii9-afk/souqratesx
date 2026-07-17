@@ -18,6 +18,7 @@ import competitionsRouter from "./competitions";
 import pixelsRouter from "./pixels";
 import contractRouter from "./contract";
 import groupChallengesRouter from "./groupChallenges";
+import arcadeRouter from "./arcade";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(competitionsRouter);
 router.use(pixelsRouter);
 router.use(contractRouter);
 router.use(groupChallengesRouter);
+router.use(arcadeRouter);
 
 export default router;

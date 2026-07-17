@@ -35,3 +35,4 @@ export * from "./competitions";
 export * from "./pixels";
 export * from "./pixelUsdWithdrawals";
 export * from "./groupInviteChallenges";
+export * from "./arcade";
