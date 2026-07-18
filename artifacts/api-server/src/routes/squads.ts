@@ -59,6 +59,53 @@ router.get("/squads", async (_req, res): Promise<void> => {
   res.json(board.map((s, i) => ({ rank: i + 1, ...s, isGold: goldIds.has(s.id) })));
 });
 
+// GET /squads/:id — public squad detail + top members (for leaderboard drill-down)
+router.get("/squads/:id", async (req, res): Promise<void> => {
+  const squadId = Number(req.params.id);
+  if (!Number.isInteger(squadId) || squadId <= 0) {
+    res.status(400).json({ error: "Invalid squad id" });
+    return;
+  }
+
+  const [squad] = await db.select().from(squadsTable).where(eq(squadsTable.id, squadId));
+  if (!squad) {
+    res.status(404).json({ error: "Squad not found" });
+    return;
+  }
+
+  const members = await db
+    .select({
+      telegramId: vaultUsersTable.telegramId,
+      username: vaultUsersTable.username,
+      firstName: vaultUsersTable.firstName,
+      lifetimePoints: vaultUsersTable.lifetimePoints,
+    })
+    .from(vaultUsersTable)
+    .where(and(eq(vaultUsersTable.squadId, squadId), eq(vaultUsersTable.isBanned, false)))
+    .orderBy(desc(vaultUsersTable.lifetimePoints))
+    .limit(50);
+
+  const board = await loadSquadBoard(500);
+  const idx = board.findIndex((s) => s.id === squadId);
+  const entry = idx >= 0 ? board[idx] : null;
+
+  res.json({
+    id: squad.id,
+    name: squad.name,
+    emoji: squad.emoji,
+    isGold: squad.isGold,
+    rank: idx >= 0 ? idx + 1 : null,
+    memberCount: entry?.memberCount ?? members.length,
+    totalPoints: entry?.totalPoints ?? 0,
+    members: members.map((m) => ({
+      telegramId: m.telegramId,
+      name: m.username || m.firstName || `Player ${m.telegramId.slice(-4)}`,
+      lifetimePoints: m.lifetimePoints,
+      isOwner: m.telegramId === squad.ownerId,
+    })),
+  });
+});
+
 // GET /squads/me — the caller's squad, its members, and its rank (or null)
 router.get("/squads/me", async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);

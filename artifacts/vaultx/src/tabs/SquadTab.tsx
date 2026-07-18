@@ -3,18 +3,21 @@ import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Shield, Crown, Users, Trophy, Loader2, Share2, Copy, LogOut, Zap, Plus } from 'lucide-react';
+import { Shield, Crown, Users, Trophy, Loader2, Share2, Copy, LogOut, Zap, Plus, ChevronDown, ChevronUp, X, ChevronRight } from 'lucide-react';
 import {
   getSquadBoard,
   getMySquad,
+  getSquadById,
   createSquad,
   joinSquad,
   leaveSquad,
   SquadApiError,
   type SquadBoardEntry,
+  type SquadDetail,
   type MySquad,
 } from '../lib/squadsApi';
 import { getBotUsername } from '../lib/gameApi';
+
 const EMOJI_CHOICES = ['🛡️', '⚡', '🔥', '💎', '👑', '🚀', '🐉', '🦁', '🌊', '⭐', '💰', '🎯'];
 
 export const SquadTab = () => {
@@ -31,6 +34,9 @@ export const SquadTab = () => {
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🛡️');
   const [botUsername, setBotUsername] = useState('SouqratesX_bot');
+
+  const [selectedSquad, setSelectedSquad] = useState<SquadDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     getBotUsername().then(setBotUsername).catch(() => {});
@@ -118,6 +124,7 @@ export const SquadTab = () => {
         title: tr.squad.joinedTitle,
         description: res.creditedBonus > 0 ? `+${res.creditedBonus.toLocaleString()} ${tr.squad.bonusPoints}` : tr.squad.welcome,
       });
+      setSelectedSquad(null);
       await Promise.all([load(), refreshFromServer()]);
     } catch (e) {
       if (e instanceof SquadApiError && e.status === 401) {
@@ -145,8 +152,22 @@ export const SquadTab = () => {
     }
   };
 
+  const openSquadDetail = async (entry: SquadBoardEntry) => {
+    haptic('light');
+    setDetailLoading(true);
+    setSelectedSquad(null);
+    try {
+      const detail = await getSquadById(entry.id);
+      setSelectedSquad(detail);
+    } catch {
+      toast({ title: 'Error', description: 'Could not load squad details.', variant: 'destructive' });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col space-y-8 px-4 pt-6 pb-24 animate-in fade-in duration-500">
+    <div className="flex flex-col space-y-6 px-4 pt-6 pb-24 animate-in fade-in duration-500">
       {/* Header */}
       <section>
         <div className="flex items-center gap-3 mb-2">
@@ -155,9 +176,7 @@ export const SquadTab = () => {
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">{tr.squad.title}</h2>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {tr.squad.subtitle}
-        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{tr.squad.subtitle}</p>
       </section>
 
       {loading ? (
@@ -197,16 +216,18 @@ export const SquadTab = () => {
 
         <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm">
           {board.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">
-              {tr.squad.noSquads}
-            </div>
+            <div className="py-16 text-center text-sm text-muted-foreground">{tr.squad.noSquads}</div>
           ) : (
             <div className="flex flex-col divide-y divide-white/5">
               {board.slice(0, 50).map((s) => {
                 const mine = mySquad?.id === s.id;
-                const canJoin = !mySquad && isTelegramUser;
                 return (
-                  <div key={s.id} className={`flex items-center justify-between p-4 transition-colors ${mine ? 'bg-primary/10 relative' : 'hover:bg-white/[0.02]'}`}>
+                  <button
+                    key={s.id}
+                    onClick={() => openSquadDetail(s)}
+                    disabled={detailLoading}
+                    className={`w-full text-left flex items-center justify-between p-4 transition-colors active:scale-[0.98] ${mine ? 'bg-primary/10 relative' : 'hover:bg-white/[0.03]'}`}
+                  >
                     {mine && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />}
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-inner shrink-0 ${
@@ -229,26 +250,142 @@ export const SquadTab = () => {
                         </span>
                       </div>
                     </div>
-                    {canJoin && (
-                      <button
-                        onClick={() => handleJoin(s.id)}
-                        disabled={busy}
-                        className="shrink-0 bg-primary/90 hover:bg-primary text-primary-foreground text-xs font-bold px-4 py-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_15px_rgba(52,211,153,0.25)]"
-                      >
-                        {tr.squad.joinBtn}
-                      </button>
-                    )}
-                  </div>
+                    <ChevronRight className="w-4 h-4 text-white/30 shrink-0" />
+                  </button>
                 );
               })}
             </div>
           )}
         </div>
       </section>
+
+      {/* Squad detail modal */}
+      {(selectedSquad || detailLoading) && (
+        <SquadDetailModal
+          squad={selectedSquad}
+          loading={detailLoading}
+          mySquadId={mySquad?.id ?? null}
+          isTelegramUser={isTelegramUser}
+          busy={busy}
+          onJoin={handleJoin}
+          onClose={() => setSelectedSquad(null)}
+        />
+      )}
     </div>
   );
 };
 
+/* ── Squad detail modal ────────────────────────────────────────────── */
+function SquadDetailModal({
+  squad,
+  loading,
+  mySquadId,
+  isTelegramUser,
+  busy,
+  onJoin,
+  onClose,
+}: {
+  squad: SquadDetail | null;
+  loading: boolean;
+  mySquadId: number | null;
+  isTelegramUser: boolean;
+  busy: boolean;
+  onJoin: (id: number) => void;
+  onClose: () => void;
+}) {
+  const { lang } = useLanguage();
+  const isMine = squad ? mySquadId === squad.id : false;
+  const canJoin = squad && !mySquadId && isTelegramUser;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 backdrop-blur-md" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-t-[28px] bg-[hsl(216_30%_10%)] border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 pb-safe"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+
+        {loading || !squad ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-3 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">{squad.emoji}</span>
+                <div>
+                  <p className={`text-lg font-black tracking-tight ${squad.isGold ? 'text-gold' : 'text-white'}`}>
+                    {squad.isGold && <span className="text-gold mr-1">✦</span>}
+                    {squad.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {squad.rank ? `#${squad.rank}` : '—'} · {squad.memberCount} {lang === 'ar' ? 'عضو' : 'members'} · {squad.totalPoints.toLocaleString()} pts
+                  </p>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/5 text-white/40 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Join button */}
+            {canJoin && (
+              <div className="px-5 pb-4">
+                <button
+                  onClick={() => onJoin(squad.id)}
+                  disabled={busy}
+                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(52,211,153,0.3)]"
+                >
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                  {lang === 'ar' ? 'انضم للفرقة' : 'Join Squad'}
+                </button>
+              </div>
+            )}
+            {isMine && (
+              <div className="px-5 pb-4">
+                <div className="py-3 rounded-xl bg-primary/10 border border-primary/20 text-center text-sm font-bold text-primary">
+                  {lang === 'ar' ? 'فرقتك الحالية' : 'Your Squad'}
+                </div>
+              </div>
+            )}
+
+            {/* Members list */}
+            <div className="border-t border-white/5 max-h-[45vh] overflow-y-auto">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground px-5 py-3">
+                {lang === 'ar' ? 'الأعضاء' : 'Members'}
+              </p>
+              {squad.members.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground pb-6">{lang === 'ar' ? 'لا يوجد أعضاء' : 'No members'}</p>
+              ) : (
+                <div className="flex flex-col divide-y divide-white/5 pb-6">
+                  {squad.members.map((m, i) => (
+                    <div key={m.telegramId} className="flex items-center justify-between px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 text-center text-xs font-bold text-muted-foreground">{i + 1}</span>
+                        <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                          {m.name}
+                          {m.isOwner && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-mono">{m.lifetimePoints.toLocaleString()} pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── My Squad card (compact — members collapsible) ─────────────────── */
 function MySquadCard({
   squad,
   inviteLink,
@@ -265,11 +402,14 @@ function MySquadCard({
   busy: boolean;
 }) {
   const { tr } = useLanguage();
+  const [membersOpen, setMembersOpen] = useState(false);
+
   return (
     <section>
       <div className={`glass-card rounded-[24px] p-6 mb-4 relative overflow-hidden ${squad.isGold ? 'gold-pulse' : ''}`}
         style={squad.isGold ? { borderColor: 'hsl(43 96% 56% / 0.35)' } : undefined}>
         <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] pointer-events-none ${squad.isGold ? 'bg-gold/10' : 'bg-primary/10'}`} />
+
         <div className="flex items-center gap-4 mb-5 relative z-10">
           <div className={`w-16 h-16 rounded-2xl bg-black/40 flex items-center justify-center text-4xl shadow-inner border ${squad.isGold ? 'border-gold/25' : 'border-white/10'}`}>
             {squad.emoji}
@@ -297,7 +437,6 @@ function MySquadCard({
           </div>
         </div>
 
-        {/* Rank bonus badge */}
         {squad.rankBonusPercent > 0 && (
           <div className="relative z-10 mb-3 flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2">
             <Trophy className="w-4 h-4 text-yellow-400 shrink-0" />
@@ -305,7 +444,6 @@ function MySquadCard({
           </div>
         )}
 
-        {/* Growth milestone progress */}
         {squad.nextMilestone !== null && (
           <div className="relative z-10 mb-4 bg-black/30 rounded-xl p-3 border border-white/5">
             <div className="flex items-center justify-between mb-1.5">
@@ -345,25 +483,34 @@ function MySquadCard({
         </div>
       </div>
 
-      {/* Members */}
+      {/* Collapsible members */}
       <div className="bg-card/60 backdrop-blur-xl border border-white/10 rounded-[24px] overflow-hidden shadow-sm mb-4">
-        <div className="p-3.5 text-center text-xs text-muted-foreground font-bold uppercase tracking-widest border-b border-white/5">
-          {tr.squad.squadMembers}
-        </div>
-        <div className="flex flex-col divide-y divide-white/5">
-          {squad.members.map((m, i) => (
-            <div key={m.telegramId} className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <span className="w-6 text-center text-xs font-bold text-muted-foreground">{i + 1}</span>
-                <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                  {m.name}
-                  {m.isOwner && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
-                </span>
+        <button
+          onClick={() => setMembersOpen(v => !v)}
+          className="w-full flex items-center justify-between p-4 text-xs text-muted-foreground font-bold uppercase tracking-widest hover:bg-white/[0.02] transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            {tr.squad.squadMembers} ({squad.memberCount})
+          </span>
+          {membersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {membersOpen && (
+          <div className="flex flex-col divide-y divide-white/5 border-t border-white/5">
+            {squad.members.map((m, i) => (
+              <div key={m.telegramId} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 text-center text-xs font-bold text-muted-foreground">{i + 1}</span>
+                  <span className="text-sm font-bold text-white flex items-center gap-1.5">
+                    {m.name}
+                    {m.isOwner && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
+                  </span>
+                </div>
+                <span className="text-[11px] text-muted-foreground font-mono">{m.lifetimePoints.toLocaleString()} pts</span>
               </div>
-              <span className="text-[11px] text-muted-foreground font-mono">{m.lifetimePoints.toLocaleString()} pts</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <button
@@ -377,6 +524,7 @@ function MySquadCard({
   );
 }
 
+/* ── Create or Join ────────────────────────────────────────────────── */
 function CreateOrJoin({
   creating,
   setCreating,
@@ -407,9 +555,7 @@ function CreateOrJoin({
               <Shield className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-bold text-white mb-1">{tr.squad.startOwn}</h3>
-            <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-              {tr.squad.startOwnDesc}
-            </p>
+            <p className="text-sm text-muted-foreground mb-5 leading-relaxed">{tr.squad.startOwnDesc}</p>
             <button
               onClick={() => setCreating(true)}
               className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-[0_0_20px_rgba(52,211,153,0.3)]"

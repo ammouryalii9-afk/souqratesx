@@ -56,8 +56,23 @@ export type MySquad = {
   nextMilestone: number | null;
 };
 
+export type SquadDetail = {
+  id: number;
+  name: string;
+  emoji: string;
+  isGold: boolean;
+  rank: number | null;
+  memberCount: number;
+  totalPoints: number;
+  members: SquadMember[];
+};
+
 export function getSquadBoard(): Promise<SquadBoardEntry[]> {
   return apiFetch<SquadBoardEntry[]>('/squads');
+}
+
+export function getSquadById(id: number): Promise<SquadDetail> {
+  return apiFetch<SquadDetail>(`/squads/${id}`);
 }
 
 export function getMySquad(): Promise<{ squad: MySquad | null }> {
