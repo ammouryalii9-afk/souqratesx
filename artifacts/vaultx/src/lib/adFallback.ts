@@ -9,7 +9,7 @@ export type AdProvider = "adsgram" | "monetag" | "onclicka";
  * Returns true when the error from an ad SDK means "no ad available right now"
  * (as opposed to the user intentionally dismissing the ad).
  */
-function isNoFillError(err: unknown): boolean {
+export function isNoFillError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const e = err as Record<string, unknown>;
   // Adsgram SDK rejects with { type: 'no_fill' } when inventory is empty

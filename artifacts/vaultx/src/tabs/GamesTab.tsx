@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Progress } from '@/components/ui/progress';
 import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
-import { watchRewardedAdWithFallback } from '../lib/adFallback';
+import { watchRewardedAdWithFallback, isNoFillError } from '../lib/adFallback';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
 
 // ─── Competitions ────────────────────────────────────────────────────────────
@@ -221,6 +221,15 @@ const CARD_COLORS: Record<string, { from: string; to: string; border: string; te
   'black-hole':   { from: 'rgba(239,68,68,0.14)',  to: 'rgba(239,68,68,0.02)',  border: 'rgba(239,68,68,0.22)',  text: '#f87171', shadow: 'rgba(239,68,68,0.12)' },
 };
 
+// Videos needed to unlock a given level (Level 1 → 2, Level 2 → 3, ..., max 7)
+const videosForLevel = (nextLevel: number) => Math.min(nextLevel + 1, 7);
+
+// localStorage key for per-card video progress
+const passiveAdKey = (cardId: string, nextLevel: number) => `passiveAdProg_${cardId}_lv${nextLevel}`;
+
+// Cooldown between consecutive passive-card ad views (ms)
+const PASSIVE_AD_COOLDOWN_MS = 30_000;
+
 export const GamesTab = () => {
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
 
@@ -236,6 +245,92 @@ export const GamesTab = () => {
   const nextLevelCost = miningLevel === 1 ? 10000 : miningLevel === 2 ? 50000 : miningLevel === 3 ? 200000 : null;
   const batteryCost = 30000;
   const hasBatteryUpgrade = maxEnergy >= 200;
+
+  // ── Passive-card video upgrade state ──────────────────────────────────────
+  const [passiveConfig, setPassiveConfig] = useState<PublicConfig | null>(null);
+  const [loadingAdForCard, setLoadingAdForCard] = useState<string | null>(null);
+  // Per-card video progress, keyed by `cardId_lv${nextLevel}` → videos watched
+  const [passiveAdProgress, setPassiveAdProgress] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem('passiveAdProgress') || '{}') as Record<string, number>; }
+    catch { return {}; }
+  });
+  // Last time any passive-card ad completed — for 30s cooldown
+  const lastPassiveAdAt = useRef<number>(0);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  useEffect(() => {
+    getPublicConfig().then(setPassiveConfig).catch(() => {});
+  }, []);
+
+  // Tick down cooldown display
+  useEffect(() => {
+    if (cooldownLeft <= 0) return;
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((lastPassiveAdAt.current + PASSIVE_AD_COOLDOWN_MS - Date.now()) / 1000));
+      setCooldownLeft(remaining);
+    }, 500);
+    return () => clearInterval(id);
+  }, [cooldownLeft]);
+
+  const savePassiveAdProgress = (next: Record<string, number>) => {
+    setPassiveAdProgress(next);
+    localStorage.setItem('passiveAdProgress', JSON.stringify(next));
+  };
+
+  const handleWatchAdForPassive = async (
+    cardId: string,
+    nextLevel: number,
+    nextYield: number,
+    name: string,
+  ) => {
+    if (loadingAdForCard) return;
+
+    // Enforce 30-second cooldown between ad views
+    const elapsed = Date.now() - lastPassiveAdAt.current;
+    if (elapsed < PASSIVE_AD_COOLDOWN_MS) {
+      const secs = Math.ceil((PASSIVE_AD_COOLDOWN_MS - elapsed) / 1000);
+      toast({ title: 'Please wait', description: `Wait ${secs}s before watching the next ad` });
+      return;
+    }
+
+    setLoadingAdForCard(cardId);
+    try {
+      await watchRewardedAdWithFallback(passiveConfig);
+
+      lastPassiveAdAt.current = Date.now();
+      setCooldownLeft(Math.ceil(PASSIVE_AD_COOLDOWN_MS / 1000));
+
+      const key = passiveAdKey(cardId, nextLevel);
+      const needed = videosForLevel(nextLevel);
+      const current = passiveAdProgress[key] ?? 0;
+      const next = current + 1;
+
+      if (next >= needed) {
+        // All videos watched — upgrade the card for free!
+        buyPassiveCard(cardId, 0, nextLevel, nextYield, name);
+        haptic('success');
+        toast({ title: '🎉 Card Upgraded!', description: `${name} → Level ${nextLevel} unlocked by watching videos` });
+        // Clear progress for this level
+        const updated = { ...passiveAdProgress };
+        delete updated[key];
+        savePassiveAdProgress(updated);
+      } else {
+        haptic('light');
+        toast({ title: '📺 Video watched!', description: `${next}/${needed} — keep going to unlock Level ${nextLevel}` });
+        savePassiveAdProgress({ ...passiveAdProgress, [key]: next });
+      }
+    } catch (err) {
+      if (isNoFillError(err)) {
+        toast({ title: 'No ad available', description: 'No video available right now — try again in a moment' });
+      } else if (err instanceof Error && (err.message.includes('dismiss') || err.message.includes('close') || err.message.includes('cancel'))) {
+        // User closed the ad — silent, no toast
+      } else {
+        toast({ title: 'Video not completed', description: 'Please watch the full video to get credit' });
+      }
+    } finally {
+      setLoadingAdForCard(null);
+    }
+  };
 
   const gameI18n: Record<string, { name: string; desc: string }> = {
     'speed-tap': tr.games.speedTap,
@@ -293,6 +388,15 @@ export const GamesTab = () => {
             const col = CARD_COLORS[def.id] ?? CARD_COLORS['mining-rig'];
             const canAfford = tempMiningPoints >= cost;
 
+            // Video upgrade state for this card
+            const needed = videosForLevel(nextLevel);
+            const adKey = passiveAdKey(def.id, nextLevel);
+            const watched = passiveAdProgress[adKey] ?? 0;
+            const isAdLoading = loadingAdForCard === def.id;
+            const adReady = !!(passiveConfig?.adsgram.enabled && passiveConfig.adsgram.blockId)
+              || !!(passiveConfig?.monetag.enabled && passiveConfig.monetag.zoneId)
+              || !!(passiveConfig?.onclicka.enabled && passiveConfig.onclicka.spotId);
+
             return (
               <div key={def.id} className="relative rounded-[20px] overflow-hidden flex flex-col" style={{
                 background: `linear-gradient(145deg, ${col.from} 0%, ${col.to} 100%)`,
@@ -325,13 +429,14 @@ export const GamesTab = () => {
                     <p className="text-[9px] mt-0.5" style={{ color: col.text, opacity: 0.65 }}>→ +{nextYield.toLocaleString()}/hr</p>
                   )}
                 </div>
-                {/* Upgrade Button */}
-                <div className="p-2.5 pt-2">
+                {/* Upgrade Buttons */}
+                <div className="px-2.5 pb-2.5 pt-2 flex flex-col gap-1.5">
+                  {/* Points button */}
                   <button
                     data-testid={`buy-passive-${def.id}`}
                     onClick={() => { buyPassiveCard(def.id, cost, nextLevel, nextYield, def.name); haptic('light'); }}
                     disabled={!canAfford}
-                    className="w-full py-2 rounded-xl text-[11px] font-bold transition-all active:scale-[0.97] disabled:opacity-40"
+                    className="w-full py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-[0.97] disabled:opacity-40"
                     style={canAfford ? {
                       background: `linear-gradient(135deg, ${col.text}, ${col.text}bb)`,
                       color: '#000',
@@ -343,6 +448,63 @@ export const GamesTab = () => {
                   >
                     {tr.games.buyLv}{nextLevel} · {cost.toLocaleString()}
                   </button>
+
+                  {/* Video upgrade option */}
+                  {adReady && (
+                    <>
+                      {/* Divider */}
+                      <div className="flex items-center gap-1.5 px-1">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-[8px] text-white/30 font-medium">OR</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                      </div>
+
+                      {/* Video progress bar (only when in progress) */}
+                      {watched > 0 && (
+                        <div className="px-1">
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] text-white/40">Videos</span>
+                            <span className="text-[8px] font-bold" style={{ color: col.text }}>{watched}/{needed}</span>
+                          </div>
+                          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${(watched / needed) * 100}%`, background: col.text }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Watch video button */}
+                      <button
+                        onClick={() => void handleWatchAdForPassive(def.id, nextLevel, nextYield, def.name)}
+                        disabled={isAdLoading || !!loadingAdForCard}
+                        className="w-full py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-[0.97] disabled:opacity-50 flex items-center justify-center gap-1"
+                        style={{
+                          background: 'rgba(255,255,255,0.08)',
+                          color: isAdLoading ? col.text : 'rgba(255,255,255,0.7)',
+                          border: `1px solid ${col.text}33`,
+                        }}
+                      >
+                        {isAdLoading ? (
+                          <>
+                            <span className="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full" />
+                            <span>Loading…</span>
+                          </>
+                        ) : cooldownLeft > 0 && !loadingAdForCard ? (
+                          <>
+                            <PlayCircle className="w-3 h-3 opacity-50" />
+                            <span className="opacity-60">{cooldownLeft}s</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlayCircle className="w-3 h-3" style={{ color: col.text }} />
+                            <span>{watched === 0 ? `${needed} videos` : `${watched}/${needed}`}</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );
