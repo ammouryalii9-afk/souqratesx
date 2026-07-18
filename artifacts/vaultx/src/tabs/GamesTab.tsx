@@ -221,8 +221,15 @@ const CARD_COLORS: Record<string, { from: string; to: string; border: string; te
   'black-hole':   { from: 'rgba(239,68,68,0.14)',  to: 'rgba(239,68,68,0.02)',  border: 'rgba(239,68,68,0.22)',  text: '#f87171', shadow: 'rgba(239,68,68,0.12)' },
 };
 
-// Videos needed to unlock a given level (Level 1 → 2, Level 2 → 3, ..., max 7)
-const videosForLevel = (nextLevel: number) => Math.min(nextLevel + 1, 7);
+// Premium cards require 10 videos at level 1, scaling up to 15
+const PREMIUM_CARD_IDS = new Set(['quantum-chip', 'black-hole']);
+
+// Videos needed to unlock a given level (Level 1 → 2, Level 2 → 3, ...)
+// Premium cards: start at 10, max 15. Others: start at 2, max 7.
+const videosForLevel = (nextLevel: number, cardId?: string) =>
+  PREMIUM_CARD_IDS.has(cardId ?? '')
+    ? Math.min(nextLevel + 9, 15)
+    : Math.min(nextLevel + 1, 7);
 
 // localStorage key for per-card video progress
 const passiveAdKey = (cardId: string, nextLevel: number) => `passiveAdProg_${cardId}_lv${nextLevel}`;
@@ -301,7 +308,7 @@ export const GamesTab = () => {
       setCooldownLeft(Math.ceil(PASSIVE_AD_COOLDOWN_MS / 1000));
 
       const key = passiveAdKey(cardId, nextLevel);
-      const needed = videosForLevel(nextLevel);
+      const needed = videosForLevel(nextLevel, cardId);
       const current = passiveAdProgress[key] ?? 0;
       const next = current + 1;
 
@@ -389,7 +396,7 @@ export const GamesTab = () => {
             const canAfford = tempMiningPoints >= cost;
 
             // Video upgrade state for this card
-            const needed = videosForLevel(nextLevel);
+            const needed = videosForLevel(nextLevel, def.id);
             const adKey = passiveAdKey(def.id, nextLevel);
             const watched = passiveAdProgress[adKey] ?? 0;
             const isAdLoading = loadingAdForCard === def.id;
