@@ -3,7 +3,7 @@ import { db, vaultUsersTable, competitionsTable, competitionEntriesTable } from 
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
-import { skpRewardFields } from "./skxCredit";
+import { skpRewardFields, skxCreditFields } from "./skxCredit";
 
 const DEFAULT_REFERRAL_RATE_PERCENT = 10;
 
@@ -205,7 +205,7 @@ export async function awardReferralBonus(
   const [updated] = await db
     .update(vaultUsersTable)
     .set({
-      ...skpRewardFields(bonus),
+      ...skxCreditFields(bonus),
       referralEarnings: sql`${vaultUsersTable.referralEarnings} + ${bonus}`,
     })
     .where(and(eq(vaultUsersTable.telegramId, earner.referrerId), eq(vaultUsersTable.isBanned, false)))
