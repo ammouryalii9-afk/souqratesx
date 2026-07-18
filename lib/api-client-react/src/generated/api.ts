@@ -50,6 +50,7 @@ import type {
   PixelPurchaseResult,
   PublicAdList,
   PublicConfig,
+  ReferralTransferResponse,
   SponsoredAd,
   SponsoredAdList,
   StarProduct,
@@ -390,6 +391,77 @@ export const useUpdateVaultMe = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdateVaultMeMutationOptions(options));
+    }
+
+export const getTransferReferralUsdUrl = () => {
+
+
+
+
+  return `/api/vault/referral/transfer`
+}
+
+/**
+ * @summary Transfer accumulated referral USD cents to pixel balance (irreversible)
+ */
+export const transferReferralUsd = async ( options?: RequestInit): Promise<ReferralTransferResponse> => {
+
+  return customFetch<ReferralTransferResponse>(getTransferReferralUsdUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTransferReferralUsdMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferReferralUsd>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferReferralUsd>>, TError,void, TContext> => {
+
+const mutationKey = ['transferReferralUsd'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferReferralUsd>>, void> = () => {
+
+
+          return  transferReferralUsd(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransferReferralUsdMutationResult = NonNullable<Awaited<ReturnType<typeof transferReferralUsd>>>
+
+    export type TransferReferralUsdMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Transfer accumulated referral USD cents to pixel balance (irreversible)
+ */
+export const useTransferReferralUsd = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferReferralUsd>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transferReferralUsd>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTransferReferralUsdMutationOptions(options));
     }
 
 export const getConvertSkpToSkxUrl = () => {

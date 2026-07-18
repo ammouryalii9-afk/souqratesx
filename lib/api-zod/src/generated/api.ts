@@ -36,7 +36,8 @@ export const AuthTelegramResponse = zod.object({
   "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
-  "referralEarnings": zod.number()
+  "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance')
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
@@ -57,7 +58,8 @@ export const GetVaultMeResponse = zod.object({
   "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
-  "referralEarnings": zod.number()
+  "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance')
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
@@ -83,10 +85,21 @@ export const UpdateVaultMeResponse = zod.object({
   "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
-  "referralEarnings": zod.number()
+  "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance')
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "redeemedBonus": zod.number().optional().describe('SKP bonus folded into tempMiningPoints during this hydration (0 when none) — used by the client to show a reward animation.')
+})
+
+
+/**
+ * @summary Transfer accumulated referral USD cents to pixel balance (irreversible)
+ */
+export const TransferReferralUsdResponse = zod.object({
+  "transferred": zod.number().describe('USD cents moved from referral balance to pixel balance'),
+  "referralUsdCents": zod.number().describe('Remaining referral USD cents (always 0 after transfer)'),
+  "pixelUsdCents": zod.number().describe('New pixel USD cents balance after the transfer')
 })
 
 
@@ -111,7 +124,8 @@ export const ConvertSkpToSkxResponse = zod.object({
   "skxBalance": zod.number().describe('SKX hard-currency balance (server-authoritative, withdrawable)'),
   "withdrawnPoints": zod.number(),
   "referralCount": zod.number(),
-  "referralEarnings": zod.number()
+  "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance')
 }),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
   "convertedSkp": zod.number().describe('SKP deducted (burned + converted)'),
@@ -254,6 +268,7 @@ export const GetAdminUsersResponse = zod.object({
   "referrerId": zod.string().nullable(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents'),
   "createdAt": zod.string()
 })),
   "total": zod.number()
@@ -282,6 +297,7 @@ export const GetAdminUserResponse = zod.object({
   "referrerId": zod.string().nullable(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents'),
   "adsWatchedToday": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),
@@ -327,6 +343,7 @@ export const UpdateAdminUserResponse = zod.object({
   "referrerId": zod.string().nullable(),
   "referralCount": zod.number(),
   "referralEarnings": zod.number(),
+  "referralUsdCents": zod.number().describe('Flat $0.02 per referral balance in USD cents'),
   "adsWatchedToday": zod.number(),
   "notes": zod.string().nullable(),
   "state": zod.record(zod.string(), zod.unknown()).describe('Freeform game state blob persisted for the user'),

@@ -34,6 +34,8 @@ export interface VaultUserProfile {
   withdrawnPoints: number;
   referralCount: number;
   referralEarnings: number;
+  /** Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance */
+  referralUsdCents: number;
 }
 
 /**
@@ -68,6 +70,15 @@ export interface ConvertSkpResponse {
   convertedSkp: number;
   /** SKX credited from the conversion */
   receivedSkx: number;
+}
+
+export interface ReferralTransferResponse {
+  /** USD cents moved from referral balance to pixel balance */
+  transferred: number;
+  /** Remaining referral USD cents (always 0 after transfer) */
+  referralUsdCents: number;
+  /** New pixel USD cents balance after the transfer */
+  pixelUsdCents: number;
 }
 
 export interface PixelPriceTier {
@@ -181,6 +192,8 @@ export interface AdminUserSummary {
   referrerId: string | null;
   referralCount: number;
   referralEarnings: number;
+  /** Flat $0.02 per referral balance in USD cents */
+  referralUsdCents: number;
   createdAt: string;
 }
 
@@ -210,6 +223,8 @@ export interface AdminUserDetail {
   referrerId: string | null;
   referralCount: number;
   referralEarnings: number;
+  /** Flat $0.02 per referral balance in USD cents */
+  referralUsdCents: number;
   adsWatchedToday: number;
   /** @nullable */
   notes: string | null;

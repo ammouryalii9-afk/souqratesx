@@ -65,6 +65,7 @@ export type AdminUserSummary = {
   referrerId: string | null;
   referralCount: number;
   referralEarnings: number;
+  referralUsdCents: number;
   createdAt: string;
 };
 

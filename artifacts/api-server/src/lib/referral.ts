@@ -39,7 +39,11 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
 
   const [bumped] = await db
     .update(vaultUsersTable)
-    .set({ referralCount: sql`${vaultUsersTable.referralCount} + 1` })
+    .set({
+      referralCount: sql`${vaultUsersTable.referralCount} + 1`,
+      // $0.02 flat USD credit per verified new referral (stored as cents)
+      referralUsdCents: sql`${vaultUsersTable.referralUsdCents} + 2`,
+    })
     .where(eq(vaultUsersTable.telegramId, referrerTelegramId))
     .returning({ referralCount: vaultUsersTable.referralCount });
 

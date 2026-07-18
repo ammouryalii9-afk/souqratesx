@@ -78,6 +78,8 @@ type VaultContextType = {
   maxEnergy: number;
   totalReferrals: number;
   referralEarnings: number;
+  referralUsdCents: number;
+  transferReferralUsd: () => Promise<{ transferred: number; pixelUsdCents: number }>;
 
   lifetimePoints: number;
   withdrawnPoints: number;
@@ -181,6 +183,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [maxEnergy, setMaxEnergy] = useState(() => Number(localStorage.getItem('maxEnergy')) || 100);
   const [totalReferrals, setTotalReferrals] = useState(() => Number(localStorage.getItem('totalReferrals')) || 0);
   const [referralEarnings, setReferralEarnings] = useState(() => Number(localStorage.getItem('referralEarnings')) || 0);
+  const [referralUsdCents, setReferralUsdCents] = useState(() => Number(localStorage.getItem('referralUsdCents')) || 0);
 
   const [lifetimePoints, setLifetimePoints] = useState(() => Number(localStorage.getItem('lifetimePoints')) || 0);
   // Points locked in pending/approved withdrawals (server-authoritative).
@@ -302,6 +305,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
         setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
         setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
+        setReferralUsdCents(typeof (data.user as any).referralUsdCents === 'number' ? (data.user as any).referralUsdCents : 0);
         setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
         setWithdrawnPoints(typeof data.user.withdrawnPoints === 'number' ? data.user.withdrawnPoints : 0);
         setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
@@ -388,6 +392,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('passiveCards', JSON.stringify(passiveCards));
     localStorage.setItem('totalReferrals', totalReferrals.toString());
     localStorage.setItem('referralEarnings', referralEarnings.toString());
+    localStorage.setItem('referralUsdCents', referralUsdCents.toString());
     localStorage.setItem('permanentMultiplierPercent', permanentMultiplierPercent.toString());
     localStorage.setItem('ownedBadgeIds', JSON.stringify(ownedBadgeIds));
     localStorage.setItem('equippedBadgeId', equippedBadgeId === null ? '' : equippedBadgeId.toString());
@@ -774,6 +779,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
       setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
       setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
+      setReferralUsdCents(typeof (data.user as any).referralUsdCents === 'number' ? (data.user as any).referralUsdCents : 0);
       setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
       setWithdrawnPoints(typeof data.user.withdrawnPoints === 'number' ? data.user.withdrawnPoints : 0);
       setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
@@ -825,6 +831,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maxEnergy,
         totalReferrals,
         referralEarnings,
+        referralUsdCents,
+        transferReferralUsd: async () => {
+          const res = await fetch('/api/vault/referral/transfer', { method: 'POST', credentials: 'include' });
+          if (!res.ok) throw new Error('Transfer failed');
+          const data = await res.json() as { transferred: number; referralUsdCents: number; pixelUsdCents: number };
+          setReferralUsdCents(data.referralUsdCents);
+          return { transferred: data.transferred, pixelUsdCents: data.pixelUsdCents };
+        },
         lifetimePoints,
         withdrawnPoints,
         // Withdrawable balance = SKX. The server already deducts skx_balance on

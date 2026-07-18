@@ -275,7 +275,7 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
             {/* ── Referrals block ── */}
             <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-1.5 text-xs">
               <span className="text-muted-foreground text-[10px] uppercase tracking-wider">الإحالات</span>
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-2 text-center">
                 <div>
                   <div className="text-white font-bold text-lg">{user.referralCount}</div>
                   <div className="text-muted-foreground">إجمالي الأصدقاء</div>
@@ -283,6 +283,10 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
                 <div>
                   <div className="text-primary font-bold text-lg">{user.referralEarnings.toLocaleString()}</div>
                   <div className="text-muted-foreground">نقاط من الإحالات</div>
+                </div>
+                <div>
+                  <div className="text-yellow-400 font-bold text-lg">${((user.referralUsdCents ?? 0) / 100).toFixed(2)}</div>
+                  <div className="text-muted-foreground">رصيد USD ($0.02/دعوة)</div>
                 </div>
                 <div>
                   <div className="text-white font-bold text-lg">{user.referrerId ? "نعم" : "لا"}</div>

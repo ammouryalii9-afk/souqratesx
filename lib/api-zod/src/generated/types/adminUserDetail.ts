@@ -28,6 +28,8 @@ export interface AdminUserDetail {
   referrerId: string | null;
   referralCount: number;
   referralEarnings: number;
+  /** Flat $0.02 per referral balance in USD cents */
+  referralUsdCents: number;
   adsWatchedToday: number;
   /** @nullable */
   notes: string | null;

@@ -43,6 +43,9 @@ export const vaultUsersTable = pgTable("vault_users", {
   referrerId: text("referrer_id"),
   referralCount: integer("referral_count").notNull().default(0),
   referralEarnings: integer("referral_earnings").notNull().default(0),
+  // Flat $0.02 USD credit per new referral (in cents). Transferred to
+  // pixel_usd_cents on demand — never auto-applied to avoid double-credit.
+  referralUsdCents: bigint("referral_usd_cents", { mode: "number" }).notNull().default(0),
   squadId: integer("squad_id"),
   hasClaimedSquadBonus: boolean("has_claimed_squad_bonus").notNull().default(false),
   telegramLangCode: text("telegram_lang_code"),

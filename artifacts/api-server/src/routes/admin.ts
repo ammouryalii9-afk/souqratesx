@@ -83,6 +83,7 @@ function toUserSummary(user: typeof vaultUsersTable.$inferSelect) {
     referrerId: user.referrerId,
     referralCount: user.referralCount,
     referralEarnings: user.referralEarnings,
+    referralUsdCents: user.referralUsdCents,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -118,6 +119,7 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     referrerId: user.referrerId,
     referralCount: user.referralCount,
     referralEarnings: user.referralEarnings,
+    referralUsdCents: user.referralUsdCents,
     adsWatchedToday: user.adsWatchedToday,
     notes: user.notes,
     state: user.state,

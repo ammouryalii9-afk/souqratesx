@@ -22,4 +22,6 @@ export interface VaultUserProfile {
   withdrawnPoints: number;
   referralCount: number;
   referralEarnings: number;
+  /** Flat $0.02 per referral balance in USD cents (200 = $2.00), transferable to pixel balance */
+  referralUsdCents: number;
 }

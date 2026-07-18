@@ -100,6 +100,7 @@ router.get("/vault/me", async (req, res): Promise<void> => {
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
+        referralUsdCents: user.referralUsdCents,
       },
       state: user.state,
       redeemedBonus: redeemed?.amount ?? 0,
@@ -196,6 +197,7 @@ router.post("/vault/convert", rateLimit("vault-convert", 30, 60_000), async (req
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
+        referralUsdCents: user.referralUsdCents,
       },
       state: user.state,
       convertedSkp: convertAmount,
@@ -370,10 +372,49 @@ router.put("/vault/me", rateLimit("vault-sync", 60, 60_000), async (req, res): P
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
+        referralUsdCents: user.referralUsdCents,
       },
       state: user.state,
     }),
   );
+});
+
+// Transfer referral USD cents → pixel USD cents atomically.
+// $0.02 per referral is stored in referral_usd_cents; this moves it all to
+// pixel_usd_cents in one UPDATE (no read-modify-write race).
+router.post("/vault/referral/transfer", rateLimit("vault-referral-transfer", 10, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const [user] = await db
+    .select({ referralUsdCents: vaultUsersTable.referralUsdCents, pixelUsdCents: vaultUsersTable.pixelUsdCents })
+    .from(vaultUsersTable)
+    .where(eq(vaultUsersTable.telegramId, telegramId));
+
+  if (!user || user.referralUsdCents <= 0) {
+    res.status(400).json({ error: "No referral balance to transfer" });
+    return;
+  }
+
+  const toTransfer = user.referralUsdCents;
+
+  const [updated] = await db
+    .update(vaultUsersTable)
+    .set({
+      pixelUsdCents: sql`${vaultUsersTable.pixelUsdCents} + ${toTransfer}::bigint`,
+      referralUsdCents: sql`0`,
+    })
+    .where(and(eq(vaultUsersTable.telegramId, telegramId), sql`${vaultUsersTable.referralUsdCents} = ${toTransfer}::bigint`))
+    .returning({ pixelUsdCents: vaultUsersTable.pixelUsdCents, referralUsdCents: vaultUsersTable.referralUsdCents });
+
+  if (!updated) {
+    res.status(409).json({ error: "Transfer raced — retry" });
+    return;
+  }
+
+  req.log.info({ telegramId, transferred: toTransfer }, "Referral USD transferred to pixel balance");
+
+  res.json({ transferred: toTransfer, referralUsdCents: 0, pixelUsdCents: updated.pixelUsdCents });
 });
 
 // 30s leaderboard caches — these endpoints are hit by every user opening the

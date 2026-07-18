@@ -39,12 +39,14 @@ export const VaultTab = () => {
     activeTurbo, turboExpiresAt, turboUsesToday, activateTurbo, grantAdTurbo,
     rechargeUsesToday, rechargeEnergy, setEnergy,
     farmState, farmStartTime, startFarming, claimFarming,
-    lifetimePoints, availablePoints, profitPerHour, addBonusPoints
+    lifetimePoints, availablePoints, profitPerHour, addBonusPoints,
+    totalReferrals, referralUsdCents, transferReferralUsd,
   } = useVault();
 
   const { tr } = useLanguage();
   const [idCopied, setIdCopied] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const referralLink = userId ? `${window.location.origin}/ref/${userId}` : '';
   function copyReferralLink() {
     if (!referralLink) return;
@@ -53,6 +55,20 @@ export const VaultTab = () => {
       haptic('success');
       setTimeout(() => setReferralCopied(false), 2000);
     });
+  }
+  async function handleTransferReferralUsd() {
+    if (transferring || referralUsdCents <= 0) return;
+    setTransferring(true);
+    haptic('medium');
+    try {
+      await transferReferralUsd();
+      haptic('success');
+      toast({ title: 'Transferred to Pixels balance!', description: `$${(referralUsdCents / 100).toFixed(2)} added to your Pixels wallet` });
+    } catch {
+      toast({ title: 'Transfer failed', description: 'Please try again', variant: 'destructive' });
+    } finally {
+      setTransferring(false);
+    }
   }
   function copyUserId() {
     void navigator.clipboard.writeText(userId).then(() => {
@@ -345,18 +361,34 @@ export const VaultTab = () => {
           }}
         >
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[50px] pointer-events-none" style={{ background: 'rgba(251,191,36,0.12)' }} />
+
+          {/* Header row */}
           <div className="flex items-center gap-3 mb-3 relative z-10">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(251,191,36,0.18)', border: '1px solid rgba(251,191,36,0.3)' }}>
               <Users className="w-4.5 h-4.5" style={{ color: '#fbbf24' }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-white leading-tight">Multiply Your Earnings 🚀</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(251,191,36,0.75)' }}>
-                Earn <span className="font-black text-yellow-400">10%</span> of every friend's mining rewards — forever
+              <p className="text-sm font-black text-white leading-tight">Invite Friends — Earn Real Money 🚀</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(251,191,36,0.8)' }}>
+                <span className="font-black text-yellow-400">$0.02</span> per invite &nbsp;·&nbsp; <span className="font-black text-yellow-400">10%</span> of their earnings — forever
               </p>
             </div>
           </div>
-          <div className="flex gap-2 relative z-10">
+
+          {/* Stats row */}
+          <div className="flex gap-2 mb-3 relative z-10">
+            <div className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.15)' }}>
+              <p className="text-[10px] text-yellow-400/70 uppercase tracking-wider font-semibold">Referrals</p>
+              <p className="text-base font-black text-white">{totalReferrals}</p>
+            </div>
+            <div className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.15)' }}>
+              <p className="text-[10px] text-yellow-400/70 uppercase tracking-wider font-semibold">USD Earned</p>
+              <p className="text-base font-black text-white">${(referralUsdCents / 100).toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Referral link row */}
+          <div className="flex gap-2 mb-2.5 relative z-10">
             <div
               className="flex-1 min-w-0 px-3 py-2 rounded-xl text-[11px] font-mono truncate"
               style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)' }}
@@ -376,6 +408,18 @@ export const VaultTab = () => {
               {referralCopied ? 'Copied!' : 'Copy'}
             </button>
           </div>
+
+          {/* Transfer to Pixels button — only shown when there's a balance */}
+          {referralUsdCents > 0 && (
+            <button
+              onClick={handleTransferReferralUsd}
+              disabled={transferring}
+              className="relative z-10 w-full py-2.5 rounded-xl font-black text-sm transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.25), rgba(245,158,11,0.15))', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}
+            >
+              {transferring ? 'Transferring…' : `Transfer $${(referralUsdCents / 100).toFixed(2)} → Pixels Balance`}
+            </button>
+          )}
         </div>
       )}
 

@@ -56,6 +56,7 @@ export * from './publicConfigMonetag';
 export * from './publicConfigOfferwallsItem';
 export * from './publicConfigOnclicka';
 export * from './publicConfigStars';
+export * from './referralTransferResponse';
 export * from './sponsoredAd';
 export * from './sponsoredAdList';
 export * from './starProduct';
