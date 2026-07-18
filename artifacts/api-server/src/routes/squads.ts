@@ -59,8 +59,8 @@ router.get("/squads", async (_req, res): Promise<void> => {
   res.json(board.map((s, i) => ({ rank: i + 1, ...s, isGold: goldIds.has(s.id) })));
 });
 
-// GET /squads/:id — public squad detail + top members (for leaderboard drill-down)
-router.get("/squads/:id", async (req, res): Promise<void> => {
+// GET /squads/detail/:id — public squad detail + top members (for leaderboard drill-down)
+router.get("/squads/detail/:id", async (req, res): Promise<void> => {
   const squadId = Number(req.params.id);
   if (!Number.isInteger(squadId) || squadId <= 0) {
     res.status(400).json({ error: "Invalid squad id" });

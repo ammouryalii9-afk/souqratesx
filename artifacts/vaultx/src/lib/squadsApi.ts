@@ -72,7 +72,7 @@ export function getSquadBoard(): Promise<SquadBoardEntry[]> {
 }
 
 export function getSquadById(id: number): Promise<SquadDetail> {
-  return apiFetch<SquadDetail>(`/squads/${id}`);
+  return apiFetch<SquadDetail>(`/squads/detail/${id}`);
 }
 
 export function getMySquad(): Promise<{ squad: MySquad | null }> {
