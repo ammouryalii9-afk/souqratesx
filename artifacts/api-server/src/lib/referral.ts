@@ -29,6 +29,10 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
   const [referrer] = await db.select().from(vaultUsersTable).where(eq(vaultUsersTable.telegramId, referrerTelegramId));
   if (!referrer || referrer.isBanned) return;
 
+  // Block circular referrals: if the proposed referrer was already referred BY
+  // the new user, accepting this link would create an A→B→A loop.
+  if (referrer.referrerId === newTelegramId) return;
+
   const linked = await db
     .update(vaultUsersTable)
     .set({ referrerId: referrerTelegramId })
