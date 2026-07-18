@@ -2263,9 +2263,9 @@ function ArcadeTabInner() {
       // Never change phase while player is inside the grid
       if (phaseRef.current === "grid") return;
       if (data.enabled === false) { setPhaseStable("disabled"); return; }
-      setPhaseStable(data.hasTicket ? "rooms" : "gate");
+      setPhaseStable("rooms");
     } catch {
-      if (phaseRef.current !== "grid") setPhaseStable("gate");
+      if (phaseRef.current !== "grid") setPhaseStable("rooms");
     }
   }, [setPhaseStable]);   // stable — no context deps
 
