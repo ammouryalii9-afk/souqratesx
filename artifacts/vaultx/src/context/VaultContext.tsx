@@ -135,6 +135,9 @@ type VaultContextType = {
   /** SKP bonus redeemed server-side during the last hydration (null = nothing to show). */
   bonusReward: number | null;
   dismissBonusReward: () => void;
+  /** SKX referral commission credited since last login (null = nothing to show). */
+  skxBonusReward: number | null;
+  dismissSkxBonusReward: () => void;
 };
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -160,6 +163,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // SKP bonus folded in by the server during hydration — drives the animated reward popup.
   const [bonusReward, setBonusReward] = useState<number | null>(null);
   const dismissBonusReward = () => setBonusReward(null);
+  // SKX referral commission credited since last login — drives a separate SKX reward popup.
+  const [skxBonusReward, setSkxBonusReward] = useState<number | null>(null);
+  const dismissSkxBonusReward = () => setSkxBonusReward(null);
+
+  // Returns the new SKX referral earnings since last login, updating localStorage.
+  const detectSkxReferralDelta = (newEarnings: number): number => {
+    try {
+      const stored = Number(localStorage.getItem('skxReferralEarnings') ?? '0');
+      localStorage.setItem('skxReferralEarnings', String(newEarnings));
+      return newEarnings > stored ? newEarnings - stored : 0;
+    } catch {
+      return 0;
+    }
+  };
 
   const [totalBalanceUSD, setTotalBalanceUSD] = useState(() => Number(localStorage.getItem('totalBalanceUSD')) || 0);
   const [tempMiningPoints, setTempMiningPoints] = useState(() => {
@@ -304,8 +321,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setEnergy(typeof state.energy === 'number' ? state.energy : 100);
         setMaxEnergy(typeof state.maxEnergy === 'number' ? state.maxEnergy : 100);
         setTotalReferrals(typeof data.user.referralCount === 'number' ? data.user.referralCount : 0);
-        setReferralEarnings(typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0);
+        const newReferralEarnings = typeof data.user.referralEarnings === 'number' ? data.user.referralEarnings : 0;
+        setReferralEarnings(newReferralEarnings);
         setReferralUsdCents(typeof (data.user as any).referralUsdCents === 'number' ? (data.user as any).referralUsdCents : 0);
+        const skxDelta = detectSkxReferralDelta(newReferralEarnings);
+        if (skxDelta > 0) { setSkxBonusReward(skxDelta); haptic('success'); }
         setLifetimePoints(typeof data.user.lifetimePoints === 'number' ? data.user.lifetimePoints : 0);
         setWithdrawnPoints(typeof data.user.withdrawnPoints === 'number' ? data.user.withdrawnPoints : 0);
         setTurboUsesToday(typeof state.turboUsesToday === 'number' ? state.turboUsesToday : 0);
@@ -806,6 +826,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setBonusReward(data.redeemedBonus);
         haptic('success');
       }
+      if (typeof data.user.referralEarnings === 'number') {
+        const skxDelta = detectSkxReferralDelta(data.user.referralEarnings);
+        if (skxDelta > 0) { setSkxBonusReward(skxDelta); haptic('success'); }
+      }
     } catch (err) {
       console.error('Failed to refresh state from server', err);
     } finally {
@@ -890,6 +914,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         refreshFromServer,
         bonusReward,
         dismissBonusReward,
+        skxBonusReward,
+        dismissSkxBonusReward,
       }}
     >
       {children}
