@@ -13,7 +13,7 @@ import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check, ArrowLeftRight } from 'lucide-react';
+import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check, ArrowLeftRight, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
@@ -44,6 +44,16 @@ export const VaultTab = () => {
 
   const { tr } = useLanguage();
   const [idCopied, setIdCopied] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const referralLink = userId ? `${window.location.origin}/ref/${userId}` : '';
+  function copyReferralLink() {
+    if (!referralLink) return;
+    void navigator.clipboard.writeText(referralLink).then(() => {
+      setReferralCopied(true);
+      haptic('success');
+      setTimeout(() => setReferralCopied(false), 2000);
+    });
+  }
   function copyUserId() {
     void navigator.clipboard.writeText(userId).then(() => {
       setIdCopied(true);
@@ -323,6 +333,51 @@ export const VaultTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Referral Banner */}
+      {referralLink && (
+        <div
+          className="rounded-[22px] p-4 relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(245,158,11,0.06) 60%, rgba(0,0,0,0.1) 100%)',
+            border: '1px solid rgba(251,191,36,0.25)',
+            boxShadow: '0 8px 32px rgba(251,191,36,0.08)',
+          }}
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[50px] pointer-events-none" style={{ background: 'rgba(251,191,36,0.12)' }} />
+          <div className="flex items-center gap-3 mb-3 relative z-10">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(251,191,36,0.18)', border: '1px solid rgba(251,191,36,0.3)' }}>
+              <Users className="w-4.5 h-4.5" style={{ color: '#fbbf24' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-white leading-tight">Multiply Your Earnings 🚀</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(251,191,36,0.75)' }}>
+                Earn <span className="font-black text-yellow-400">10%</span> of every friend's mining rewards — forever
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 relative z-10">
+            <div
+              className="flex-1 min-w-0 px-3 py-2 rounded-xl text-[11px] font-mono truncate"
+              style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)' }}
+            >
+              {referralLink}
+            </div>
+            <button
+              onClick={copyReferralLink}
+              className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs transition-all active:scale-95"
+              style={{
+                background: referralCopied ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg,rgba(251,191,36,0.9),rgba(245,158,11,0.9))',
+                border: referralCopied ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(251,191,36,0.4)',
+                color: referralCopied ? '#22c55e' : '#000',
+              }}
+            >
+              {referralCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {referralCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Info Row */}
       <div className="flex flex-col gap-3">
