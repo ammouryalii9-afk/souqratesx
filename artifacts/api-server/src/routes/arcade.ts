@@ -573,13 +573,6 @@ router.post(
       return;
     }
 
-    // Must have a ticket today
-    const ticket = await getTodayTicket(telegramId);
-    if (!ticket?.ticketGranted) {
-      res.status(403).json({ error: "No daily ticket — watch 5 ads or pay 100 Stars" });
-      return;
-    }
-
     // User can have at most 3 + extraCellCredits active sessions total
     await settleExpiredSessions();
     const [claimUser] = await db
@@ -705,12 +698,6 @@ router.post(
 
     const { room, x, y } = req.body as { room: string; x: number; y: number };
     if (!VALID_ROOMS.includes(room)) { res.status(400).json({ error: "Invalid room" }); return; }
-
-    const ticket = await getTodayTicket(telegramId);
-    if (!ticket?.ticketGranted) {
-      res.status(403).json({ error: "No daily ticket" });
-      return;
-    }
 
     await settleExpiredSessions();
 
