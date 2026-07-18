@@ -101,6 +101,7 @@ router.post("/auth/telegram", rateLimit("auth", 20, 60_000), async (req, res): P
         withdrawnPoints: user.withdrawnPoints,
         referralCount: user.referralCount,
         referralEarnings: user.referralEarnings,
+        referralUsdCents: user.referralUsdCents,
       },
       state: user.state,
       redeemedBonus: redeemed?.amount ?? 0,

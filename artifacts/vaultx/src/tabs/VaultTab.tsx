@@ -16,7 +16,7 @@ import { haptic } from '../lib/telegram';
 import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout, Vault, Copy, Check, ArrowLeftRight, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
+import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, type PublicConfig } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { useLanguage } from '../lib/i18n';
 
@@ -41,6 +41,7 @@ export const VaultTab = () => {
     farmState, farmStartTime, startFarming, claimFarming,
     lifetimePoints, availablePoints, profitPerHour, addBonusPoints,
     totalReferrals, referralUsdCents, transferReferralUsd,
+    refreshFromServer,
   } = useVault();
 
   const { tr } = useLanguage();
@@ -116,15 +117,27 @@ export const VaultTab = () => {
     localStorage.setItem('adTurboProgress', adTurboProgress.toString());
   }, [adTurboProgress]);
 
-  const watchRewardedAd = async () => {
-    await watchRewardedAdWithFallback(config);
+  // Watch an ad and credit SKX server-side. Returns the provider that served it.
+  const watchAndClaimAd = async () => {
+    const provider = await watchRewardedAdWithFallback(config);
+    // Fire-and-forget server SKX credit — failure must never block the client reward
+    try {
+      if (provider === 'adsgram') await claimAdsgramReward();
+      else if (provider === 'monetag') await claimMonetagReward();
+      else if (provider === 'onclicka') await claimOnclickaReward();
+      // Sync updated skxBalance from server
+      await refreshFromServer();
+    } catch {
+      // Non-critical: postback may have already credited via server-to-server
+    }
+    return provider;
   };
 
   const handleWatchAdForEnergy = async () => {
     if (energyAdLoading || energy >= maxEnergy) return;
     setEnergyAdLoading(true);
     try {
-      await watchRewardedAd();
+      await watchAndClaimAd();
       setAdEnergyProgress(prev => {
         const next = prev + 1;
         if (next >= 3) {
@@ -146,7 +159,7 @@ export const VaultTab = () => {
     if (turboAdLoading || activeTurbo) return;
     setTurboAdLoading(true);
     try {
-      await watchRewardedAd();
+      await watchAndClaimAd();
       setAdTurboProgress(prev => {
         const next = prev + 1;
         if (next >= 3) {
