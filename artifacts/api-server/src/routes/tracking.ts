@@ -333,4 +333,16 @@ router.get("/admin/adspage-views/export.csv", async (req, res): Promise<void> =>
   res.send(lines.join("\r\n"));
 });
 
+// ─── Admin: reset adspage view counter ────────────────────────────────────────
+
+router.delete("/admin/adspage-views/reset", async (req, res): Promise<void> => {
+  if (!isAdminSession(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const result = await db
+    .delete(linkClickEventsTable)
+    .where(eq(linkClickEventsTable.linkId, ADSPAGE_ID))
+    .returning({ id: linkClickEventsTable.id });
+  req.log.info({ deleted: result.length }, "adspage view counter reset");
+  res.json({ ok: true, deleted: result.length });
+});
+
 export default router;

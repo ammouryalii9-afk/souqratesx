@@ -305,6 +305,7 @@ export const adminApi = {
     adminFetch<AdminSessionStatus>("/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => adminFetch<AdminSessionStatus>("/admin/logout", { method: "POST" }),
   me: () => adminFetch<AdminSessionStatus>("/admin/me"),
+  delete: <T>(path: string) => adminFetch<T>(path, { method: "DELETE" }),
   stats: () => adminFetch<AdminStats>("/admin/stats"),
   liveUsers: () => adminFetch<LiveUser[]>("/admin/live-users"),
   topSessionUsers: () => adminFetch<LiveUser[]>("/admin/top-session-users"),

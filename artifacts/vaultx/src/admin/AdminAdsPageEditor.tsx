@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Save, Plus, Trash2, GripVertical, ExternalLink, Eye, X,
   Copy, Check, TrendingUp, Users, Clock, Calendar,
-  ShieldAlert, AlertTriangle, CheckCircle2, Zap, RefreshCw, Download,
+  ShieldAlert, AlertTriangle, CheckCircle2, Zap, RefreshCw, Download, RotateCcw,
 } from "lucide-react";
 
 interface AdsFeature { icon: string; title: string; desc: string; url: string }
@@ -668,6 +668,8 @@ export function AdminAdsPageEditor() {
   const [saved, setSaved]       = useState(false);
   const [views, setViews]       = useState<ViewStats | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [resetting, setResetting]   = useState(false);
+  const [resetDone, setResetDone]   = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function fetchViews() {
@@ -687,6 +689,17 @@ export function AdminAdsPageEditor() {
     timerRef.current = setInterval(fetchViews, 5000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
+
+  async function resetCounter() {
+    if (!window.confirm("⚠️ هذا سيحذف جميع سجلات الزيارات نهائياً. هل أنت متأكد؟")) return;
+    setResetting(true);
+    try {
+      await adminApi.delete<{ ok: boolean; deleted: number }>("/admin/adspage-views/reset");
+      setResetDone(true);
+      setViews({ total: 0, today: 0, lastHour: 0 });
+      setTimeout(() => setResetDone(false), 3000);
+    } catch { /* ignore */ } finally { setResetting(false); }
+  }
 
   async function save() {
     setSaving(true); setSaved(false);
@@ -742,6 +755,28 @@ export function AdminAdsPageEditor() {
           </div>
           <ShieldAlert className="w-4 h-4 text-red-400/50 group-hover:text-red-400 transition-colors" />
         </div>
+      </button>
+
+      {/* ── Reset counter button ── */}
+      <button
+        type="button"
+        onClick={() => void resetCounter()}
+        disabled={resetting}
+        className="flex items-center gap-2 self-start px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+        style={{
+          background: resetDone ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.1)",
+          border: `1px solid ${resetDone ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.25)"}`,
+          color: resetDone ? "#86efac" : "#fca5a5",
+          cursor: resetting ? "not-allowed" : "pointer",
+          opacity: resetting ? 0.6 : 1,
+        }}
+      >
+        {resetting
+          ? <><RefreshCw style={{ width:12, height:12, animation:"spin 1s linear infinite" }} /> جار الحذف...</>
+          : resetDone
+          ? <><Check style={{ width:12, height:12 }} /> تم تصفير العداد</>
+          : <><RotateCcw style={{ width:12, height:12 }} /> تصفير عداد الزيارات</>
+        }
       </button>
 
       {/* ── Header ── */}
