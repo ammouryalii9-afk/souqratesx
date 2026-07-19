@@ -3,10 +3,7 @@ import { adminApi, type AdminSettingsMap } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Save, Cpu, Flame, Globe, Leaf, Star, Gem, Plus, Trash2, GripVertical } from "lucide-react";
-
-interface AdsFeature { icon: string; title: string; desc: string; url: string }
-interface AdsLink { label: string; url: string; icon: string }
+import { Save, Cpu, Flame, Globe, Leaf, Star, Gem } from "lucide-react";
 
 const COMBO_ICON_OPTIONS = [
   { id: 'cpu', icon: Cpu, label: 'CPU' },
@@ -277,16 +274,6 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
-    title: "صفحة الإعلانات (/adspage) — النصوص الأساسية",
-    fields: [
-      { key: "adsPageTitle", label: "عنوان التطبيق الرئيسي", type: "text", defaultValue: "SouqratesX" },
-      { key: "adsPageTagline", label: "النص التعريفي (تحت العنوان)", type: "text", defaultValue: "منصة SouqrateX" },
-      { key: "adsPageCtaText", label: "نص زر الدعوة (CTA)", type: "text", defaultValue: "العب على تيليجرام" },
-      { key: "adsPageCtaEmoji", label: "إيموجي زر الدعوة", type: "text", defaultValue: "✈️" },
-      { key: "adsPageFooterText", label: "نص التذييل", type: "text", defaultValue: "انضم لآلاف اللاعبين الآن وابدأ رحلتك" },
-    ],
-  },
-  {
     title: "الفرق (Squad) — مكافآت الأعضاء",
     fields: [
       { key: "squadJoinBonus", label: "مكافأة انضمام للفريق (مرة واحدة لكل حساب)", type: "number", defaultValue: 5000 },
@@ -302,14 +289,6 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
   },
 ];
 
-const DEFAULT_FEATURES: AdsFeature[] = [
-  { icon: '⛏️', title: 'التعدين التلقائي', desc: 'اضغط وعدّن النقاط في كل وقت، وارابح بشكل سلبي حتى وأنت غائب.', url: '' },
-  { icon: '🎮', title: 'ألعاب يومية', desc: 'العجلة، تحدي الذاكرة، والنقر السريع — العب يومياً واكسب نقاطاً إضافية.', url: '' },
-  { icon: '👥', title: 'نظام الإحالة', desc: 'ادعُ أصدقاءك واكسب نسبة من أرباحهم. كلما دعوت أكثر، ربحت أكثر.', url: '' },
-  { icon: '🛡️', title: 'الفِرَق', desc: 'أنشئ فرقتك أو انضم لفرقة وتنافس على قائمة أفضل الفِرَق عالمياً.', url: '' },
-  { icon: '💎', title: 'عملة SKX', desc: 'حوّل نقاطك إلى عملة SKX القابلة للسحب وشارك في نظام البكسلات.', url: '' },
-];
-
 export function AdminSettings() {
   const [values, setValues] = useState<AdminSettingsMap>({});
   const [loading, setLoading] = useState(true);
@@ -317,8 +296,6 @@ export function AdminSettings() {
   const [saved, setSaved] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
   const [settingUpWebhook, setSettingUpWebhook] = useState(false);
-  const [adsFeatures, setAdsFeatures] = useState<AdsFeature[]>(DEFAULT_FEATURES);
-  const [adsLinks, setAdsLinks] = useState<AdsLink[]>([]);
 
   async function setupWebhook() {
     setSettingUpWebhook(true);
@@ -336,27 +313,7 @@ export function AdminSettings() {
   useEffect(() => {
     adminApi
       .settings()
-      .then((v) => {
-        setValues(v);
-        try {
-          const raw = v.adsPageFeatures;
-          if (typeof raw === "string" && raw.trim()) {
-            const parsed = JSON.parse(raw) as AdsFeature[];
-            if (Array.isArray(parsed)) setAdsFeatures(parsed.map(f => ({ icon: f.icon ?? '', title: f.title ?? '', desc: f.desc ?? '', url: f.url ?? '' })));
-          } else if (Array.isArray(raw)) {
-            setAdsFeatures((raw as AdsFeature[]).map(f => ({ icon: f.icon ?? '', title: f.title ?? '', desc: f.desc ?? '', url: f.url ?? '' })));
-          }
-        } catch { /* keep defaults */ }
-        try {
-          const raw = v.adsPageExtraLinks;
-          if (typeof raw === "string" && raw.trim()) {
-            const parsed = JSON.parse(raw) as AdsLink[];
-            if (Array.isArray(parsed)) setAdsLinks(parsed.map(l => ({ label: l.label ?? '', url: l.url ?? '', icon: l.icon ?? '' })));
-          } else if (Array.isArray(raw)) {
-            setAdsLinks((raw as AdsLink[]).map(l => ({ label: l.label ?? '', url: l.url ?? '', icon: l.icon ?? '' })));
-          }
-        } catch { /* keep defaults */ }
-      })
+      .then((v) => { setValues(v); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -410,8 +367,6 @@ export function AdminSettings() {
         setSaving(false);
         return;
       }
-      payload.adsPageFeatures = adsFeatures.map(f => ({ icon: f.icon, title: f.title, desc: f.desc, url: f.url || null }));
-      payload.adsPageExtraLinks = adsLinks.map(l => ({ label: l.label, url: l.url, icon: l.icon || null }));
       const updated = await adminApi.updateSettings(payload);
       setValues(updated);
       setSaved(true);
@@ -528,114 +483,6 @@ export function AdminSettings() {
               })()}
             </span>
           </div>
-        </div>
-      </div>
-
-      {/* ── محرر بطاقات ميزات /adspage ── */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-white">صفحة الإعلانات — بطاقات الميزات</h3>
-          <button
-            type="button"
-            onClick={() => setAdsFeatures(f => [...f, { icon: '⭐', title: '', desc: '', url: '' }])}
-            className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 rounded-lg px-2 py-1"
-          >
-            <Plus className="w-3 h-3" /> إضافة بطاقة
-          </button>
-        </div>
-        <div className="flex flex-col gap-3">
-          {adsFeatures.map((f, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-                <Input
-                  value={f.icon}
-                  onChange={e => setAdsFeatures(arr => arr.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))}
-                  placeholder="إيموجي"
-                  className="w-16 text-center"
-                />
-                <Input
-                  value={f.title}
-                  onChange={e => setAdsFeatures(arr => arr.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
-                  placeholder="العنوان"
-                  className="flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => setAdsFeatures(arr => arr.filter((_, j) => j !== i))}
-                  className="text-red-400 hover:text-red-300 p-1"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                value={f.desc}
-                onChange={e => setAdsFeatures(arr => arr.map((x, j) => j === i ? { ...x, desc: e.target.value } : x))}
-                placeholder="الوصف"
-                className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                dir="rtl"
-              />
-              <Input
-                value={f.url}
-                onChange={e => setAdsFeatures(arr => arr.map((x, j) => j === i ? { ...x, url: e.target.value } : x))}
-                placeholder="رابط (اختياري — اتركه فارغاً إذا لا تريد رابطاً)"
-                dir="ltr"
-              />
-            </div>
-          ))}
-          {adsFeatures.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">لا توجد بطاقات — اضغط "إضافة بطاقة" لإنشاء أول ميزة</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── محرر روابط إضافية /adspage ── */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-white">صفحة الإعلانات — روابط إضافية</h3>
-          <button
-            type="button"
-            onClick={() => setAdsLinks(l => [...l, { label: '', url: '', icon: '' }])}
-            className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 rounded-lg px-2 py-1"
-          >
-            <Plus className="w-3 h-3" /> إضافة رابط
-          </button>
-        </div>
-        <div className="flex flex-col gap-2">
-          {adsLinks.map((l, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input
-                value={l.icon}
-                onChange={e => setAdsLinks(arr => arr.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))}
-                placeholder="🔗"
-                className="w-14 text-center"
-              />
-              <Input
-                value={l.label}
-                onChange={e => setAdsLinks(arr => arr.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
-                placeholder="نص الزر"
-                className="flex-1"
-              />
-              <Input
-                value={l.url}
-                onChange={e => setAdsLinks(arr => arr.map((x, j) => j === i ? { ...x, url: e.target.value } : x))}
-                placeholder="https://..."
-                className="flex-1"
-                dir="ltr"
-              />
-              <button
-                type="button"
-                onClick={() => setAdsLinks(arr => arr.filter((_, j) => j !== i))}
-                className="text-red-400 hover:text-red-300 p-1"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-          {adsLinks.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-3">لا توجد روابط — اضغط "إضافة رابط" لإضافة زر رابط</p>
-          )}
         </div>
       </div>
 

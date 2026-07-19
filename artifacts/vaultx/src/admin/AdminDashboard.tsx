@@ -21,10 +21,11 @@ import { AdminContract } from "./AdminContract";
 import { AdminGroupChallenges } from "./AdminGroupChallenges";
 import { AdminArcade } from "./AdminArcade";
 import { AdminLinkTracker } from "./AdminLinkTracker";
+import { AdminAdsPageEditor } from "./AdminAdsPageEditor";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3, Radio, Link2 } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "arcade" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "group-challenges" | "link-tracker" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "arcade" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "group-challenges" | "link-tracker" | "adspage" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -54,6 +55,7 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "contract",          label: "العقود",          icon: <ShieldCheck className="w-4 h-4" /> },
       { id: "group-challenges",  label: "تحديات الدعوة",   icon: <Users className="w-4 h-4" /> },
       { id: "link-tracker",      label: "تتبع الروابط",    icon: <Link2 className="w-4 h-4" />, badge: "جديد" },
+      { id: "adspage",           label: "صفحة الإعلانات", icon: <Megaphone className="w-4 h-4" /> },
       { id: "settings",          label: "الإعدادات",       icon: <SettingsIcon className="w-4 h-4" /> },
       { id: "log",        label: "السجل",         icon: <ScrollText className="w-4 h-4" /> },
     ],
@@ -138,6 +140,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "contract"         && <AdminContract />}
         {tab === "group-challenges" && <AdminGroupChallenges />}
         {tab === "link-tracker"     && <AdminLinkTracker />}
+        {tab === "adspage"          && <AdminAdsPageEditor />}
         {tab === "settings"         && <AdminSettings />}
         {tab === "log"        && <AdminAuditLog />}
       </main>
