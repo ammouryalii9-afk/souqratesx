@@ -55,6 +55,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const adgemUrl = asString(settings.adgemOfferwallUrl);
   const cpxresearchAppId = asString(settings.cpxresearchAppId);
   const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
+  const gigapubProjectId = asString(settings.gigapubProjectId);
 
   const defaultTerms = `By tapping "Accept" you agree to:\n• Personal use of the app only\n• No bots, scripts, or cheat tools\n• The platform may suspend accounts found cheating\n• Earned points are redeemable per the published withdrawal terms\n\nWe collect only your Telegram ID to save your progress. We never share it with third parties.`;
   const defaultWelcome = `Welcome to SouqratesX ⛏️\n\nTap to mine, upgrade your miner, and turn your effort into real rewards.`;
@@ -179,6 +180,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           name: "CPX Research",
           url: cpxresearchUrl || null,
           enabled: Boolean(cpxresearchAppId && asString(settings.cpxresearchSecureHash)),
+        },
+        {
+          id: "gigapub",
+          name: "GigaPub",
+          url: null,
+          enabled: Boolean(gigapubProjectId),
         },
       ],
 
