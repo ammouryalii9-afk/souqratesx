@@ -178,4 +178,123 @@ router.get("/admin/adspage-views/report", async (req, res): Promise<void> => {
   });
 });
 
+// ─── Admin: fraud / fake-visit analysis ───────────────────────────────────────
+
+router.get("/admin/adspage-views/fraud", async (req, res): Promise<void> => {
+  if (!isAdminSession(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const now      = new Date();
+  const start30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // ── 1. Total visits in window ──
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(linkClickEventsTable)
+    .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)));
+
+  // ── 2. Empty / missing user agent ──
+  const [{ emptyUa }] = await db
+    .select({ emptyUa: sql<number>`count(*)::int` })
+    .from(linkClickEventsTable)
+    .where(and(
+      eq(linkClickEventsTable.linkId, ADSPAGE_ID),
+      gte(linkClickEventsTable.createdAt, start30d),
+      sql`(user_agent is null or trim(user_agent) = '')`,
+    ));
+
+  // ── 3. Known bot / crawler UAs ──
+  const [{ botUa }] = await db
+    .select({ botUa: sql<number>`count(*)::int` })
+    .from(linkClickEventsTable)
+    .where(and(
+      eq(linkClickEventsTable.linkId, ADSPAGE_ID),
+      gte(linkClickEventsTable.createdAt, start30d),
+      sql`lower(user_agent) ~ '(bot|crawler|spider|scraper|headless|phantom|selenium|puppeteer|playwright|wget|curl|python|java|go-http|axios|okhttp|libwww|java|ahrefsbot|semrushbot|mj12bot|dotbot|bingbot|googlebot|yandexbot|baiduspider|facebookexternalhit|twitterbot|slurp|duckduckbot|ia_archiver|archive\.org_bot|masscan|zgrab)'`,
+    ));
+
+  // ── 4. High-repeat IPs (same hash > 10 visits in 30d) ──
+  const highRepeatRows = await db
+    .select({
+      ipHash: linkClickEventsTable.ipHash,
+      count:  sql<number>`count(*)::int`,
+    })
+    .from(linkClickEventsTable)
+    .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)))
+    .groupBy(linkClickEventsTable.ipHash)
+    .having(sql`count(*) > 10`)
+    .orderBy(sql`count(*) DESC`)
+    .limit(20);
+
+  const highRepeatTotal = highRepeatRows.reduce((a, r) => a + r.count, 0);
+
+  // ── 5. Burst windows: minutes with ≥ 5 visits ──
+  const burstRows = await db
+    .select({
+      minute: sql<string>`date_trunc('minute', created_at)::text`,
+      count:  sql<number>`count(*)::int`,
+    })
+    .from(linkClickEventsTable)
+    .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)))
+    .groupBy(sql`date_trunc('minute', created_at)`)
+    .having(sql`count(*) >= 5`)
+    .orderBy(sql`count(*) DESC`)
+    .limit(20);
+
+  const totalBurstVisits = burstRows.reduce((a, r) => a + r.count, 0);
+
+  // ── 6. Unique IP ratio (low ratio = suspicious) ──
+  const [{ uniqueIps }] = await db
+    .select({ uniqueIps: sql<number>`count(distinct ip_hash)::int` })
+    .from(linkClickEventsTable)
+    .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)));
+
+  // ── 7. Sub-second duplicate detection (same ip_hash within 2s window) ──
+  const [{ rapidFire }] = await db
+    .select({ rapidFire: sql<number>`count(*)::int` })
+    .from(
+      db
+        .select({
+          ipHash: linkClickEventsTable.ipHash,
+          ts:     linkClickEventsTable.createdAt,
+          prev:   sql<Date>`lag(created_at) over (partition by ip_hash order by created_at)`.as("prev"),
+        })
+        .from(linkClickEventsTable)
+        .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)))
+        .as("windowed"),
+    )
+    .where(sql`extract(epoch from (windowed.ts - windowed.prev)) < 2`);
+
+  // ── Score ──────────────────────────────────────────────────────────────────
+  const suspiciousVisits =
+    emptyUa + botUa +
+    highRepeatTotal +
+    Math.max(0, totalBurstVisits - burstRows.length) + // burst excess over 1/min baseline
+    rapidFire;
+
+  const suspiciousPct = total > 0 ? Math.round((Math.min(suspiciousVisits, total) / total) * 100) : 0;
+
+  const riskLevel =
+    suspiciousPct >= 40 ? "HIGH" :
+    suspiciousPct >= 15 ? "MEDIUM" :
+    suspiciousPct >= 5  ? "LOW" :
+    "CLEAN";
+
+  res.json({
+    generatedAt: now.toISOString(),
+    window:      "last 30 days",
+    total,
+    uniqueIps,
+    uniqueRatio: total > 0 ? +(uniqueIps / total * 100).toFixed(1) : 100,
+    signals: {
+      emptyUserAgent:  { count: emptyUa,          pct: total > 0 ? +(emptyUa / total * 100).toFixed(1) : 0 },
+      botUserAgent:    { count: botUa,             pct: total > 0 ? +(botUa   / total * 100).toFixed(1) : 0 },
+      highRepeatIps:   { count: highRepeatRows.length, totalVisits: highRepeatTotal, pct: total > 0 ? +(highRepeatTotal / total * 100).toFixed(1) : 0, top: highRepeatRows.map(r => ({ ipHashPrefix: r.ipHash.slice(0,8)+"…", count: r.count })) },
+      burstWindows:    { count: burstRows.length, totalVisits: totalBurstVisits, top: burstRows.map(r => ({ minute: r.minute, count: r.count })) },
+      rapidFireClicks: { count: rapidFire,         pct: total > 0 ? +(rapidFire / total * 100).toFixed(1) : 0 },
+    },
+    suspiciousPct,
+    riskLevel,
+  });
+});
+
 export default router;
