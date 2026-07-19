@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, vaultUsersTable, pollsTable, pollVotesTable } from "@workspace/db";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, sql, and, desc, inArray } from "drizzle-orm";
 import { getSessionTelegramId } from "../lib/session";
 import { isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
@@ -176,17 +176,18 @@ router.post("/admin/polls/:id/distribute", async (req, res): Promise<void> => {
     .from(pollVotesTable)
     .where(and(eq(pollVotesTable.pollId, pollId), eq(pollVotesTable.optionId, correctOptionId)));
 
-  const winnerCount  = winners.length;
-  const rewardEach   = winnerCount > 0 ? Math.floor(poll.totalPool / winnerCount) : 0;
-  const winnerIds    = winners.map(w => w.telegramId);
+  const winnerCount = winners.length;
+  const totalPool   = Number(poll.totalPool);
+  const rewardEach  = winnerCount > 0 ? Math.floor(totalPool / winnerCount) : 0;
+  const winnerIds   = winners.map(w => w.telegramId);
 
   await db.transaction(async (tx) => {
-    // Credit each winner
+    // Credit each winner — use inArray (not ANY) so Drizzle binds the array correctly
     if (rewardEach > 0 && winnerIds.length > 0) {
       await tx
         .update(vaultUsersTable)
-        .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${rewardEach}::bigint` })
-        .where(sql`${vaultUsersTable.telegramId} = ANY(${winnerIds})`);
+        .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${String(rewardEach)}::bigint` })
+        .where(inArray(vaultUsersTable.telegramId, winnerIds));
 
       await tx
         .update(pollVotesTable)
