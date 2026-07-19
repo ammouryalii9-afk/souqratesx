@@ -57,6 +57,19 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const cpxresearchUrl = cpxresearchAppId ? `https://offers.cpx-research.com/index.php?app_id=${cpxresearchAppId}` : "";
   const gigapubProjectId = asString(settings.gigapubProjectId);
 
+  const defaultAdsPageFeatures = [
+    { icon: '⛏️', title: 'التعدين التلقائي', desc: 'اضغط وعدّن النقاط في كل وقت، وارابح بشكل سلبي حتى وأنت غائب.', url: null },
+    { icon: '🎮', title: 'ألعاب يومية', desc: 'العجلة، تحدي الذاكرة، والنقر السريع — العب يومياً واكسب نقاطاً إضافية.', url: null },
+    { icon: '👥', title: 'نظام الإحالة', desc: 'ادعُ أصدقاءك واكسب نسبة من أرباحهم. كلما دعوت أكثر، ربحت أكثر.', url: null },
+    { icon: '🛡️', title: 'الفِرَق', desc: 'أنشئ فرقتك أو انضم لفرقة وتنافس على قائمة أفضل الفِرَق عالمياً.', url: null },
+    { icon: '💎', title: 'عملة SKX', desc: 'حوّل نقاطك إلى عملة SKX القابلة للسحب وشارك في نظام البكسلات.', url: null },
+  ];
+
+  function parseJsonSetting<T>(raw: string | undefined, fallback: T): T {
+    if (!raw) return fallback;
+    try { return JSON.parse(raw) as T; } catch { return fallback; }
+  }
+
   const defaultTerms = `By tapping "Accept" you agree to:\n• Personal use of the app only\n• No bots, scripts, or cheat tools\n• The platform may suspend accounts found cheating\n• Earned points are redeemable per the published withdrawal terms\n\nWe collect only your Telegram ID to save your progress. We never share it with third parties.`;
   const defaultWelcome = `Welcome to SouqratesX ⛏️\n\nTap to mine, upgrade your miner, and turn your effort into real rewards.`;
 
@@ -212,6 +225,15 @@ router.get("/config/public", async (_req, res): Promise<void> => {
         try { return JSON.parse(asString(settings.dailyComboIds) || '["star","globe","gem"]') as string[]; }
         catch { return ['star', 'globe', 'gem']; }
       })(),
+      adsPage: {
+        title: asString(settings.adsPageTitle) || 'SouqratesX',
+        tagline: asString(settings.adsPageTagline) || 'منصة SouqrateX',
+        ctaText: asString(settings.adsPageCtaText) || 'العب على تيليجرام',
+        ctaEmoji: asString(settings.adsPageCtaEmoji) || '✈️',
+        footerText: asString(settings.adsPageFooterText) || 'انضم لآلاف اللاعبين الآن وابدأ رحلتك',
+        features: parseJsonSetting(asString(settings.adsPageFeatures), defaultAdsPageFeatures),
+        extraLinks: parseJsonSetting<{ label: string; url: string; icon?: string | null }[]>(asString(settings.adsPageExtraLinks), []),
+      },
     }),
   );
 });

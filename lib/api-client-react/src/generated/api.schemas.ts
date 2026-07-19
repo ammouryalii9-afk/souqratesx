@@ -403,6 +403,31 @@ export type PublicConfigFeatures = {
   maintenanceMode: boolean;
 };
 
+export type PublicConfigAdsPageFeaturesItem = {
+  icon: string;
+  title: string;
+  desc: string;
+  /** @nullable */
+  url?: string | null;
+};
+
+export type PublicConfigAdsPageExtraLinksItem = {
+  label: string;
+  url: string;
+  /** @nullable */
+  icon?: string | null;
+};
+
+export type PublicConfigAdsPage = {
+  title: string;
+  tagline: string;
+  ctaText: string;
+  ctaEmoji: string;
+  footerText: string;
+  features: PublicConfigAdsPageFeaturesItem[];
+  extraLinks: PublicConfigAdsPageExtraLinksItem[];
+};
+
 export interface PublicConfig {
   adsgram: PublicConfigAdsgram;
   monetag: PublicConfigMonetag;
@@ -423,6 +448,7 @@ export interface PublicConfig {
   dailyCipher: string;
   /** List of 3 icon IDs for today's daily combo (e.g. [star, globe, gem]) */
   dailyComboIds: string[];
+  adsPage: PublicConfigAdsPage;
 }
 
 export interface EarnRewardResult {

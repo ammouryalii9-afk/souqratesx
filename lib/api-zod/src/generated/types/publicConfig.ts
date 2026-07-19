@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PublicConfigAdsgram } from './publicConfigAdsgram';
+import type { PublicConfigAdsPage } from './publicConfigAdsPage';
 import type { PublicConfigBotMessages } from './publicConfigBotMessages';
 import type { PublicConfigExoclick } from './publicConfigExoclick';
 import type { PublicConfigFeatures } from './publicConfigFeatures';
@@ -34,4 +35,5 @@ export interface PublicConfig {
   dailyCipher: string;
   /** List of 3 icon IDs for today's daily combo (e.g. [star, globe, gem]) */
   dailyComboIds: string[];
+  adsPage: PublicConfigAdsPage;
 }

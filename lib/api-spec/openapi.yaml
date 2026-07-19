@@ -1800,6 +1800,46 @@ components:
           items:
             type: string
           description: "List of 3 icon IDs for today's daily combo (e.g. [star, globe, gem])"
+        adsPage:
+          type: object
+          properties:
+            title:
+              type: string
+            tagline:
+              type: string
+            ctaText:
+              type: string
+            ctaEmoji:
+              type: string
+            footerText:
+              type: string
+            features:
+              type: array
+              items:
+                type: object
+                properties:
+                  icon:
+                    type: string
+                  title:
+                    type: string
+                  desc:
+                    type: string
+                  url:
+                    type: ["string", "null"]
+                required: [icon, title, desc]
+            extraLinks:
+              type: array
+              items:
+                type: object
+                properties:
+                  label:
+                    type: string
+                  url:
+                    type: string
+                  icon:
+                    type: ["string", "null"]
+                required: [label, url]
+          required: [title, tagline, ctaText, ctaEmoji, footerText, features, extraLinks]
       required:
         - botMessages
         - botUsername
@@ -1815,6 +1855,7 @@ components:
         - dollarBonus
         - dailyCipher
         - dailyComboIds
+        - adsPage
     EarnRewardResult:
       type: object
       properties:

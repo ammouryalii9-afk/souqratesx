@@ -760,7 +760,25 @@ export const GetPublicConfigResponse = zod.object({
   "pointsPerDollar": zod.number().describe('How many points equal $1 (default 2000000)'),
   "dollarBonus": zod.number().describe('Flat bonus dollar amount shown to users (admin-controlled incentive)'),
   "dailyCipher": zod.string().describe('Today\'s daily cipher word (uppercase English letters, e.g. BOSS)'),
-  "dailyComboIds": zod.array(zod.string()).describe('List of 3 icon IDs for today\'s daily combo (e.g. [star, globe, gem])')
+  "dailyComboIds": zod.array(zod.string()).describe('List of 3 icon IDs for today\'s daily combo (e.g. [star, globe, gem])'),
+  "adsPage": zod.object({
+  "title": zod.string(),
+  "tagline": zod.string(),
+  "ctaText": zod.string(),
+  "ctaEmoji": zod.string(),
+  "footerText": zod.string(),
+  "features": zod.array(zod.object({
+  "icon": zod.string(),
+  "title": zod.string(),
+  "desc": zod.string(),
+  "url": zod.string().nullish()
+})),
+  "extraLinks": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string(),
+  "icon": zod.string().nullish()
+}))
+})
 })
 
 
