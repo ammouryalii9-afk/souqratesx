@@ -61,6 +61,9 @@ export function AdsPage() {
         if (d?.adsPage)     setCfg(d.adsPage);
       })
       .catch(() => {});
+
+    // record visit — fire and forget
+    fetch('/api/track/adspage', { method: 'POST', credentials: 'include' }).catch(() => {});
   }, []);
 
   const botLink    = `https://t.me/${botUsername}?startapp=ads`;

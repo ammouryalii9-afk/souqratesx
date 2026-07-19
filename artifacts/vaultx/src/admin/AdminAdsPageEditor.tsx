@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminApi, type AdminSettingsMap } from "./adminApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Plus, Trash2, GripVertical, ExternalLink } from "lucide-react";
+import { Save, Plus, Trash2, GripVertical, ExternalLink, Eye } from "lucide-react";
 
 interface AdsFeature { icon: string; title: string; desc: string; url: string }
 interface AdsLink { label: string; url: string; icon: string }
@@ -31,6 +31,8 @@ function parseJsonArray<T>(raw: unknown, fallback: T[]): T[] {
   return fallback;
 }
 
+interface ViewStats { total: number; today: number; lastHour: number }
+
 export function AdminAdsPageEditor() {
   const [values, setValues] = useState<AdminSettingsMap>({});
   const [features, setFeatures] = useState<AdsFeature[]>(DEFAULT_FEATURES);
@@ -38,6 +40,14 @@ export function AdminAdsPageEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [views, setViews] = useState<ViewStats | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function fetchViews() {
+    adminApi.get<ViewStats>("/admin/adspage-views")
+      .then(v => setViews(v))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     adminApi.settings().then(v => {
@@ -47,6 +57,10 @@ export function AdminAdsPageEditor() {
       setLinks(parseJsonArray<AdsLink>(v.adsPageExtraLinks, [])
         .map(l => ({ label: l.label ?? '', url: l.url ?? '', icon: l.icon ?? '' })));
     }).finally(() => setLoading(false));
+
+    fetchViews();
+    timerRef.current = setInterval(fetchViews, 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   async function save() {
@@ -72,6 +86,41 @@ export function AdminAdsPageEditor() {
 
   return (
     <div className="flex flex-col gap-5">
+
+      {/* ── View Counter ── */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+          <Eye className="w-5 h-5 text-violet-400" />
+        </div>
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground mb-1">زيارات <span className="font-mono text-violet-400">/adspage</span> — يتحدث كل 5 ثواني</p>
+          <div className="flex items-end gap-5">
+            {views ? (
+              <>
+                <div>
+                  <span className="text-2xl font-black text-white">{views.total.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground ml-1">إجمالي</span>
+                </div>
+                <div>
+                  <span className="text-lg font-bold text-violet-400">{views.today.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground ml-1">اليوم</span>
+                </div>
+                <div>
+                  <span className="text-lg font-bold text-emerald-400">{views.lastHour.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground ml-1">آخر ساعة</span>
+                </div>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">جار التحميل...</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wide">مباشر</span>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">
