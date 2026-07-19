@@ -43,7 +43,7 @@ export function PollWidget() {
     setError("");
 
     if (skxBalance < data.poll.entryFeeSkx) {
-      setError(`تحتاج ${fmt(data.poll.entryFeeSkx)} SKX للتصويت`);
+      setError(`You need ${fmt(data.poll.entryFeeSkx)} SKX to vote`);
       return;
     }
 
@@ -56,11 +56,11 @@ export function PollWidget() {
         body: JSON.stringify({ pollId: data.poll.id, optionId }),
       });
       const json = await r.json() as { error?: string };
-      if (!r.ok) { setError(json.error ?? "فشل التصويت"); return; }
+      if (!r.ok) { setError(json.error ?? "Vote failed. Please try again."); return; }
       await refreshFromServer();
       await load();
     } catch {
-      setError("خطأ في الاتصال");
+      setError("Connection error. Please try again.");
     } finally {
       setVoting(false);
     }
@@ -76,7 +76,7 @@ export function PollWidget() {
   const isDone     = poll.status === "distributed";
 
   const statusColor = isActive ? "#22c55e" : isClosed ? "#f59e0b" : "#a855f7";
-  const statusLabel = isActive ? "مفتوح" : isClosed ? "انتهى التصويت" : "تم التوزيع";
+  const statusLabel = isActive ? "Live" : isClosed ? "Voting Closed" : "Prizes Distributed";
 
   function pct(optId: string) {
     if (totalVotes === 0) return 0;
@@ -101,8 +101,8 @@ export function PollWidget() {
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ fontSize:22 }}>🏆</span>
           <div>
-            <p style={{ fontSize:12, fontWeight:900, color:"#fff", margin:0, lineHeight:1.2 }}>نهائي كأس العالم 2026</p>
-            <p style={{ fontSize:10, color:"rgba(168,85,247,0.9)", margin:0, fontWeight:700 }}>صوّت وانتظر نهاية المباراة</p>
+            <p style={{ fontSize:12, fontWeight:900, color:"#fff", margin:0, lineHeight:1.2 }}>World Cup Final 2026</p>
+            <p style={{ fontSize:10, color:"rgba(168,85,247,0.9)", margin:0, fontWeight:700 }}>Vote & win SKX when the match ends</p>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:999, background:`${statusColor}18`, border:`1px solid ${statusColor}40` }}>
@@ -117,24 +117,24 @@ export function PollWidget() {
       {/* Options */}
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
         {poll.options.map((opt) => {
-          const isUserChoice   = userVote?.optionId === opt.id;
-          const isWinner       = isDone && poll.correctOptionId === opt.id;
-          const isLoser        = isDone && poll.correctOptionId !== opt.id;
-          const count          = voteCounts[opt.id] ?? 0;
-          const barPct         = hasVoted || !isActive ? pct(opt.id) : 0;
-          const showResults    = hasVoted || !isActive;
+          const isUserChoice = userVote?.optionId === opt.id;
+          const isWinner     = isDone && poll.correctOptionId === opt.id;
+          const isLoser      = isDone && poll.correctOptionId !== opt.id;
+          const count        = voteCounts[opt.id] ?? 0;
+          const barPct       = hasVoted || !isActive ? pct(opt.id) : 0;
+          const showResults  = hasVoted || !isActive;
 
-          const optBorder = isWinner ? "rgba(34,197,94,0.6)"
-                          : isLoser  ? "rgba(255,255,255,0.08)"
+          const optBorder = isWinner     ? "rgba(34,197,94,0.6)"
+                          : isLoser      ? "rgba(255,255,255,0.08)"
                           : isUserChoice ? "rgba(168,85,247,0.6)"
-                          : "rgba(255,255,255,0.1)";
-          const optBg     = isWinner ? "rgba(34,197,94,0.1)"
-                          : isLoser  ? "rgba(255,255,255,0.03)"
+                          :                "rgba(255,255,255,0.1)";
+          const optBg     = isWinner     ? "rgba(34,197,94,0.1)"
+                          : isLoser      ? "rgba(255,255,255,0.03)"
                           : isUserChoice ? "rgba(168,85,247,0.12)"
-                          : "rgba(255,255,255,0.05)";
-          const barColor  = isWinner ? "#22c55e"
+                          :                "rgba(255,255,255,0.05)";
+          const barColor  = isWinner     ? "#22c55e"
                           : isUserChoice ? "#a855f7"
-                          : "#3b82f6";
+                          :                "#3b82f6";
 
           return (
             <button
@@ -151,7 +151,7 @@ export function PollWidget() {
                 transition:"transform 0.15s, box-shadow 0.15s",
               }}
             >
-              {/* Progress bar */}
+              {/* Progress bar fill */}
               {showResults && (
                 <div style={{ position:"absolute", left:0, top:0, bottom:0, width:`${barPct}%`, background:`${barColor}18`, transition:"width 0.6s ease", borderRadius:13 }} />
               )}
@@ -161,8 +161,8 @@ export function PollWidget() {
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <span style={{ fontSize:14, fontWeight:900, color: isLoser ? "rgba(255,255,255,0.4)" : "#fff" }}>{opt.label}</span>
-                    {isUserChoice && <span style={{ fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:999, background:"rgba(168,85,247,0.25)", color:"#c084fc", border:"1px solid rgba(168,85,247,0.3)" }}>صوتك</span>}
-                    {isWinner && <span style={{ fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:999, background:"rgba(34,197,94,0.2)", color:"#4ade80", border:"1px solid rgba(34,197,94,0.3)" }}>الفائز 🎉</span>}
+                    {isUserChoice && <span style={{ fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:999, background:"rgba(168,85,247,0.25)", color:"#c084fc", border:"1px solid rgba(168,85,247,0.3)" }}>Your Vote</span>}
+                    {isWinner     && <span style={{ fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:999, background:"rgba(34,197,94,0.2)",    color:"#4ade80", border:"1px solid rgba(34,197,94,0.3)"    }}>Winner 🎉</span>}
                   </div>
                   {showResults && (
                     <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
@@ -182,28 +182,40 @@ export function PollWidget() {
         })}
       </div>
 
-      {/* Footer info */}
+      {/* Footer */}
       <div style={{ marginTop:14, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div style={{ display:"flex", gap:14 }}>
           <div style={{ textAlign:"center" }}>
-            <p style={{ fontSize:11, color:"rgba(255,255,255,0.4)", margin:0, textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700 }}>المجموع</p>
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.4)", margin:0, textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700 }}>Prize Pool</p>
             <p style={{ fontSize:15, fontWeight:900, color:"#a855f7", margin:0 }}>{fmt(poll.totalPool)} <span style={{ fontSize:10, fontWeight:700 }}>SKX</span></p>
           </div>
           <div style={{ textAlign:"center" }}>
-            <p style={{ fontSize:11, color:"rgba(255,255,255,0.4)", margin:0, textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700 }}>الأصوات</p>
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.4)", margin:0, textTransform:"uppercase", letterSpacing:"0.05em", fontWeight:700 }}>Votes</p>
             <p style={{ fontSize:15, fontWeight:900, color:"#3b82f6", margin:0 }}>{fmt(totalVotes)}</p>
           </div>
         </div>
 
         {isActive && !hasVoted && (
           <div style={{ padding:"6px 14px", borderRadius:10, background:"rgba(168,85,247,0.15)", border:"1px solid rgba(168,85,247,0.3)" }}>
-            <p style={{ fontSize:11, fontWeight:800, color:"#c084fc", margin:0 }}>التصويت يكلّف {fmt(poll.entryFeeSkx)} SKX</p>
+            <p style={{ fontSize:11, fontWeight:800, color:"#c084fc", margin:0 }}>Entry: {fmt(poll.entryFeeSkx)} SKX</p>
+          </div>
+        )}
+
+        {isActive && hasVoted && (
+          <div style={{ padding:"6px 14px", borderRadius:10, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)" }}>
+            <p style={{ fontSize:11, fontWeight:800, color:"#4ade80", margin:0 }}>✓ Vote locked in!</p>
           </div>
         )}
 
         {isDone && userVote?.rewardSkx && userVote.rewardSkx > 0 && (
           <div style={{ padding:"6px 14px", borderRadius:10, background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.3)" }}>
-            <p style={{ fontSize:11, fontWeight:800, color:"#4ade80", margin:0 }}>+{fmt(userVote.rewardSkx)} SKX ✓</p>
+            <p style={{ fontSize:11, fontWeight:800, color:"#4ade80", margin:0 }}>You won +{fmt(userVote.rewardSkx)} SKX ✓</p>
+          </div>
+        )}
+
+        {isDone && userVote && (!userVote.rewardSkx || userVote.rewardSkx === 0) && (
+          <div style={{ padding:"6px 14px", borderRadius:10, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)" }}>
+            <p style={{ fontSize:11, fontWeight:800, color:"rgba(255,255,255,0.4)", margin:0 }}>Better luck next time</p>
           </div>
         )}
       </div>
