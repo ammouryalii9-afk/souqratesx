@@ -20,6 +20,7 @@ import contractRouter from "./contract";
 import groupChallengesRouter from "./groupChallenges";
 import arcadeRouter from "./arcade";
 import trackingRouter from "./tracking";
+import pollsRouter from "./polls";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(contractRouter);
 router.use(groupChallengesRouter);
 router.use(arcadeRouter);
 router.use(trackingRouter);
+router.use(pollsRouter);
 
 export default router;

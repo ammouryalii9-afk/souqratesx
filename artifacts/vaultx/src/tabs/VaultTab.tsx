@@ -17,6 +17,7 @@ import { Download, Zap, ShieldAlert, CheckCircle2, Battery, FastForward, Sprout,
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, type PublicConfig } from '../lib/gameApi';
+import { PollWidget } from '../components/PollWidget';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { useLanguage } from '../lib/i18n';
 
@@ -435,6 +436,9 @@ export const VaultTab = () => {
           )}
         </div>
       )}
+
+      {/* World Cup Poll */}
+      <PollWidget />
 
       {/* Info Row */}
       <div className="flex flex-col gap-3">
