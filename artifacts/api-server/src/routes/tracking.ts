@@ -296,4 +296,41 @@ router.get("/admin/adspage-views/fraud", async (req, res): Promise<void> => {
   });
 });
 
+// ─── Admin: export raw visit logs as CSV ──────────────────────────────────────
+
+router.get("/admin/adspage-views/export.csv", async (req, res): Promise<void> => {
+  if (!isAdminSession(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  // optional ?days=N query param, default 30, max 365
+  const days   = Math.min(365, Math.max(1, parseInt(String(req.query["days"] ?? "30")) || 30));
+  const since  = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const rows = await db
+    .select({
+      id:        linkClickEventsTable.id,
+      createdAt: linkClickEventsTable.createdAt,
+      ipHash:    linkClickEventsTable.ipHash,
+      userAgent: linkClickEventsTable.userAgent,
+    })
+    .from(linkClickEventsTable)
+    .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, since)))
+    .orderBy(linkClickEventsTable.createdAt);
+
+  // Build CSV
+  const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const lines  = [
+    ["#","timestamp_utc","ip_hash_sha256","user_agent"].join(","),
+    ...rows.map((r, i) => [
+      i + 1,
+      escape(r.createdAt.toISOString()),
+      escape(r.ipHash),
+      escape(r.userAgent ?? ""),
+    ].join(",")),
+  ];
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="souqratesx-adspage-visits-${days}d.csv"`);
+  res.send(lines.join("\r\n"));
+});
+
 export default router;

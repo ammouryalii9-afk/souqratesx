@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Save, Plus, Trash2, GripVertical, ExternalLink, Eye, X,
   Copy, Check, TrendingUp, Users, Clock, Calendar,
-  ShieldAlert, AlertTriangle, CheckCircle2, Zap, RefreshCw,
+  ShieldAlert, AlertTriangle, CheckCircle2, Zap, RefreshCw, Download,
 } from "lucide-react";
 
 interface AdsFeature { icon: string; title: string; desc: string; url: string }
@@ -109,6 +109,82 @@ function riskDesc(r: string) {
   if (r === "MEDIUM") return "Notable suspicious activity detected. You may have been charged for non-human traffic.";
   if (r === "LOW")    return "Minor suspicious signals. Could be automated crawlers or ad preview bots.";
   return                     "Traffic looks clean. No significant fraud signals detected.";
+}
+
+// ── GigaPub reply template ─────────────────────────────────────────────────
+function GigaPubReplyBox({ fraud }: { fraud: FraudReport }) {
+  const [copied, setCopied] = useState(false);
+  const sig = fraud.signals;
+
+  const topBurst = sig.burstWindows.top[0];
+  const topIp    = sig.highRepeatIps.top[0];
+
+  const template = `Hello GigaPub Support,
+
+Thank you for your response. Here is the structured evidence from our server-side logs:
+
+TRAFFIC SUMMARY (last 30 days)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total recorded visits:      ${fraud.total.toLocaleString("en-US")}
+Unique visitor ratio:       ${fraud.uniqueRatio}% (${fraud.uniqueIps.toLocaleString("en-US")} unique IPs out of ${fraud.total.toLocaleString("en-US")} hits)
+Estimated suspicious traffic: ~${fraud.suspiciousPct}%
+
+FRAUD SIGNALS DETECTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Empty/missing User-Agent:       ${sig.emptyUserAgent.count.toLocaleString("en-US")} visits (${sig.emptyUserAgent.pct}%)
+   → Direct HTTP requests with no browser signature. These are not human users.
+
+2. Known bot/crawler User-Agents:  ${sig.botUserAgent.count.toLocaleString("en-US")} visits (${sig.botUserAgent.pct}%)
+   → Matched against 20+ known patterns (curl, Puppeteer, Selenium, AhrefsBot, etc.)
+
+3. High-repeat IPs (>10 visits):   ${sig.highRepeatIps.count} IPs responsible for ${sig.highRepeatIps.totalVisits.toLocaleString("en-US")} visits (${sig.highRepeatIps.pct}%)
+   → ${topIp ? `Top offender: IP hash ${topIp.ipHashPrefix} — ${topIp.count} visits` : "See attached CSV for full list."}
+   → No legitimate user visits a static landing page 10+ times.
+
+4. Traffic burst windows (≥5 hits/min): ${sig.burstWindows.count} windows, ${sig.burstWindows.totalVisits.toLocaleString("en-US")} total visits
+   → ${topBurst ? `Worst burst: ${topBurst.count} visits in a single minute at ${topBurst.minute} UTC` : "See attached CSV for exact timestamps."}
+   → Organic traffic never spikes this sharply on a landing page.
+
+5. Rapid-fire clicks (<2s gap, same IP): ${sig.rapidFireClicks.count.toLocaleString("en-US")} occurrences (${sig.rapidFireClicks.pct}%)
+   → Same IP hash hitting the page twice within 2 seconds. Physically impossible for a human.
+
+REGARDING YOUR REQUEST FOR IPs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+We store IP addresses as one-way SHA-256 hashes for GDPR compliance — raw IPs are never retained. The attached CSV contains the full log: timestamp (UTC), IP hash, and User-Agent for every recorded visit. The hash is consistent per IP, so you can identify clusters of repeat visits from the same source.
+
+ATTACHED: souqratesx-adspage-visits-30d.csv
+This file contains server-recorded timestamps for all visits in the last 30 days.
+Timestamps are UTC, recorded server-side — not client-side and not manipulable.
+
+We expect a formal credit or refund for the invalid traffic volume identified above.
+If this cannot be resolved at your level, we will escalate to relevant advertising standards bodies.
+
+Best regards,
+SouqratesX Team`.trim();
+
+  async function copy() {
+    await navigator.clipboard.writeText(template);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
+  return (
+    <div style={{ background:"rgba(168,85,247,0.07)", border:"1px solid rgba(168,85,247,0.25)", borderRadius:12, padding:"14px 16px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <p style={{ margin:0, fontSize:12, fontWeight:800, color:"#c084fc" }}>💬 Ready-to-Send Reply to GigaPub</p>
+        <button
+          onClick={() => void copy()}
+          style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:7, background:"rgba(168,85,247,0.2)", border:"1px solid rgba(168,85,247,0.4)", color:"#c084fc", fontSize:11, fontWeight:700, cursor:"pointer" }}
+        >
+          {copied ? <Check style={{width:12,height:12}}/> : <Copy style={{width:12,height:12}}/>}
+          {copied ? "Copied!" : "Copy Message"}
+        </button>
+      </div>
+      <pre style={{ margin:0, fontSize:10.5, color:"rgba(255,255,255,0.55)", lineHeight:1.7, whiteSpace:"pre-wrap", wordBreak:"break-word", fontFamily:"monospace", maxHeight:220, overflowY:"auto", background:"rgba(0,0,0,0.25)", borderRadius:8, padding:"10px 12px" }}>
+        {template}
+      </pre>
+    </div>
+  );
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
@@ -510,12 +586,40 @@ function ReportModal({ onClose }: { onClose: () => void }) {
                     </div>
                   </section>
 
+                  {/* CSV Export */}
+                  <div style={{ background:"rgba(59,130,246,0.08)", border:"1px solid rgba(59,130,246,0.25)", borderRadius:12, padding:"14px 16px" }}>
+                    <p style={{ margin:"0 0 8px", fontSize:12, fontWeight:800, color:"#60a5fa" }}>📥 Export Raw Visit Logs (CSV)</p>
+                    <p style={{ margin:"0 0 12px", fontSize:11, color:"rgba(255,255,255,0.5)", lineHeight:1.6 }}>
+                      GigaPub is asking for logs — download a CSV with every visit's exact timestamp (UTC), IP hash, and User-Agent. This is the server-side evidence they need.
+                    </p>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                      {[
+                        { label:"Last 7 Days",  days:7  },
+                        { label:"Last 30 Days", days:30 },
+                        { label:"All Time",     days:365 },
+                      ].map(opt => (
+                        <a
+                          key={opt.days}
+                          href={`/api/admin/adspage-views/export.csv?days=${opt.days}`}
+                          download
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", borderRadius:8, background:"rgba(59,130,246,0.15)", border:"1px solid rgba(59,130,246,0.35)", color:"#93c5fd", fontSize:12, fontWeight:700, textDecoration:"none", cursor:"pointer" }}
+                        >
+                          <Download style={{width:13,height:13}} />
+                          {opt.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* GigaPub reply template */}
+                  <GigaPubReplyBox fraud={f} />
+
                   {/* Complaint tip */}
                   <div style={{ padding:"12px 16px", borderRadius:12, background:"rgba(251,191,36,0.08)", border:"1px solid rgba(251,191,36,0.25)" }}>
                     <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:800, color:"#fbbf24" }}>📋 How to use this for a complaint</p>
                     <p style={{ margin:0, fontSize:11, color:"rgba(255,255,255,0.6)", lineHeight:1.7 }}>
-                      1. Press <strong style={{color:"#c4b5fd"}}>"Copy Full Report"</strong> to copy the full text evidence.<br/>
-                      2. Attach this data to your ticket — highlight the <strong>Unique Visitor Ratio</strong>, <strong>High-Repeat IPs</strong>, and <strong>Burst Windows</strong> as primary evidence.<br/>
+                      1. Download the CSV above and attach it to your ticket.<br/>
+                      2. Use the reply template above — copy it and send it to GigaPub.<br/>
                       3. Mention that IP hashes are SHA-256 derived (privacy-compliant) and timestamps are server-recorded UTC — this establishes server-side data integrity.
                     </p>
                   </div>
