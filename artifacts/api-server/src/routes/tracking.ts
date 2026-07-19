@@ -249,20 +249,19 @@ router.get("/admin/adspage-views/fraud", async (req, res): Promise<void> => {
     .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)));
 
   // ── 7. Sub-second duplicate detection (same ip_hash within 2s window) ──
-  const [{ rapidFire }] = await db
-    .select({ rapidFire: sql<number>`count(*)::int` })
-    .from(
-      db
-        .select({
-          ipHash: linkClickEventsTable.ipHash,
-          ts:     linkClickEventsTable.createdAt,
-          prev:   sql<Date>`lag(created_at) over (partition by ip_hash order by created_at)`.as("prev"),
-        })
-        .from(linkClickEventsTable)
-        .where(and(eq(linkClickEventsTable.linkId, ADSPAGE_ID), gte(linkClickEventsTable.createdAt, start30d)))
-        .as("windowed"),
-    )
-    .where(sql`extract(epoch from (windowed.ts - windowed.prev)) < 2`);
+  const rapidFireResult = await db.execute<{ rapid_fire: string }>(sql`
+    SELECT count(*)::int AS rapid_fire
+    FROM (
+      SELECT
+        created_at AS ts,
+        lag(created_at) OVER (PARTITION BY ip_hash ORDER BY created_at) AS prev
+      FROM link_click_events
+      WHERE link_id = ${ADSPAGE_ID}
+        AND created_at >= ${start30d}
+    ) windowed
+    WHERE extract(epoch FROM (ts - prev)) < 2
+  `);
+  const rapidFire = Number((rapidFireResult.rows[0] as { rapid_fire: string })?.rapid_fire ?? 0);
 
   // ── Score ──────────────────────────────────────────────────────────────────
   const suspiciousVisits =
