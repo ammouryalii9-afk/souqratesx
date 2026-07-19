@@ -245,6 +245,13 @@ const SECTIONS: { title: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: "GigaPub (Offerwall SDK)",
+    fields: [
+      { key: "gigapubProjectId", label: "GigaPub Project ID", type: "text", defaultValue: "" },
+      { key: "gigapubSecret", label: "GigaPub Secret (للتحقق من المكافآت)", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     title: "عضوية Premium",
     fields: [
       { key: "premiumEarningsMultiplier", label: "مضاعف الأرباح لمشتركي Premium", type: "number", defaultValue: 2 },

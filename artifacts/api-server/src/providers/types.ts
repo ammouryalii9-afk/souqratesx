@@ -15,6 +15,8 @@ export interface EarnOffer {
   title: string;
   rewardPoints: number;
   url?: string;
+  /** Optional provider-specific metadata (e.g. SDK-embedded offerwalls like GigaPub). */
+  meta?: Record<string, unknown>;
 }
 
 /** Raw inbound reward claim/callback, before provider-specific verification. */

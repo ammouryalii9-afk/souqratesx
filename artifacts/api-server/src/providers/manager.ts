@@ -6,6 +6,7 @@ import { createMonetagProvider } from "./monetag";
 import { createOnclickaProvider } from "./onclicka";
 
 import { createCpxResearchProvider } from "./cpxResearch";
+import { createGigaPubProvider } from "./gigapub";
 import { createOfferwallProvider } from "./offerwall";
 import type { EarnOffer, EarnProvider, ProviderContext } from "./types";
 
@@ -15,6 +16,7 @@ const REGISTRY: EarnProvider[] = [
   createOnclickaProvider(),
 
   createCpxResearchProvider(),
+  createGigaPubProvider(),
   createOfferwallProvider("cpa", "\u0639\u0631\u0648\u0636 CPA"),
   createOfferwallProvider("monlix", "Monlix"),
   createOfferwallProvider("bitlabs", "Bitlabs"),
@@ -265,6 +267,15 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
         secureHash: asStr(settings["cpxresearchSecureHash"]),
       },
     },
+    {
+      key: "gigapub",
+      name: "GigaPub",
+      type: "offerwall",
+      config: {
+        projectId: asStr(settings["gigapubProjectId"]),
+        secret: asStr(settings["gigapubSecret"]),
+      },
+    },
   ];
 
   for (const seed of seeds) {
@@ -278,6 +289,8 @@ export async function syncProvidersFromSettings(settings: Record<string, unknown
           )
         : seed.key === "cpxresearch"
           ? Boolean((seed.config["appId"] as string) && (seed.config["secureHash"] as string))
+          : seed.key === "gigapub"
+          ? Boolean((seed.config["projectId"] as string))
           : Boolean((seed.config["url"] as string) || "");
     await db
       .insert(providersTable)

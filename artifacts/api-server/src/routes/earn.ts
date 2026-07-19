@@ -157,6 +157,36 @@ router.get("/earn/offerwall/postback", rateLimit("postback", 60, 60_000), async 
   res.json(OfferwallPostbackResponse.parse({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints }));
 });
 
+router.post("/earn/gigapub/reward", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const provider = getProvider("gigapub");
+  if (!provider || !provider.isEnabled()) {
+    res.status(403).json({ error: "GigaPub is not configured" });
+    return;
+  }
+
+  const { rewardId, amount, hash } = req.body as Record<string, unknown>;
+  const result = await processReward(provider, {
+    telegramId,
+    raw: { userId: telegramId, rewardId, amount, hash },
+  });
+
+  if (!result.ok) {
+    if (result.reason === "Invalid postback secret") {
+      req.log.warn({ telegramId }, "Rejected GigaPub reward: invalid hash");
+      res.status(403).json({ error: "Invalid hash" });
+      return;
+    }
+    res.status(400).json({ error: result.reason ?? "Reward not credited" });
+    return;
+  }
+
+  req.log.info({ telegramId, creditedPoints: result.creditedPoints }, "GigaPub reward credited");
+  res.json({ creditedPoints: result.creditedPoints, lifetimePoints: result.lifetimePoints });
+});
+
 router.get("/earn/cpxresearch/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
   const telegramId = typeof req.query.user_id === "string" ? req.query.user_id : "";
 

@@ -57,6 +57,7 @@ export const TasksTab = () => {
   const isAr = lang === 'ar';
 
   const [config, setConfig] = useState<PublicConfig | null>(null);
+  const [gigapubLoading, setGigapubLoading] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
   const [bannerAdLoading, setBannerAdLoading] = useState(false);
   const [monetagLoading, setMonetagLoading] = useState(false);
@@ -257,6 +258,65 @@ export const TasksTab = () => {
     const idParam = offer.id === 'cpxresearch' ? 'ext_user_id' : 'sub1';
     const url = offer.url.includes('?') ? `${offer.url}&${idParam}=${userId}` : `${offer.url}?${idParam}=${userId}`;
     window.open(url, '_blank');
+  };
+
+  const openGigaPub = async (projectId: string) => {
+    if (gigapubLoading) return;
+    const win = window as unknown as Record<string, unknown>;
+
+    const launchSdk = () => {
+      const sdk = win['gigaOfferWallSDK'] as { open?: () => void; on?: (event: string, cb: (data: Record<string, unknown>) => Promise<void>) => void } | undefined;
+      if (sdk?.open) {
+        sdk.on?.('rewardClaim', async (data: Record<string, unknown>) => {
+          try {
+            await fetch('/api/earn/gigapub/reward', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rewardId: data['rewardId'], amount: data['amount'], hash: data['hash'] }),
+            });
+            await refreshFromServer();
+            (sdk as unknown as { confirmReward?: (id: unknown, hash: unknown) => void }).confirmReward?.(data['rewardId'], data['hash']);
+          } catch { /* non-fatal */ }
+        });
+        sdk.open();
+        return true;
+      }
+      return false;
+    };
+
+    if (launchSdk()) return;
+
+    // SDK not loaded yet — load it first
+    setGigapubLoading(true);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('timeout')), 8000);
+        const callbacks: (() => void)[] = (win['loadGigaSDKCallbacks'] as (() => void)[] | undefined) ?? [];
+        win['loadGigaSDKCallbacks'] = callbacks;
+        callbacks.push(() => {
+          clearTimeout(timeout);
+          const loadFn = win['loadOfferWallSDK'] as ((opts: { projectId: string }) => Promise<unknown>) | undefined;
+          if (!loadFn) { reject(new Error('loadOfferWallSDK missing')); return; }
+          loadFn({ projectId })
+            .then(sdk => { win['gigaOfferWallSDK'] = sdk; resolve(); })
+            .catch(reject);
+        });
+
+        if (!document.querySelector(`script[src*="giga.pub"]`)) {
+          const script = document.createElement('script');
+          script.src = `https://wall.giga.pub/api/v1/loader.js?projectId=${projectId}`;
+          script.async = true;
+          script.onerror = () => { clearTimeout(timeout); reject(new Error('Script load failed')); };
+          document.head.appendChild(script);
+        }
+      });
+      launchSdk();
+    } catch {
+      toast({ title: isAr ? 'تعذّر تحميل GigaPub' : 'Could not load GigaPub', variant: 'destructive' });
+    } finally {
+      setGigapubLoading(false);
+    }
   };
 
   const handleBuyWithStars = (productId: number) => {
@@ -1024,20 +1084,39 @@ export const TasksTab = () => {
                   <span className="text-sm font-bold text-white">{isAr ? 'عروض واستطلاعات' : 'Offers & Surveys'}</span>
                 </div>
                 <div className="space-y-2.5">
-                  {activeOffers.map(offer => (
-                    <div key={offer.id} className="rounded-xl p-4 flex items-center justify-between"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div className="flex-1 pr-3">
-                        <h3 className="font-semibold text-white text-sm">{offer.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">{isAr ? 'أكمل عروض للنقاط' : 'Complete offers for points'}</p>
+                  {activeOffers.map(offer => {
+                    const isGigaPub = offer.id === 'gigapub';
+                    const gigapubProjectId = isGigaPub
+                      ? (offer as unknown as { meta?: { projectId?: string } }).meta?.projectId ?? '7352'
+                      : '';
+                    return (
+                      <div key={offer.id} className="rounded-xl p-4 flex items-center justify-between"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div className="flex-1 pr-3">
+                          <h3 className="font-semibold text-white text-sm">{offer.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">{isAr ? 'أكمل عروض واربح SKX' : 'Complete offers & earn SKX'}</p>
+                        </div>
+                        {isGigaPub ? (
+                          <button
+                            data-testid="button-offerwall-gigapub"
+                            disabled={gigapubLoading}
+                            onClick={() => openGigaPub(gigapubProjectId)}
+                            className="h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                            style={{ background: 'rgba(168,85,247,0.15)', color: '#a78bfa', border: '1px solid rgba(168,85,247,0.25)' }}>
+                            {gigapubLoading
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <>{isAr ? 'افتح' : 'Open'}<Zap className="w-3 h-3" /></>}
+                          </button>
+                        ) : (
+                          <button data-testid={`button-offerwall-${offer.id}`} onClick={() => openOfferwall(offer)}
+                            className="h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                            style={{ background: 'rgba(168,85,247,0.15)', color: '#a78bfa', border: '1px solid rgba(168,85,247,0.25)' }}>
+                            {isAr ? 'افتح' : 'Open'}<ExternalLink className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
-                      <button data-testid={`button-offerwall-${offer.id}`} onClick={() => openOfferwall(offer)}
-                        className="h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
-                        style={{ background: 'rgba(168,85,247,0.15)', color: '#a78bfa', border: '1px solid rgba(168,85,247,0.25)' }}>
-                        {isAr ? 'افتح' : 'Open'}<ExternalLink className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             );
