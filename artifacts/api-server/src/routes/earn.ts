@@ -98,7 +98,9 @@ router.post("/earn/onclicka/reward", rateLimit("onclicka", 30, 60_000), async (r
 
 
 router.get("/earn/adsgram/postback", rateLimit("postback", 60, 60_000), async (req, res): Promise<void> => {
-  const telegramId = typeof req.query.userId === "string" ? req.query.userId : "";
+  // Adsgram sends `userid` (lowercase); some integrations send `userId` — accept both
+  const rawUserId = req.query.userId ?? req.query.userid;
+  const telegramId = typeof rawUserId === "string" ? rawUserId : "";
   const secret = typeof req.query.secret === "string" ? req.query.secret : "";
   const txId = typeof req.query.txId === "string" && req.query.txId.length > 0 ? req.query.txId : undefined;
 
