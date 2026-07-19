@@ -58,15 +58,16 @@ router.get("/config/public", async (_req, res): Promise<void> => {
   const gigapubProjectId = asString(settings.gigapubProjectId);
 
   const defaultAdsPageFeatures = [
-    { icon: '⛏️', title: 'التعدين التلقائي', desc: 'اضغط وعدّن النقاط في كل وقت، وارابح بشكل سلبي حتى وأنت غائب.', url: null },
-    { icon: '🎮', title: 'ألعاب يومية', desc: 'العجلة، تحدي الذاكرة، والنقر السريع — العب يومياً واكسب نقاطاً إضافية.', url: null },
-    { icon: '👥', title: 'نظام الإحالة', desc: 'ادعُ أصدقاءك واكسب نسبة من أرباحهم. كلما دعوت أكثر، ربحت أكثر.', url: null },
-    { icon: '🛡️', title: 'الفِرَق', desc: 'أنشئ فرقتك أو انضم لفرقة وتنافس على قائمة أفضل الفِرَق عالمياً.', url: null },
-    { icon: '💎', title: 'عملة SKX', desc: 'حوّل نقاطك إلى عملة SKX القابلة للسحب وشارك في نظام البكسلات.', url: null },
+    { icon: '⛏️', title: 'Auto Mining',     desc: 'Tap to mine SKP points anytime. Your miners keep earning even while you are offline.', url: null },
+    { icon: '🎮', title: 'Daily Games',      desc: 'Lucky Wheel, Memory Match, Speed Tap — play every day and earn bonus rewards.', url: null },
+    { icon: '👥', title: 'Referral System',  desc: 'Invite friends and earn a share of their rewards. More invites = more income.', url: null },
+    { icon: '🛡️', title: 'Squads',           desc: 'Create or join a squad and compete for the global squad leaderboard prizes.', url: null },
+    { icon: '💎', title: 'SKX Currency',     desc: 'Convert your SKP points to SKX — the withdrawable hard currency of the platform.', url: null },
   ];
 
-  function parseJsonSetting<T>(raw: string | undefined, fallback: T): T {
-    if (!raw) return fallback;
+  function parseJsonSetting<T>(raw: unknown, fallback: T): T {
+    if (Array.isArray(raw) || (raw !== null && typeof raw === 'object')) return raw as T;
+    if (typeof raw !== 'string' || !raw) return fallback;
     try { return JSON.parse(raw) as T; } catch { return fallback; }
   }
 
@@ -227,12 +228,12 @@ router.get("/config/public", async (_req, res): Promise<void> => {
       })(),
       adsPage: {
         title: asString(settings.adsPageTitle) || 'SouqratesX',
-        tagline: asString(settings.adsPageTagline) || 'منصة SouqrateX',
-        ctaText: asString(settings.adsPageCtaText) || 'العب على تيليجرام',
-        ctaEmoji: asString(settings.adsPageCtaEmoji) || '✈️',
-        footerText: asString(settings.adsPageFooterText) || 'انضم لآلاف اللاعبين الآن وابدأ رحلتك',
-        features: parseJsonSetting(asString(settings.adsPageFeatures), defaultAdsPageFeatures),
-        extraLinks: parseJsonSetting<{ label: string; url: string; icon?: string | null }[]>(asString(settings.adsPageExtraLinks), []),
+        tagline: asString(settings.adsPageTagline) || 'The #1 Telegram Play-to-Earn Platform',
+        ctaText: asString(settings.adsPageCtaText) || 'Play on Telegram',
+        ctaEmoji: asString(settings.adsPageCtaEmoji) || '🚀',
+        footerText: asString(settings.adsPageFooterText) || 'Join thousands of players and start earning today',
+        features: parseJsonSetting(settings.adsPageFeatures, defaultAdsPageFeatures),
+        extraLinks: parseJsonSetting<{ label: string; url: string; icon?: string | null }[]>(settings.adsPageExtraLinks, []),
       },
     }),
   );
