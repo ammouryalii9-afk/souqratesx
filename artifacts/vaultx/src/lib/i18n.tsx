@@ -328,6 +328,8 @@ const en = {
     title: 'Reward Received!',
     desc: 'A bonus was added to your SKP balance',
     button: 'Awesome!',
+    skxTitle: 'Referral Commission!',
+    skxDesc: 'SKX earned from your referrals\' activity',
   },
   squad: {
     title: 'Squads',
@@ -849,6 +851,8 @@ const ar: typeof en = {
     title: 'وصلتك مكافأة!',
     desc: 'تمت إضافة مكافأة إلى رصيد SKP الخاص بك',
     button: 'رائع!',
+    skxTitle: 'عمولة إحالة!',
+    skxDesc: 'SKX من نشاط أصدقائك',
   },
   squad: {
     title: 'الفرق',
@@ -1229,7 +1233,7 @@ const es: typeof en = {
     desc: (time: string) => `Tus mineros siguieron trabajando mientras estabas fuera (${time}).`,
     claim: (n: string) => `Recoger ${n} puntos`,
   },
-  bonusReward: { title: '¡Recompensa Recibida!', desc: 'Se añadió un bono a tu saldo SKP', button: '¡Genial!' },
+  bonusReward: { title: '¡Recompensa Recibida!', desc: 'Se añadió un bono a tu saldo SKP', button: '¡Genial!', skxTitle: '¡Comisión de Referido!', skxDesc: 'SKX ganado de la actividad de tus referidos' },
   squad: {
     title: 'Equipos', subtitle: 'Únete, suma puntos y escala la clasificación. Recluta amigos — todos los que se unan reciben un bono.',
     topSquads: 'Mejores Equipos', noSquads: 'Aún no hay equipos — ¡sé el primero en crear uno!',
@@ -1575,7 +1579,7 @@ const ru: typeof en = {
     desc: (time: string) => `Ваши шахтёры продолжали работать пока вас не было (${time}).`,
     claim: (n: string) => `Забрать ${n} очков`,
   },
-  bonusReward: { title: 'Награда получена!', desc: 'Бонус добавлен на ваш баланс SKP', button: 'Отлично!' },
+  bonusReward: { title: 'Награда получена!', desc: 'Бонус добавлен на ваш баланс SKP', button: 'Отлично!', skxTitle: 'Реферальная комиссия!', skxDesc: 'SKX от активности ваших рефералов' },
   squad: {
     title: 'Отряды', subtitle: 'Объединяйтесь, суммируйте очки и поднимайтесь в рейтинге. Вербуйте друзей — каждый вступивший получает бонус.',
     topSquads: 'Топ Отрядов', noSquads: 'Отрядов ещё нет — будьте первым!',

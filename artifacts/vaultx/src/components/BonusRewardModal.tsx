@@ -66,12 +66,10 @@ function RewardModal({
             />
           </div>
           <h2 className="text-2xl font-black text-white mb-1">
-            {isSkx ? "عمولة إحالة! / Referral Commission!" : tr.bonusReward.title}
+            {isSkx ? tr.bonusReward.skxTitle : tr.bonusReward.title}
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            {isSkx
-              ? "SKX من نشاط أصدقائك / SKX from your referrals"
-              : tr.bonusReward.desc}
+            {isSkx ? tr.bonusReward.skxDesc : tr.bonusReward.desc}
           </p>
           <div
             className={`flex items-center gap-2 text-3xl font-black mb-6 tabular-nums ${
