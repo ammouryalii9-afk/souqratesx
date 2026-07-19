@@ -757,27 +757,35 @@ export function AdminAdsPageEditor() {
         </div>
       </button>
 
-      {/* ── Reset counter button ── */}
-      <button
-        type="button"
-        onClick={() => void resetCounter()}
-        disabled={resetting}
-        className="flex items-center gap-2 self-start px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-        style={{
-          background: resetDone ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.1)",
-          border: `1px solid ${resetDone ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.25)"}`,
-          color: resetDone ? "#86efac" : "#fca5a5",
-          cursor: resetting ? "not-allowed" : "pointer",
-          opacity: resetting ? 0.6 : 1,
-        }}
-      >
-        {resetting
-          ? <><RefreshCw style={{ width:12, height:12, animation:"spin 1s linear infinite" }} /> جار الحذف...</>
-          : resetDone
-          ? <><Check style={{ width:12, height:12 }} /> تم تصفير العداد</>
-          : <><RotateCcw style={{ width:12, height:12 }} /> تصفير عداد الزيارات</>
-        }
-      </button>
+      {/* ── Reset counter ── */}
+      <div style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+        <div>
+          <p style={{ margin:0, fontSize:13, fontWeight:700, color:"#fca5a5" }}>تصفير عداد الزيارات</p>
+          <p style={{ margin:"2px 0 0", fontSize:11, color:"rgba(255,255,255,0.4)" }}>حذف جميع سجلات /adspage من قاعدة البيانات</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void resetCounter()}
+          disabled={resetting}
+          style={{
+            display:"flex", alignItems:"center", gap:6,
+            padding:"8px 16px", borderRadius:8, fontSize:12, fontWeight:800,
+            background: resetDone ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)",
+            border: `1px solid ${resetDone ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)"}`,
+            color: resetDone ? "#86efac" : "#f87171",
+            cursor: resetting ? "not-allowed" : "pointer",
+            opacity: resetting ? 0.6 : 1,
+            whiteSpace:"nowrap", flexShrink:0,
+          }}
+        >
+          {resetting
+            ? <><RefreshCw style={{ width:13, height:13 }} /> جار الحذف...</>
+            : resetDone
+            ? <><Check style={{ width:13, height:13 }} /> تم التصفير ✓</>
+            : <><RotateCcw style={{ width:13, height:13 }} /> تصفير العداد</>
+          }
+        </button>
+      </div>
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
