@@ -199,7 +199,7 @@ router.get("/config/public", async (_req, res): Promise<void> => {
           id: "gigapub",
           name: "GigaPub",
           url: null,
-          enabled: Boolean(gigapubProjectId),
+          enabled: false,
         },
       ],
 
