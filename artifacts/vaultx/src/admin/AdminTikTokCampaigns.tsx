@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminApi } from "./adminApi";
-import { Loader2, CheckCircle, XCircle, Clock, Plus, ToggleLeft, ToggleRight, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Plus, ToggleLeft, ToggleRight, ExternalLink, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 interface Campaign {
   id: number;
@@ -24,7 +24,7 @@ interface Application {
   username: string | null;
   firstName: string | null;
   tiktokUsername: string;
-  videoUrl: string;
+  videoUrl: string | null;
   status: string;
   rejectReason: string | null;
   prizeSkxPaid: number;
@@ -37,9 +37,9 @@ interface Application {
 function fmt(n: number | null | undefined) { return (n ?? 0).toLocaleString("en-US"); }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "approved") return <span className="flex items-center gap-1 text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded-md px-2 py-0.5"><CheckCircle className="w-3 h-3"/>مقبول</span>;
-  if (status === "rejected") return <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded-md px-2 py-0.5"><XCircle className="w-3 h-3"/>مرفوض</span>;
-  return <span className="flex items-center gap-1 text-xs font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 rounded-md px-2 py-0.5"><Clock className="w-3 h-3"/>قيد المراجعة</span>;
+  if (status === "approved") return <span className="flex items-center gap-1 text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded-md px-2 py-0.5"><CheckCircle className="w-3 h-3"/>Approved</span>;
+  if (status === "rejected") return <span className="flex items-center gap-1 text-xs font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded-md px-2 py-0.5"><XCircle className="w-3 h-3"/>Rejected</span>;
+  return <span className="flex items-center gap-1 text-xs font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/30 rounded-md px-2 py-0.5"><Clock className="w-3 h-3"/>Pending</span>;
 }
 
 export function AdminTikTokCampaigns() {
@@ -54,6 +54,7 @@ export function AdminTikTokCampaigns() {
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [expandedApp, setExpandedApp] = useState<number | null>(null);
+  const [deletingCampId, setDeletingCampId] = useState<number | null>(null);
 
   const [newCamp, setNewCamp] = useState({ title: "", description: "", minFollowers: 10000, minViews: 10000, prizeSkx: 20000, perReferralSkx: 500 });
   const [creating, setCreating] = useState(false);
@@ -63,7 +64,7 @@ export function AdminTikTokCampaigns() {
     try {
       const d = await adminApi.get<{ campaigns: Campaign[] }>("/admin/tiktok-campaigns");
       setCampaigns(d.campaigns);
-    } catch { setError("فشل تحميل الحملات"); }
+    } catch { setError("Failed to load campaigns"); }
     finally { setLoadingCampaigns(false); }
   }, []);
 
@@ -72,7 +73,7 @@ export function AdminTikTokCampaigns() {
     try {
       const d = await adminApi.get<{ applications: Application[] }>(`/admin/tiktok-applications?status=${statusFilter}`);
       setApps(d.applications);
-    } catch { setError("فشل تحميل الطلبات"); }
+    } catch { setError("Failed to load applications"); }
     finally { setLoadingApps(false); }
   }, [statusFilter]);
 
@@ -80,12 +81,12 @@ export function AdminTikTokCampaigns() {
   useEffect(() => { void loadApps(); }, [loadApps]);
 
   async function approve(appId: number) {
-    if (!confirm("الموافقة على هذا الطلب وإضافة الجائزة SKX للمستخدم؟")) return;
+    if (!confirm("Approve this application and credit the SKX prize?")) return;
     setActionId(appId); setError("");
     try {
       await adminApi.post(`/admin/tiktok-applications/${appId}/approve`, {});
       void loadApps();
-    } catch (e) { setError(e instanceof Error ? e.message : "فشل الموافقة"); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Approval failed"); }
     finally { setActionId(null); }
   }
 
@@ -95,7 +96,7 @@ export function AdminTikTokCampaigns() {
       await adminApi.post(`/admin/tiktok-applications/${appId}/reject`, { reason: rejectReason });
       setRejectingId(null); setRejectReason("");
       void loadApps();
-    } catch (e) { setError(e instanceof Error ? e.message : "فشل الرفض"); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Rejection failed"); }
     finally { setActionId(null); }
   }
 
@@ -103,11 +104,21 @@ export function AdminTikTokCampaigns() {
     try {
       await adminApi.post(`/admin/tiktok-campaigns/${campId}/toggle`, {});
       void loadCampaigns();
-    } catch { setError("فشل تغيير الحالة"); }
+    } catch { setError("Failed to toggle campaign status"); }
+  }
+
+  async function deleteCampaign(campId: number) {
+    if (!confirm("Delete this campaign and all its applications? This cannot be undone.")) return;
+    setDeletingCampId(campId);
+    try {
+      await adminApi.del(`/admin/tiktok-campaigns/${campId}`);
+      void loadCampaigns();
+    } catch { setError("Failed to delete campaign"); }
+    finally { setDeletingCampId(null); }
   }
 
   async function createCampaign() {
-    if (!newCamp.title) { setError("يرجى إدخال عنوان الحملة"); return; }
+    if (!newCamp.title) { setError("Please enter a campaign title"); return; }
     setCreating(true); setError("");
     try {
       await adminApi.post("/admin/tiktok-campaigns", {
@@ -121,7 +132,7 @@ export function AdminTikTokCampaigns() {
       setShowCreate(false);
       setNewCamp({ title: "", description: "", minFollowers: 10000, minViews: 10000, prizeSkx: 20000, perReferralSkx: 500 });
       void loadCampaigns();
-    } catch (e) { setError(e instanceof Error ? e.message : "فشل الإنشاء"); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Creation failed"); }
     finally { setCreating(false); }
   }
 
@@ -132,14 +143,14 @@ export function AdminTikTokCampaigns() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-black text-white">🎵 مسابقات TikTok</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">إدارة الحملات والطلبات</p>
+          <h2 className="text-base font-black text-white">🎵 TikTok Campaigns</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage campaigns and applications</p>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 hover:bg-purple-500/30 transition-all"
         >
-          <Plus className="w-3.5 h-3.5" /> حملة جديدة
+          <Plus className="w-3.5 h-3.5" /> New Campaign
         </button>
       </div>
 
@@ -148,37 +159,37 @@ export function AdminTikTokCampaigns() {
       {/* Create campaign form */}
       {showCreate && (
         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3">
-          <p className="text-sm font-bold text-white">إنشاء حملة جديدة</p>
+          <p className="text-sm font-bold text-white">Create New Campaign</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-xs text-muted-foreground mb-1 block">العنوان</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Title</label>
               <input value={newCamp.title} onChange={e => setNewCamp(p => ({ ...p, title: e.target.value }))} placeholder="TikTok Creator — Big" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 outline-none" />
             </div>
             <div className="col-span-2">
-              <label className="text-xs text-muted-foreground mb-1 block">وصف (اختياري)</label>
-              <input value={newCamp.description} onChange={e => setNewCamp(p => ({ ...p, description: e.target.value }))} placeholder="للمبدعين الكبار على TikTok..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 outline-none" />
+              <label className="text-xs text-muted-foreground mb-1 block">Description (optional)</label>
+              <input value={newCamp.description} onChange={e => setNewCamp(p => ({ ...p, description: e.target.value }))} placeholder="For major TikTok creators..." className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 outline-none" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">أدنى متابعين</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Min Followers</label>
               <input type="number" value={newCamp.minFollowers} onChange={e => setNewCamp(p => ({ ...p, minFollowers: Number(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">أدنى مشاهدات</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Min Views</label>
               <input type="number" value={newCamp.minViews} onChange={e => setNewCamp(p => ({ ...p, minViews: Number(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">جائزة القبول (SKX)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Approval Prize (SKX)</label>
               <input type="number" value={newCamp.prizeSkx} onChange={e => setNewCamp(p => ({ ...p, prizeSkx: Number(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">SKX / إحالة</label>
+              <label className="text-xs text-muted-foreground mb-1 block">SKX / Referral</label>
               <input type="number" value={newCamp.perReferralSkx} onChange={e => setNewCamp(p => ({ ...p, perReferralSkx: Number(e.target.value) }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
             </div>
           </div>
           <div className="flex gap-2 pt-1">
-            <button onClick={() => setShowCreate(false)} className="flex-1 py-2 rounded-lg bg-white/5 text-xs text-white/60 font-bold border border-white/10">إلغاء</button>
+            <button onClick={() => setShowCreate(false)} className="flex-1 py-2 rounded-lg bg-white/5 text-xs text-white/60 font-bold border border-white/10">Cancel</button>
             <button onClick={() => void createCampaign()} disabled={creating} className="flex-2 py-2 px-4 rounded-lg bg-purple-600 text-xs text-white font-bold hover:bg-purple-500 transition-all disabled:opacity-50">
-              {creating ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "إنشاء"}
+              {creating ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Create"}
             </button>
           </div>
         </div>
@@ -187,15 +198,23 @@ export function AdminTikTokCampaigns() {
       {/* Campaigns list */}
       {!loadingCampaigns && campaigns.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">الحملات ({campaigns.length})</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Campaigns ({campaigns.length})</p>
           {campaigns.map(c => (
             <div key={c.id} className="flex items-center gap-3 bg-white/[0.03] border border-white/10 rounded-xl px-3 py-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-white truncate">{c.title}</p>
-                <p className="text-xs text-muted-foreground">{fmt(c.minFollowers)} متابع · {fmt(c.minViews)} مشاهدة · جائزة {fmt(c.prizeSkx)} SKX + {fmt(c.perReferralSkx)} SKX/إحالة</p>
+                <p className="text-xs text-muted-foreground">{fmt(c.minFollowers)} followers · {fmt(c.minViews)} views · Prize {fmt(c.prizeSkx)} SKX + {fmt(c.perReferralSkx)} SKX/referral</p>
               </div>
-              <button onClick={() => void toggle(c.id)} className={`shrink-0 transition-all ${c.isActive ? "text-green-400" : "text-white/30"}`}>
+              <button onClick={() => void toggle(c.id)} title={c.isActive ? "Deactivate" : "Activate"} className={`shrink-0 transition-all ${c.isActive ? "text-green-400" : "text-white/30"}`}>
                 {c.isActive ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={() => void deleteCampaign(c.id)}
+                disabled={deletingCampId === c.id}
+                title="Delete campaign"
+                className="shrink-0 text-red-400/60 hover:text-red-400 transition-all disabled:opacity-40"
+              >
+                {deletingCampId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </button>
             </div>
           ))}
@@ -205,8 +224,8 @@ export function AdminTikTokCampaigns() {
       {/* Applications */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">الطلبات</p>
-          {pendingCount > 0 && <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-full px-2 py-0.5">{pendingCount} جديد</span>}
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Applications</p>
+          {pendingCount > 0 && <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-full px-2 py-0.5">{pendingCount} new</span>}
         </div>
 
         <div className="flex gap-1.5 flex-wrap">
@@ -216,7 +235,7 @@ export function AdminTikTokCampaigns() {
               onClick={() => setStatusFilter(s)}
               className={`text-xs font-bold px-3 py-1 rounded-full border transition-all ${statusFilter === s ? "bg-purple-500/30 border-purple-500/50 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}
             >
-              {s === "pending" ? "قيد المراجعة" : s === "approved" ? "مقبولة" : s === "rejected" ? "مرفوضة" : "الكل"}
+              {s === "pending" ? "Pending" : s === "approved" ? "Approved" : s === "rejected" ? "Rejected" : "All"}
             </button>
           ))}
         </div>
@@ -224,7 +243,7 @@ export function AdminTikTokCampaigns() {
         {loadingApps ? (
           <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 text-purple-400 animate-spin" /></div>
         ) : apps.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">لا توجد طلبات</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">No applications</div>
         ) : (
           <div className="space-y-2">
             {apps.map(app => (
@@ -234,10 +253,16 @@ export function AdminTikTokCampaigns() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-white">@{app.tiktokUsername}</p>
                       <StatusBadge status={app.status} />
+                      {app.status === "approved" && !app.videoUrl && (
+                        <span className="text-xs font-bold text-orange-400 bg-orange-400/10 border border-orange-400/30 rounded-md px-2 py-0.5">📹 Video pending</span>
+                      )}
+                      {app.status === "approved" && app.videoUrl && (
+                        <span className="text-xs font-bold text-blue-400 bg-blue-400/10 border border-blue-400/30 rounded-md px-2 py-0.5">📹 Video submitted</span>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {app.firstName ?? app.username ?? app.telegramId} · {app.campaignTitle ?? `حملة #${app.campaignId}`}
-                      {app.status === "approved" && ` · ${fmt(app.referralCount)} إحالة · ${fmt((app.prizeSkxPaid ?? 0) + (app.totalReferralSkx ?? 0))} SKX`}
+                      {app.firstName ?? app.username ?? app.telegramId} · {app.campaignTitle ?? `Campaign #${app.campaignId}`}
+                      {app.status === "approved" && ` · ${fmt(app.referralCount)} referrals · ${fmt((app.prizeSkxPaid ?? 0) + (app.totalReferralSkx ?? 0))} SKX`}
                     </p>
                   </div>
                   <div className="text-white/30">
@@ -253,26 +278,32 @@ export function AdminTikTokCampaigns() {
                         <p className="text-white font-mono font-bold">{app.telegramId}</p>
                       </div>
                       <div className="bg-white/[0.04] rounded-lg p-2">
-                        <p className="text-muted-foreground mb-0.5">تاريخ التقديم</p>
-                        <p className="text-white font-bold">{new Date(app.createdAt).toLocaleDateString("ar-SA")}</p>
+                        <p className="text-muted-foreground mb-0.5">Applied</p>
+                        <p className="text-white font-bold">{new Date(app.createdAt).toLocaleDateString("en-GB")}</p>
                       </div>
                       {app.status === "approved" && (
                         <>
                           <div className="bg-green-400/[0.06] rounded-lg p-2 border border-green-400/10">
-                            <p className="text-muted-foreground mb-0.5">جائزة مدفوعة</p>
+                            <p className="text-muted-foreground mb-0.5">Prize paid</p>
                             <p className="text-green-400 font-bold">{fmt(app.prizeSkxPaid)} SKX</p>
                           </div>
                           <div className="bg-yellow-400/[0.06] rounded-lg p-2 border border-yellow-400/10">
-                            <p className="text-muted-foreground mb-0.5">إحالات + SKX</p>
+                            <p className="text-muted-foreground mb-0.5">Referrals · SKX</p>
                             <p className="text-yellow-400 font-bold">{fmt(app.referralCount)} · {fmt(app.totalReferralSkx)} SKX</p>
                           </div>
                         </>
                       )}
                     </div>
 
-                    <a href={app.videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 font-bold py-1.5 px-3 bg-blue-400/10 border border-blue-400/20 rounded-lg w-full justify-center">
-                      <ExternalLink className="w-3 h-3" /> مشاهدة الفيديو على TikTok
-                    </a>
+                    {app.videoUrl ? (
+                      <a href={app.videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 font-bold py-1.5 px-3 bg-blue-400/10 border border-blue-400/20 rounded-lg w-full justify-center">
+                        <ExternalLink className="w-3 h-3" /> View TikTok Video
+                      </a>
+                    ) : app.status === "approved" ? (
+                      <div className="text-xs text-orange-400 bg-orange-400/5 rounded-lg px-3 py-2 border border-orange-400/10 text-center">
+                        📹 Waiting for user to submit their video link
+                      </div>
+                    ) : null}
 
                     {app.status === "pending" && (
                       rejectingId === app.id ? (
@@ -280,30 +311,30 @@ export function AdminTikTokCampaigns() {
                           <input
                             value={rejectReason}
                             onChange={e => setRejectReason(e.target.value)}
-                            placeholder="سبب الرفض (اختياري)..."
+                            placeholder="Rejection reason (optional)..."
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 outline-none"
                           />
                           <div className="flex gap-2">
-                            <button onClick={() => setRejectingId(null)} className="flex-1 py-2 rounded-lg bg-white/5 text-xs text-white/60 font-bold border border-white/10">إلغاء</button>
+                            <button onClick={() => setRejectingId(null)} className="flex-1 py-2 rounded-lg bg-white/5 text-xs text-white/60 font-bold border border-white/10">Cancel</button>
                             <button onClick={() => void reject(app.id)} disabled={actionId === app.id} className="flex-1 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-bold hover:bg-red-500/30 transition-all disabled:opacity-50">
-                              {actionId === app.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "تأكيد الرفض"}
+                              {actionId === app.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Confirm Reject"}
                             </button>
                           </div>
                         </div>
                       ) : (
                         <div className="flex gap-2">
                           <button onClick={() => setRejectingId(app.id)} className="flex-1 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all">
-                            ✕ رفض
+                            ✕ Reject
                           </button>
                           <button onClick={() => void approve(app.id)} disabled={actionId === app.id} className="flex-2 py-2 px-4 rounded-lg bg-green-500/20 border border-green-500/40 text-green-400 text-xs font-bold hover:bg-green-500/30 transition-all disabled:opacity-50">
-                            {actionId === app.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "✓ موافقة + إضافة الجائزة"}
+                            {actionId === app.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "✓ Approve + Credit SKX"}
                           </button>
                         </div>
                       )
                     )}
 
                     {app.status === "rejected" && app.rejectReason && (
-                      <div className="text-xs text-red-400 bg-red-400/5 rounded-lg px-3 py-2 border border-red-400/10">سبب الرفض: {app.rejectReason}</div>
+                      <div className="text-xs text-red-400 bg-red-400/5 rounded-lg px-3 py-2 border border-red-400/10">Rejection reason: {app.rejectReason}</div>
                     )}
                   </div>
                 )}

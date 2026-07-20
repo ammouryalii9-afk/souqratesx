@@ -438,8 +438,8 @@ export const VaultTab = () => {
         </div>
       )}
 
-      {/* World Cup Poll */}
-      <PollWidget />
+      {/* World Cup Poll — hidden */}
+      {false && <PollWidget />}
 
       {/* TikTok Creator Campaigns */}
       <TikTokCampaignCard />

@@ -3,7 +3,6 @@ import { db, vaultUsersTable, tiktokCampaignsTable, tiktokApplicationsTable } fr
 import { eq, desc, and, sql } from "drizzle-orm";
 import { getSessionTelegramId, isAdminSession } from "../lib/session";
 import { rateLimit } from "../lib/rateLimit";
-import { skxCreditFields } from "../lib/skxCredit";
 import { z } from "zod/v4";
 
 const router: IRouter = Router();
@@ -19,7 +18,7 @@ router.get("/tiktok-campaigns", rateLimit("tiktok_list", 60, 60_000), async (req
     .where(eq(tiktokCampaignsTable.isActive, true))
     .orderBy(desc(tiktokCampaignsTable.prizeSkx));
 
-  let myApplications: { campaignId: number; status: string; rewardSkxPaid: number; referralCount: number; totalReferralSkx: number; rejectReason: string | null }[] = [];
+  let myApplications: { campaignId: number; status: string; rewardSkxPaid: number; referralCount: number; totalReferralSkx: number; rejectReason: string | null; videoUrl: string | null }[] = [];
   if (telegramId) {
     const apps = await db
       .select({
@@ -29,6 +28,7 @@ router.get("/tiktok-campaigns", rateLimit("tiktok_list", 60, 60_000), async (req
         referralCount: tiktokApplicationsTable.referralCount,
         totalReferralSkx: tiktokApplicationsTable.totalReferralSkx,
         rejectReason: tiktokApplicationsTable.rejectReason,
+        videoUrl: tiktokApplicationsTable.videoUrl,
       })
       .from(tiktokApplicationsTable)
       .where(eq(tiktokApplicationsTable.telegramId, telegramId));
@@ -38,7 +38,7 @@ router.get("/tiktok-campaigns", rateLimit("tiktok_list", 60, 60_000), async (req
   res.json({ campaigns, myApplications });
 });
 
-// ─── User: apply to a campaign ────────────────────────────────────────────────
+// ─── User: apply to a campaign (username only — no video required yet) ─────────
 
 router.post("/tiktok-campaigns/:id/apply", rateLimit("tiktok_apply", 5, 60_000), async (req, res): Promise<void> => {
   const telegramId = getSessionTelegramId(req);
@@ -47,9 +47,8 @@ router.post("/tiktok-campaigns/:id/apply", rateLimit("tiktok_apply", 5, 60_000),
   const campaignId = Number(req.params.id);
   const parsed = z.object({
     tiktokUsername: z.string().min(1).max(100),
-    videoUrl: z.string().url().max(500),
   }).safeParse(req.body ?? {});
-  if (!parsed.success) { res.status(400).json({ error: "tiktokUsername and valid videoUrl required" }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "tiktokUsername required" }); return; }
 
   const [campaign] = await db.select().from(tiktokCampaignsTable).where(and(eq(tiktokCampaignsTable.id, campaignId), eq(tiktokCampaignsTable.isActive, true)));
   if (!campaign) { res.status(404).json({ error: "Campaign not found or inactive" }); return; }
@@ -59,7 +58,7 @@ router.post("/tiktok-campaigns/:id/apply", rateLimit("tiktok_apply", 5, 60_000),
       campaignId,
       telegramId,
       tiktokUsername: parsed.data.tiktokUsername.replace(/^@/, ""),
-      videoUrl: parsed.data.videoUrl,
+      videoUrl: null,
     }).returning();
     res.json({ ok: true, application: app });
   } catch (err: unknown) {
@@ -71,6 +70,33 @@ router.post("/tiktok-campaigns/:id/apply", rateLimit("tiktok_apply", 5, 60_000),
     req.log.error(err, "tiktok apply failed");
     res.status(500).json({ error: "Application failed" });
   }
+});
+
+// ─── User: submit video URL after approval ─────────────────────────────────────
+
+router.post("/tiktok-campaigns/:id/submit-video", rateLimit("tiktok_video", 10, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const campaignId = Number(req.params.id);
+  const parsed = z.object({
+    videoUrl: z.string().url().max(500),
+  }).safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: "Valid video URL required" }); return; }
+
+  const [app] = await db
+    .select()
+    .from(tiktokApplicationsTable)
+    .where(and(eq(tiktokApplicationsTable.campaignId, campaignId), eq(tiktokApplicationsTable.telegramId, telegramId)));
+
+  if (!app) { res.status(404).json({ error: "No application found" }); return; }
+  if (app.status !== "approved") { res.status(400).json({ error: "Application must be approved first" }); return; }
+
+  await db.update(tiktokApplicationsTable)
+    .set({ videoUrl: parsed.data.videoUrl })
+    .where(and(eq(tiktokApplicationsTable.campaignId, campaignId), eq(tiktokApplicationsTable.telegramId, telegramId)));
+
+  res.json({ ok: true });
 });
 
 // ─── Admin: list all campaigns ────────────────────────────────────────────────
@@ -100,13 +126,23 @@ router.post("/admin/tiktok-campaigns", async (req, res): Promise<void> => {
 
 // ─── Admin: toggle campaign active/inactive ───────────────────────────────────
 
-router.patch("/admin/tiktok-campaigns/:id/toggle", async (req, res): Promise<void> => {
+router.post("/admin/tiktok-campaigns/:id/toggle", async (req, res): Promise<void> => {
   if (!isAdminSession(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
   const id = Number(req.params.id);
   const [cur] = await db.select().from(tiktokCampaignsTable).where(eq(tiktokCampaignsTable.id, id));
   if (!cur) { res.status(404).json({ error: "Not found" }); return; }
   const [updated] = await db.update(tiktokCampaignsTable).set({ isActive: !cur.isActive }).where(eq(tiktokCampaignsTable.id, id)).returning();
   res.json({ campaign: updated });
+});
+
+// ─── Admin: delete campaign ───────────────────────────────────────────────────
+
+router.delete("/admin/tiktok-campaigns/:id", async (req, res): Promise<void> => {
+  if (!isAdminSession(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const id = Number(req.params.id);
+  await db.delete(tiktokApplicationsTable).where(eq(tiktokApplicationsTable.campaignId, id));
+  await db.delete(tiktokCampaignsTable).where(eq(tiktokCampaignsTable.id, id));
+  res.json({ ok: true });
 });
 
 // ─── Admin: list all applications ────────────────────────────────────────────
@@ -159,14 +195,11 @@ router.post("/admin/tiktok-applications/:id/approve", async (req, res): Promise<
   if (!campaign) { res.status(404).json({ error: "Campaign not found" }); return; }
 
   await db.transaction(async (tx) => {
-    // Credit the prize SKX to the user
     if (campaign.prizeSkx > 0) {
       await tx.update(vaultUsersTable)
         .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${String(campaign.prizeSkx)}::bigint` })
         .where(and(eq(vaultUsersTable.telegramId, app.telegramId), eq(vaultUsersTable.isBanned, false)));
     }
-
-    // Mark application as approved
     await tx.update(tiktokApplicationsTable)
       .set({ status: "approved", prizeSkxPaid: campaign.prizeSkx, reviewedAt: new Date() })
       .where(eq(tiktokApplicationsTable.id, appId));
@@ -174,15 +207,15 @@ router.post("/admin/tiktok-applications/:id/approve", async (req, res): Promise<
 
   req.log.info({ appId, telegramId: app.telegramId, prize: campaign.prizeSkx }, "tiktok application approved");
 
-  // DM the user
   try {
     const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("../lib/telegramBot");
     if (isTelegramBotConfigured()) {
       await sendPlainTelegramMessage(
         app.telegramId,
-        `🎉 مبروك! تم قبول طلبك في مسابقة "${campaign.title}"!\n` +
-        `تم إضافة ${campaign.prizeSkx.toLocaleString()} SKX إلى رصيدك مباشرةً.\n` +
-        `شارك رابط الإحالة الخاص بك لتكسب ${campaign.perReferralSkx.toLocaleString()} SKX عن كل شخص ينضم من خلالك! 🚀`,
+        `🎉 Congratulations! Your application for "${campaign.title}" has been approved!\n` +
+        `${campaign.prizeSkx.toLocaleString()} SKX has been added to your balance.\n\n` +
+        `📹 Now post your TikTok video about SouqratesX and submit the link inside the app to complete the campaign.\n` +
+        `You'll also earn ${campaign.perReferralSkx.toLocaleString()} SKX for every referral! 🚀`,
       );
     }
   } catch { /* DM failure never blocks the award */ }
@@ -209,15 +242,14 @@ router.post("/admin/tiktok-applications/:id/reject", async (req, res): Promise<v
 
   const [campaign] = await db.select().from(tiktokCampaignsTable).where(eq(tiktokCampaignsTable.id, app.campaignId));
 
-  // DM the user
   try {
     const { isTelegramBotConfigured, sendPlainTelegramMessage } = await import("../lib/telegramBot");
     if (isTelegramBotConfigured()) {
       await sendPlainTelegramMessage(
         app.telegramId,
-        `❌ للأسف، تم رفض طلبك في مسابقة "${campaign?.title ?? ""}".\n` +
-        (reason ? `السبب: ${reason}\n` : "") +
-        `يمكنك التقديم مجدداً في أي وقت.`,
+        `❌ Your application for "${campaign?.title ?? ""}" was not approved.\n` +
+        (reason ? `Reason: ${reason}\n` : "") +
+        `You can apply again at any time.`,
       );
     }
   } catch { /* non-fatal */ }

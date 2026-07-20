@@ -17,7 +17,7 @@ export const tiktokApplicationsTable = pgTable("tiktok_applications", {
   campaignId: integer("campaign_id").notNull(),
   telegramId: text("telegram_id").notNull(),
   tiktokUsername: text("tiktok_username").notNull(),
-  videoUrl: text("video_url").notNull(),
+  videoUrl: text("video_url"),
   status: text("status").notNull().default("pending"), // pending | approved | rejected
   rejectReason: text("reject_reason"),
   prizeSkxPaid: bigint("prize_skx_paid", { mode: "number" }).notNull().default(0),

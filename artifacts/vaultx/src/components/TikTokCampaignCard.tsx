@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ExternalLink, Send, CheckCircle, XCircle, Clock, TrendingUp, Users } from "lucide-react";
+import { ExternalLink, Send, CheckCircle, XCircle, Clock, TrendingUp, Users, Video } from "lucide-react";
 
 interface Campaign {
   id: number;
@@ -18,6 +18,7 @@ interface MyApplication {
   referralCount: number;
   totalReferralSkx: number;
   rejectReason: string | null;
+  videoUrl: string | null;
 }
 
 interface ApplyModalProps {
@@ -28,19 +29,18 @@ interface ApplyModalProps {
 
 function ApplyModal({ campaign, onClose, onSuccess }: ApplyModalProps) {
   const [tiktokUsername, setTiktokUsername] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function submit() {
-    if (!tiktokUsername.trim() || !videoUrl.trim()) { setError("Please fill in all fields"); return; }
+    if (!tiktokUsername.trim()) { setError("Please enter your TikTok username"); return; }
     setLoading(true); setError("");
     try {
       const res = await fetch(`/api/tiktok-campaigns/${campaign.id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ tiktokUsername: tiktokUsername.trim(), videoUrl: videoUrl.trim() }),
+        body: JSON.stringify({ tiktokUsername: tiktokUsername.trim() }),
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok) { setError(data.error ?? "Submission failed"); return; }
@@ -55,28 +55,21 @@ function ApplyModal({ campaign, onClose, onSuccess }: ApplyModalProps) {
       <div style={{ width:"100%", maxWidth:480, background:"#121212", borderRadius:"20px 20px 0 0", padding:"24px 20px 36px", border:"1px solid rgba(255,255,255,0.1)" }} onClick={e => e.stopPropagation()}>
         <div style={{ width:40, height:4, background:"rgba(255,255,255,0.2)", borderRadius:2, margin:"0 auto 20px" }} />
         <p style={{ margin:"0 0 4px", fontSize:16, fontWeight:900, color:"#fff" }}>Apply for {campaign.title}</p>
-        <p style={{ margin:"0 0 20px", fontSize:12, color:"rgba(255,255,255,0.45)" }}>Enter your TikTok info — your application will be reviewed within 24 hours</p>
+        <p style={{ margin:"0 0 20px", fontSize:12, color:"rgba(255,255,255,0.45)" }}>
+          Enter your TikTok username. We'll review your account and notify you once approved — then you'll post your video.
+        </p>
 
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          <div>
-            <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>Your TikTok Username</p>
-            <input
-              value={tiktokUsername}
-              onChange={e => setTiktokUsername(e.target.value)}
-              placeholder="@username"
-              style={{ width:"100%", boxSizing:"border-box", padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none" }}
-            />
-          </div>
-          <div>
-            <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>TikTok Video Link</p>
-            <input
-              value={videoUrl}
-              onChange={e => setVideoUrl(e.target.value)}
-              placeholder="https://www.tiktok.com/@username/video/..."
-              style={{ width:"100%", boxSizing:"border-box", padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none" }}
-            />
-            <p style={{ margin:"4px 0 0", fontSize:11, color:"rgba(255,255,255,0.3)" }}>The video must have {campaign.minViews.toLocaleString()}+ views</p>
-          </div>
+        <div>
+          <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>Your TikTok Username</p>
+          <input
+            value={tiktokUsername}
+            onChange={e => setTiktokUsername(e.target.value)}
+            placeholder="@username"
+            style={{ width:"100%", boxSizing:"border-box", padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none" }}
+          />
+          <p style={{ margin:"6px 0 0", fontSize:11, color:"rgba(255,255,255,0.3)" }}>
+            Requirements: {campaign.minFollowers.toLocaleString()}+ followers · {campaign.minViews.toLocaleString()}+ views per video
+          </p>
         </div>
 
         {error && <p style={{ margin:"12px 0 0", fontSize:12, color:"#f87171", textAlign:"center" }}>{error}</p>}
@@ -86,7 +79,70 @@ function ApplyModal({ campaign, onClose, onSuccess }: ApplyModalProps) {
             Cancel
           </button>
           <button onClick={() => void submit()} disabled={loading} style={{ flex:2, padding:"12px", borderRadius:12, background:"linear-gradient(135deg,#e879f9,#a855f7)", border:"none", color:"#fff", fontSize:14, fontWeight:900, cursor:loading?"not-allowed":"pointer", opacity:loading?0.7:1 }}>
-            {loading ? "Submitting..." : "Submit Application 🚀"}
+            {loading ? "Submitting..." : "Apply Now 🚀"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface VideoModalProps {
+  campaign: Campaign;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function VideoModal({ campaign, onClose, onSuccess }: VideoModalProps) {
+  const [videoUrl, setVideoUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit() {
+    if (!videoUrl.trim()) { setError("Please enter your video link"); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`/api/tiktok-campaigns/${campaign.id}/submit-video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ videoUrl: videoUrl.trim() }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) { setError(data.error ?? "Submission failed"); return; }
+      onSuccess();
+      onClose();
+    } catch { setError("Network error, please try again"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
+      <div style={{ width:"100%", maxWidth:480, background:"#121212", borderRadius:"20px 20px 0 0", padding:"24px 20px 36px", border:"1px solid rgba(255,255,255,0.1)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ width:40, height:4, background:"rgba(255,255,255,0.2)", borderRadius:2, margin:"0 auto 20px" }} />
+        <p style={{ margin:"0 0 4px", fontSize:16, fontWeight:900, color:"#fff" }}>📹 Submit Your Video</p>
+        <p style={{ margin:"0 0 20px", fontSize:12, color:"rgba(255,255,255,0.45)" }}>
+          Post a TikTok video about SouqratesX with {campaign.minViews.toLocaleString()}+ views, then paste the link below.
+        </p>
+
+        <div>
+          <p style={{ margin:"0 0 6px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>TikTok Video Link</p>
+          <input
+            value={videoUrl}
+            onChange={e => setVideoUrl(e.target.value)}
+            placeholder="https://www.tiktok.com/@username/video/..."
+            style={{ width:"100%", boxSizing:"border-box", padding:"10px 14px", borderRadius:10, background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"#fff", fontSize:14, outline:"none" }}
+          />
+        </div>
+
+        {error && <p style={{ margin:"12px 0 0", fontSize:12, color:"#f87171", textAlign:"center" }}>{error}</p>}
+
+        <div style={{ display:"flex", gap:10, marginTop:20 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"12px", borderRadius:12, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", color:"rgba(255,255,255,0.6)", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+            Cancel
+          </button>
+          <button onClick={() => void submit()} disabled={loading} style={{ flex:2, padding:"12px", borderRadius:12, background:"linear-gradient(135deg,#22c55e,#16a34a)", border:"none", color:"#fff", fontSize:14, fontWeight:900, cursor:loading?"not-allowed":"pointer", opacity:loading?0.7:1 }}>
+            {loading ? "Submitting..." : "Submit Video ✓"}
           </button>
         </div>
       </div>
@@ -100,7 +156,9 @@ export function TikTokCampaignCard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [myApps, setMyApps] = useState<MyApplication[]>([]);
   const [applyingTo, setApplyingTo] = useState<Campaign | null>(null);
+  const [submittingVideoFor, setSubmittingVideoFor] = useState<Campaign | null>(null);
   const [applied, setApplied] = useState(false);
+  const [videoSubmitted, setVideoSubmitted] = useState(false);
 
   function load() {
     fetch("/api/tiktok-campaigns", { credentials: "include" })
@@ -139,7 +197,14 @@ export function TikTokCampaignCard() {
         <ApplyModal
           campaign={applyingTo}
           onClose={() => setApplyingTo(null)}
-          onSuccess={() => { setApplied(true); load(); setTimeout(() => setApplied(false), 4000); }}
+          onSuccess={() => { setApplied(true); load(); setTimeout(() => setApplied(false), 5000); }}
+        />
+      )}
+      {submittingVideoFor && (
+        <VideoModal
+          campaign={submittingVideoFor}
+          onClose={() => setSubmittingVideoFor(null)}
+          onSuccess={() => { setVideoSubmitted(true); load(); setTimeout(() => setVideoSubmitted(false), 5000); }}
         />
       )}
 
@@ -152,7 +217,13 @@ export function TikTokCampaignCard() {
 
         {applied && (
           <div style={{ padding:"10px 14px", borderRadius:12, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)", color:"#86efac", fontSize:13, fontWeight:700, textAlign:"center" }}>
-            ✅ Application submitted! We'll review it within 24 hours.
+            ✅ Application submitted! We'll review your account within 24 hours — you'll be notified when approved to post your video.
+          </div>
+        )}
+
+        {videoSubmitted && (
+          <div style={{ padding:"10px 14px", borderRadius:12, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.3)", color:"#86efac", fontSize:13, fontWeight:700, textAlign:"center" }}>
+            📹 Video submitted! Thank you.
           </div>
         )}
 
@@ -202,6 +273,7 @@ export function TikTokCampaignCard() {
                 </div>
               </div>
 
+              {/* Approved: show earnings + actions */}
               {myApp?.status === "approved" && (
                 <div style={{ background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:10, padding:"8px 12px", marginBottom:12, display:"flex", justifyContent:"space-between" }}>
                   <div>
@@ -215,20 +287,47 @@ export function TikTokCampaignCard() {
                 </div>
               )}
 
+              {/* Pending: inform user what to expect */}
+              {myApp?.status === "pending" && (
+                <div style={{ background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+                  <p style={{ margin:0, fontSize:12, color:"#fde68a", lineHeight:1.6 }}>
+                    ⏳ <strong>Under review.</strong> Once approved, you'll receive a notification to post your TikTok video about SouqratesX and submit the link here.
+                  </p>
+                </div>
+              )}
+
+              {/* Rejected */}
               {myApp?.status === "rejected" && myApp.rejectReason && (
                 <div style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:10, padding:"8px 12px", marginBottom:12 }}>
                   <p style={{ margin:0, fontSize:11, color:"#f87171" }}>Reason: {myApp.rejectReason}</p>
                 </div>
               )}
 
+              {/* Action buttons */}
               {!myApp ? (
                 <button
                   onClick={() => setApplyingTo(c)}
                   style={{ width:"100%", padding:"11px", borderRadius:12, background:"linear-gradient(135deg,#e879f9,#a855f7)", border:"none", color:"#fff", fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
                 >
-                  <Send style={{ width:14, height:14 }} /> Join Now
+                  <Send style={{ width:14, height:14 }} /> Apply Now
                 </button>
-              ) : myApp.status === "approved" ? (
+              ) : myApp.status === "approved" && !myApp.videoUrl ? (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  <button
+                    onClick={() => setSubmittingVideoFor(c)}
+                    style={{ width:"100%", padding:"11px", borderRadius:12, background:"linear-gradient(135deg,#22c55e,#16a34a)", border:"none", color:"#fff", fontSize:14, fontWeight:900, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+                  >
+                    <Video style={{ width:14, height:14 }} /> Post & Submit Your Video
+                  </button>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent("Join SouqratesX and earn SKX 🚀")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ width:"100%", padding:"10px", borderRadius:12, background:"rgba(34,197,94,0.12)", border:"1px solid rgba(34,197,94,0.25)", color:"#86efac", fontSize:12, fontWeight:800, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, textDecoration:"none", boxSizing:"border-box" }}
+                  >
+                    <ExternalLink style={{ width:12, height:12 }} /> Share Your Link & Earn More
+                  </a>
+                </div>
+              ) : myApp.status === "approved" && myApp.videoUrl ? (
                 <a
                   href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent("Join SouqratesX and earn SKX 🚀")}`}
                   target="_blank" rel="noopener noreferrer"
