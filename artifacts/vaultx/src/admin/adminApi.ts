@@ -76,6 +76,7 @@ export type AdminUserDetail = AdminUserSummary & {
   notes: string | null;
   state: Record<string, unknown>;
   skxBalance: number;
+  pixelUsdCents: number;
   // extracted game-state fields
   currentPoints: number;
   miningLevel: number;
@@ -336,6 +337,11 @@ export const adminApi = {
   userStats: (telegramId: string) => adminFetch<UserDeepStats>(`/admin/users/${telegramId}/stats`),
   creditSkx: (telegramId: string, amount: number, reason?: string) =>
     adminFetch<{ skxBalance: number }>(`/admin/users/${telegramId}/credit-skx`, {
+      method: "POST",
+      body: JSON.stringify({ amount, ...(reason ? { reason } : {}) }),
+    }),
+  creditPixelUsd: (telegramId: string, amount: number, reason?: string) =>
+    adminFetch<{ pixelUsdCents: number }>(`/admin/users/${telegramId}/credit-pixel-usd`, {
       method: "POST",
       body: JSON.stringify({ amount, ...(reason ? { reason } : {}) }),
     }),

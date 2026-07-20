@@ -131,6 +131,7 @@ function toUserDetail(user: typeof vaultUsersTable.$inferSelect) {
     profitPerHour: computeProfitPerHour(st),
     createdAt: user.createdAt.toISOString(),
     skxBalance: user.skxBalance,
+    pixelUsdCents: user.pixelUsdCents,
     updatedAt: user.updatedAt.toISOString(),
   };
 }
@@ -333,6 +334,40 @@ router.post("/admin/users/:telegramId/credit-skx", async (req, res): Promise<voi
   });
 
   res.json({ skxBalance: updated.skxBalance });
+});
+
+router.post("/admin/users/:telegramId/credit-pixel-usd", async (req, res): Promise<void> => {
+  if (!requireAdmin(req)) { res.status(401).json({ error: "Not authenticated as admin" }); return; }
+
+  const { amount, reason } = req.body as { amount?: unknown; reason?: unknown };
+  // amount is in dollars (float), stored as cents
+  const dollars = typeof amount === "number" && Number.isFinite(amount) && amount !== 0 ? amount : null;
+  if (dollars === null) { res.status(400).json({ error: "amount must be a non-zero finite number (dollars)" }); return; }
+
+  const cents = Math.trunc(dollars * 100);
+  if (cents === 0) { res.status(400).json({ error: "amount too small (rounds to 0 cents)" }); return; }
+
+  const [updated] = await db
+    .update(vaultUsersTable)
+    .set({ pixelUsdCents: sql`${vaultUsersTable.pixelUsdCents} + ${cents}::bigint` })
+    .where(
+      and(
+        eq(vaultUsersTable.telegramId, req.params.telegramId),
+        sql`${vaultUsersTable.pixelUsdCents} + ${cents}::bigint >= 0`,
+      ),
+    )
+    .returning({ pixelUsdCents: vaultUsersTable.pixelUsdCents, telegramId: vaultUsersTable.telegramId });
+
+  if (!updated) { res.status(404).json({ error: "User not found or resulting balance would be negative" }); return; }
+
+  await logAdminAction("credit_pixel_usd", req.params.telegramId, {
+    dollars,
+    cents,
+    newCents: updated.pixelUsdCents,
+    reason: typeof reason === "string" ? reason : undefined,
+  });
+
+  res.json({ pixelUsdCents: updated.pixelUsdCents });
 });
 
 router.post("/admin/users/bulk-ban", async (req, res): Promise<void> => {

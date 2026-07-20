@@ -140,6 +140,57 @@ function UserActivityView({ telegramId }: { telegramId: string }) {
   );
 }
 
+function PixelUsdCreditPanel({ telegramId, onCredited }: { telegramId: string; onCredited: (newCents: number) => void }) {
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = parseFloat(amount.trim());
+    if (!n || !Number.isFinite(n) || n === 0) return;
+    setBusy(true); setMsg(null);
+    try {
+      const res = await adminApi.creditPixelUsd(telegramId, n, reason || undefined);
+      setMsg({ ok: true, text: `تم! الرصيد الجديد: $${(res.pixelUsdCents / 100).toFixed(2)}` });
+      setAmount(""); setReason("");
+      onCredited(res.pixelUsdCents);
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "فشل الإضافة" });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={(e) => { void submit(e); }} className="flex flex-col gap-2 bg-white/5 border border-emerald-500/20 rounded-xl p-3">
+      <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold mb-1">
+        <span>💵</span>
+        إضافة / خصم رصيد Pixels ($)
+      </div>
+      <div className="flex gap-2">
+        <Input
+          type="number"
+          step="0.01"
+          placeholder="المبلغ بالدولار (سالب للخصم)"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="flex-1 text-sm"
+        />
+        <Button type="submit" size="sm" disabled={busy || !amount} className="shrink-0 bg-emerald-600 hover:bg-emerald-500">
+          {busy ? "..." : "تأكيد"}
+        </Button>
+      </div>
+      <Input
+        placeholder="سبب (اختياري)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className="text-sm"
+      />
+      {msg && <p className={`text-xs font-medium ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
+    </form>
+  );
+}
+
 function SkxCreditPanel({ telegramId, onCredited }: { telegramId: string; onCredited: (newBalance: number) => void }) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -205,11 +256,13 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"info" | "stats" | "activity">("info");
   const [skxBalance, setSkxBalance] = useState<number | null>(null);
+  const [pixelUsdCents, setPixelUsdCents] = useState<number | null>(null);
 
   useEffect(() => {
     adminApi.user(telegramId).then((u) => {
       setUser(u);
       setSkxBalance(u.skxBalance);
+      setPixelUsdCents(u.pixelUsdCents ?? 0);
     }).catch(() => setError("فشل تحميل المستخدم"));
   }, [telegramId]);
 
@@ -365,6 +418,7 @@ function UserEditor({ telegramId, onClose, onChanged }: { telegramId: string; on
                 </div>
 
                 <SkxCreditPanel telegramId={telegramId} onCredited={setSkxBalance} />
+                <PixelUsdCreditPanel telegramId={telegramId} onCredited={setPixelUsdCents} />
 
                 {error && <p className="text-red-400 text-xs">{error}</p>}
 
