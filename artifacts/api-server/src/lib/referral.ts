@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { db, vaultUsersTable, competitionsTable, competitionEntriesTable } from "@workspace/db";
+import { db, vaultUsersTable, competitionsTable, competitionEntriesTable, tiktokApplicationsTable, tiktokCampaignsTable } from "@workspace/db";
 import { getSettingsMap, asNumber } from "./settings";
 import { logUserActivity } from "./activityLog";
 import { logger } from "./logger";
@@ -66,6 +66,9 @@ export async function linkReferrer(newTelegramId: string, startParam: string | n
 
   // ── Referral-race competitions: check if referrer just hit the target ──────
   await checkReferralRaceWin(referrerTelegramId, newCount);
+
+  // ── TikTok campaign: credit per-referral SKX to approved creators ──────────
+  await creditTiktokReferralBonus(referrerTelegramId);
 }
 
 /**
@@ -183,6 +186,53 @@ export async function awardReferralMilestone(referrerTelegramId: string, milesto
     }
   } catch {
     // DM failure must never block the credit itself.
+  }
+}
+
+/**
+ * When a new user links to a referrer, if that referrer has an approved
+ * TikTok campaign application, credit them the per-referral SKX bonus.
+ */
+async function creditTiktokReferralBonus(referrerTelegramId: string): Promise<void> {
+  try {
+    const apps = await db
+      .select({
+        id: tiktokApplicationsTable.id,
+        campaignId: tiktokApplicationsTable.campaignId,
+      })
+      .from(tiktokApplicationsTable)
+      .where(and(
+        eq(tiktokApplicationsTable.telegramId, referrerTelegramId),
+        eq(tiktokApplicationsTable.status, "approved"),
+      ));
+
+    for (const app of apps) {
+      const [camp] = await db
+        .select({ perReferralSkx: tiktokCampaignsTable.perReferralSkx })
+        .from(tiktokCampaignsTable)
+        .where(eq(tiktokCampaignsTable.id, app.campaignId))
+        .limit(1);
+      const perReferralSkx = camp?.perReferralSkx ?? 0;
+
+      if (!perReferralSkx || perReferralSkx <= 0) continue;
+
+      await db.transaction(async (tx) => {
+        await tx.update(vaultUsersTable)
+          .set({ skxBalance: sql`${vaultUsersTable.skxBalance} + ${String(perReferralSkx)}::bigint` })
+          .where(and(eq(vaultUsersTable.telegramId, referrerTelegramId), eq(vaultUsersTable.isBanned, false)));
+
+        await tx.update(tiktokApplicationsTable)
+          .set({
+            referralCount: sql`${tiktokApplicationsTable.referralCount} + 1`,
+            totalReferralSkx: sql`${tiktokApplicationsTable.totalReferralSkx} + ${String(perReferralSkx)}::bigint`,
+          })
+          .where(eq(tiktokApplicationsTable.id, app.id));
+      });
+
+      logger.info({ referrerTelegramId, appId: app.id, perReferralSkx }, "TikTok referral bonus credited");
+    }
+  } catch (err) {
+    logger.warn({ err, referrerTelegramId }, "creditTiktokReferralBonus failed — non-fatal");
   }
 }
 

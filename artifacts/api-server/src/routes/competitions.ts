@@ -349,4 +349,22 @@ router.post("/admin/competitions/:id/close", async (req, res): Promise<void> => 
   res.json({ comp, winner: { name: winner?.displayName, gained: winner?.gained, prize: comp.prizePoints } });
 });
 
+// ─── Admin: delete competition ────────────────────────────────────────────────
+
+router.delete("/admin/competitions/:id", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "unauthorized" }); return; }
+
+  const id = parseInt(req.params.id ?? "0");
+  if (!id) { res.status(400).json({ error: "invalid id" }); return; }
+
+  // Delete entries first (FK), then competition
+  await db.delete(competitionEntriesTable).where(eq(competitionEntriesTable.competitionId, id));
+  const [deleted] = await db.delete(competitionsTable).where(eq(competitionsTable.id, id)).returning();
+
+  if (!deleted) { res.status(404).json({ error: "not found" }); return; }
+
+  logger.info({ competitionId: id }, "Competition deleted by admin");
+  res.json({ ok: true });
+});
+
 export default router;

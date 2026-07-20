@@ -21,6 +21,7 @@ import groupChallengesRouter from "./groupChallenges";
 import arcadeRouter from "./arcade";
 import trackingRouter from "./tracking";
 import pollsRouter from "./polls";
+import tiktokCampaignsRouter from "./tiktokCampaigns";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(groupChallengesRouter);
 router.use(arcadeRouter);
 router.use(trackingRouter);
 router.use(pollsRouter);
+router.use(tiktokCampaignsRouter);
 
 export default router;

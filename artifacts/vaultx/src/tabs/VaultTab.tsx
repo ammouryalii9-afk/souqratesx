@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Progress } from '@/components/ui/progress';
 import { getPublicConfig, claimAdsgramReward, claimMonetagReward, claimOnclickaReward, type PublicConfig } from '../lib/gameApi';
 import { PollWidget } from '../components/PollWidget';
+import { TikTokCampaignCard } from '../components/TikTokCampaignCard';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { useLanguage } from '../lib/i18n';
 
@@ -439,6 +440,9 @@ export const VaultTab = () => {
 
       {/* World Cup Poll */}
       <PollWidget />
+
+      {/* TikTok Creator Campaigns */}
+      <TikTokCampaignCard />
 
       {/* Info Row */}
       <div className="flex flex-col gap-3">

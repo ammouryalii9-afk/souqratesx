@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Plus, Trophy, X, CheckCircle2, Flame, Users,
-  ArrowLeft, Medal, Clock, ChevronRight,
+  ArrowLeft, Medal, Clock, ChevronRight, Trash2,
 } from "lucide-react";
 import { adminApi } from "./adminApi";
 
@@ -82,6 +82,7 @@ export function AdminCompetitions() {
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [closingId, setClosingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
 
   // Detail view
@@ -138,6 +139,21 @@ export function AdminCompetitions() {
       setError(e instanceof Error ? e.message : "فشل الإنشاء");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm("حذف هذه المسابقة نهائياً؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+    setDeletingId(id);
+    try {
+      await adminApi.delete(`/admin/competitions/${id}`);
+      setLastResult("✓ تم حذف المسابقة");
+      if (detail?.competition.id === id) setDetail(null);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل الحذف");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -415,13 +431,15 @@ export function AdminCompetitions() {
       ) : (
         <div className="space-y-3">
           {items.map(c => (
-            <button
+            <div
               key={c.id}
-              onClick={() => openDetail(c.id)}
-              className={`w-full text-right border rounded-xl p-4 transition-all hover:border-white/20 active:scale-[0.99] ${c.type === "referral" ? "bg-orange-950/20 border-orange-500/20" : "bg-white/5 border-white/10"}`}
+              className={`w-full text-right border rounded-xl transition-all ${c.type === "referral" ? "bg-orange-950/20 border-orange-500/20" : "bg-white/5 border-white/10"}`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-3 p-4">
+                <button
+                  onClick={() => openDetail(c.id)}
+                  className="flex-1 min-w-0 text-right"
+                >
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${c.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-muted-foreground'}`}>
                       {c.status === 'active' ? 'نشطة' : 'مغلقة'}
@@ -445,10 +463,17 @@ export function AdminCompetitions() {
                   {c.winnerTelegramId && (
                     <p className="text-xs text-yellow-400 mt-1">🏆 الفائز: {c.winnerTelegramId}</p>
                   )}
-                </div>
-                <Medal className="w-4 h-4 text-white/20 shrink-0 mt-1" />
+                </button>
+                <button
+                  onClick={() => void handleDelete(c.id)}
+                  disabled={deletingId === c.id}
+                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 text-red-400 transition-all mt-0.5"
+                  title="حذف المسابقة"
+                >
+                  {deletingId === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                </button>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

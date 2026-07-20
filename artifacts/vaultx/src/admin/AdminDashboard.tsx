@@ -22,10 +22,11 @@ import { AdminGroupChallenges } from "./AdminGroupChallenges";
 import { AdminArcade } from "./AdminArcade";
 import { AdminAdsPageEditor } from "./AdminAdsPageEditor";
 import { AdminPollManager } from "./AdminPollManager";
+import { AdminTikTokCampaigns } from "./AdminTikTokCampaigns";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, Users as UsersIcon, Settings as SettingsIcon, ScrollText, LogOut, ShieldCheck, Send, Megaphone, Star, TrendingUp, ShieldAlert, Zap, ListTodo, Bell, ArrowDownToLine, Shield, Grid3x3, Radio } from "lucide-react";
 
-type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "arcade" | "competitions" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "group-challenges" | "polls" | "adspage" | "settings" | "log";
+type Tab = "overview" | "analytics" | "anticheat" | "providers" | "live" | "users" | "squads" | "pixels" | "arcade" | "competitions" | "tiktok" | "broadcast" | "ads" | "star-store" | "partner-tasks" | "announcements" | "withdrawals" | "contract" | "group-challenges" | "polls" | "adspage" | "settings" | "log";
 
 const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: string }[] }[] = [
   {
@@ -46,6 +47,7 @@ const TAB_GROUPS: { label: string; tabs: { id: Tab; label: string; icon: React.R
       { id: "pixels",       label: "البكسلات",        icon: <Grid3x3 className="w-4 h-4" />,     badge: "جديد" },
       { id: "arcade",       label: "SKX Arcade",      icon: <span className="text-sm">🎮</span>, badge: "جديد" },
       { id: "competitions", label: "المسابقات",      icon: <Star className="w-4 h-4 text-yellow-400" />, badge: "جديد" },
+      { id: "tiktok",       label: "TikTok",          icon: <span className="text-sm">🎵</span>,           badge: "جديد" },
       { id: "broadcast",  label: "رسائل جماعية", icon: <Send className="w-4 h-4" /> },
       { id: "ads",        label: "الإعلانات",    icon: <Megaphone className="w-4 h-4" /> },
       { id: "star-store",     label: "متجر النجوم",    icon: <Star className="w-4 h-4" /> },
@@ -131,6 +133,7 @@ export function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         {tab === "pixels"        && <AdminPixels />}
         {tab === "arcade"        && <AdminArcade />}
         {tab === "competitions"  && <AdminCompetitions />}
+        {tab === "tiktok"        && <AdminTikTokCampaigns />}
         {tab === "broadcast"  && <AdminBroadcast />}
         {tab === "ads"        && <AdminAds />}
         {tab === "star-store"    && <AdminStarStore />}
