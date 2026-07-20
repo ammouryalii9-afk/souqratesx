@@ -17,7 +17,7 @@ router.get("/poll/active", rateLimit("poll_read", 60, 60_000), async (req, res):
   const [poll] = await db
     .select()
     .from(pollsTable)
-    .where(sql`${pollsTable.status} != 'distributed' OR ${pollsTable.status} = 'distributed'`)
+    .where(inArray(pollsTable.status, ["active", "closed"]))
     .orderBy(desc(pollsTable.createdAt))
     .limit(1);
 
