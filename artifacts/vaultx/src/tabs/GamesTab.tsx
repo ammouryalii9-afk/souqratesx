@@ -611,7 +611,6 @@ export const GamesTab = () => {
         </div>
       </div>
 
-      <CompetitionsSection />
     </div>
   );
 };

@@ -1193,8 +1193,8 @@ export const TasksTab = () => {
         {/* ────── CHALLENGES TAB ────── */}
         {taskTab === 'challenges' && <>
 
-          {/* Referral Races */}
-          {raceComps.map(comp => {
+          {/* Referral Races — hidden */}
+          {false && raceComps.map(comp => {
             const required = comp.requiredInvites ?? 100;
             const progress = comp.entered ? Math.min(1, comp.myProgress / required) : 0;
             const pct = Math.round(progress * 100);
@@ -1370,7 +1370,7 @@ export const TasksTab = () => {
           )}
 
           {/* Empty challenges state */}
-          {raceComps.length === 0 && groupChallenges.length === 0 && (
+          {groupChallenges.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
                 style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)' }}>
