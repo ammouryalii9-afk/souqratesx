@@ -236,7 +236,7 @@ export function TikTokCampaignCard() {
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, marginBottom:10 }}>
                 <div style={{ flex:1 }}>
                   <p style={{ margin:"0 0 2px", fontSize:14, fontWeight:900, color:"#fff" }}>{c.title}</p>
-                  {c.description && <p style={{ margin:0, fontSize:11, color:"rgba(255,255,255,0.45)", lineHeight:1.5 }}>{c.description}</p>}
+                  {c.description && <p style={{ margin:"6px 0 0", fontSize:13, color:"rgba(255,255,255,0.7)", lineHeight:1.65, whiteSpace:"pre-line" }}>{c.description}</p>}
                 </div>
                 {myApp && <StatusBadge app={myApp} />}
               </div>
