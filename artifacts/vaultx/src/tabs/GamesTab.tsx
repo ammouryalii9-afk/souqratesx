@@ -611,6 +611,38 @@ export const GamesTab = () => {
         </div>
       </div>
 
+      {/* ── 3D Fishing Game ── */}
+      <div className="px-4 mt-5 mb-2">
+        <a
+          href="/fishing-game/"
+          onClick={() => haptic('medium')}
+          className="block rounded-[20px] overflow-hidden active:scale-[0.98] transition-transform"
+          style={{ background: 'linear-gradient(135deg, #0c2a4a 0%, #0e3d5c 50%, #0a2a3a 100%)', border: '1px solid rgba(34,184,209,0.25)', boxShadow: '0 4px 24px rgba(14,116,144,0.2)' }}
+        >
+          <div className="flex items-center gap-4 p-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-3xl"
+              style={{ background: 'linear-gradient(135deg, #0e4a6a, #0891b2)', border: '1px solid rgba(34,211,238,0.3)', boxShadow: '0 0 20px rgba(14,116,144,0.4)' }}>
+              🎣
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-bold text-white">3D Fishing</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(245,197,24,0.15)', color: '#f5c518', border: '1px solid rgba(245,197,24,0.3)' }}>
+                  NEW
+                </span>
+              </div>
+              <p className="text-[11px] text-cyan-400/70 leading-tight">Cast your line · Catch fish · Earn SKP</p>
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className="text-[10px] text-white/40">🐟 7 fish types</span>
+                <span className="text-[10px] text-yellow-400/60">💰 up to 5,000 SKP</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-cyan-400/50 text-lg">›</div>
+          </div>
+        </a>
+      </div>
+
     </div>
   );
 };
