@@ -27,6 +27,7 @@ import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { AppTour, TourButton, checkTourSeen } from "./components/AppTour";
+import { StageBar } from "./components/StageBar";
 import { formatSkpShort } from "./lib/levels";
 
 const LANG_OPTIONS: { code: Lang; flag: string; label: string; native: string }[] = [
@@ -118,7 +119,7 @@ interface HeaderProps { onOpenTour: () => void; onOpenLevels: () => void; }
 
 function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
   const { tempMiningPoints, skxBalance, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
-  const { level, levelDef, progress } = useLevel();
+  const { level, levelDef } = useLevel();
   const { tr } = useLanguage();
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   const [dollarBonus, setDollarBonus] = useState(0);
@@ -135,7 +136,7 @@ function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
       ? `+${(profitPerHour / 1_000).toFixed(0)}K/hr`
       : `+${profitPerHour}/hr`;
 
-  const { color: tierColor, glow: tierGlow, icon: tierIcon, name: tierName } = levelDef.tier;
+  const { color: tierColor, icon: tierIcon } = levelDef.tier;
 
   return (
     <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3 pb-2.5 flex flex-col gap-2">
@@ -185,29 +186,6 @@ function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
           <LangPicker />
         </div>
       </div>
-
-      {/* ── Level progress bar ──────────────────────────────────────────── */}
-      <button
-        onClick={onOpenLevels}
-        className="w-full active:opacity-80 transition-opacity"
-      >
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-bold" style={{ color: tierColor }}>
-            {tierName} · Level {level}
-          </span>
-          <span className="text-[9px] font-bold text-white/40">{progress}% → Level {level + 1}</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${progress}%`,
-              background: `linear-gradient(90deg, ${tierColor}, ${tierColor}cc)`,
-              boxShadow: `0 0 6px ${tierGlow}`,
-            }}
-          />
-        </div>
-      </button>
 
       {/* ── Row 3: balance pills ────────────────────────────────────────── */}
       <div className="flex items-stretch gap-2">
@@ -293,6 +271,7 @@ function MainLayout() {
     <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
       <Header onOpenTour={() => setShowTour(true)} onOpenLevels={() => setShowLevels(true)} />
+      <StageBar onOpen={() => setShowLevels(true)} />
       <AnnouncementBanner isTelegramUser={isTelegramUser} />
       <EventBanner />
       <CelebrationOverlay />

@@ -1,51 +1,23 @@
 import { useRef, useEffect } from 'react';
-import { CheckCircle2, Lock, ChevronRight, X } from 'lucide-react';
+import { CheckCircle2, Lock, X, Zap, Star } from 'lucide-react';
 import { useLevel } from '../context/LevelContext';
-import { LEVELS, formatSkpShort, type LevelDef } from '../lib/levels';
+import { LEVELS, formatSkpShort } from '../lib/levels';
 import { haptic } from '../lib/telegram';
-import { useVault } from '../context/VaultContext';
 
 interface Props { onClose: () => void }
 
 export function LevelProgressScreen({ onClose }: Props) {
-  const { level, progress, nextSkp, currentSkp, totalAdsWatched, totalTasksCompleted } = useLevel();
-  const { totalReferrals, miningLevel, passiveCards } = useVault();
+  const { level, progress, nextSkp, currentSkp } = useLevel();
   const activeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setTimeout(() => activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    setTimeout(() => activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   }, []);
-
-  const passiveOwned = passiveCards.length;
-
-  function conditionMet(def: LevelDef, condIdx: number): boolean {
-    const c = def.conditions[condIdx];
-    switch (c.type) {
-      case 'invites':       return totalReferrals >= c.value;
-      case 'miningLevel':   return miningLevel >= c.value;
-      case 'adsWatched':    return totalAdsWatched >= c.value;
-      case 'tasksCompleted':return totalTasksCompleted >= c.value;
-      case 'passiveCards':  return passiveOwned >= c.value;
-      default: return true;
-    }
-  }
-
-  function conditionProgress(def: LevelDef, condIdx: number): number {
-    const c = def.conditions[condIdx];
-    let cur = 0;
-    switch (c.type) {
-      case 'invites':       cur = totalReferrals; break;
-      case 'miningLevel':   cur = miningLevel; break;
-      case 'adsWatched':    cur = totalAdsWatched; break;
-      case 'tasksCompleted':cur = totalTasksCompleted; break;
-      case 'passiveCards':  cur = passiveOwned; break;
-    }
-    return Math.min(100, Math.floor((cur / c.value) * 100));
-  }
 
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-[#060d1a] animate-in slide-in-from-bottom duration-300">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="flex items-center gap-3 px-4 pt-safe pt-4 pb-3 border-b border-white/8">
         <button
           onClick={() => { haptic('light'); onClose(); }}
@@ -54,8 +26,8 @@ export function LevelProgressScreen({ onClose }: Props) {
           <X className="w-5 h-5 text-white/70" />
         </button>
         <div className="flex-1">
-          <h2 className="font-black text-white text-lg leading-none">Level Progress</h2>
-          <p className="text-[11px] text-white/40 mt-0.5">100 Levels · Your Level {level}</p>
+          <h2 className="font-black text-white text-lg leading-none">All Stages</h2>
+          <p className="text-[11px] text-white/40 mt-0.5">100 Stages · Your Stage {level}</p>
         </div>
         <div
           className="px-3 py-1.5 rounded-xl text-[12px] font-black"
@@ -69,71 +41,108 @@ export function LevelProgressScreen({ onClose }: Props) {
         </div>
       </div>
 
-      {/* Current level progress bar */}
-      <div className="px-4 py-3 border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-bold text-white/60">
-            {formatSkpShort(currentSkp)} / {formatSkpShort(nextSkp)}
-          </span>
-          <span className="text-[12px] font-black text-primary">{progress}%</span>
-        </div>
-        <div className="h-2 rounded-full bg-white/8 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${progress}%`,
-              background: `linear-gradient(90deg, ${LEVELS[level - 1].tier.color}, ${LEVELS[level - 1].tier.color}aa)`,
-              boxShadow: `0 0 8px ${LEVELS[level - 1].tier.glow}`,
-            }}
-          />
+      {/* ── Current stage progress card ── */}
+      <div className="px-4 pt-3 pb-3 border-b border-white/5">
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            background: `${LEVELS[level - 1].tier.color}10`,
+            border: `1px solid ${LEVELS[level - 1].tier.color}25`,
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-0.5">Current Stage</div>
+              <div className="text-[18px] font-black text-white">
+                {LEVELS[level - 1].tier.icon} {LEVELS[level - 1].name}
+              </div>
+            </div>
+            <div
+              className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center"
+              style={{ background: `${LEVELS[level - 1].tier.color}20`, border: `2px solid ${LEVELS[level - 1].tier.color}40` }}
+            >
+              <span className="text-[10px] text-white/40">Stage</span>
+              <span className="text-[20px] font-black" style={{ color: LEVELS[level - 1].tier.color }}>{level}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-between mb-1.5">
+            <span className="text-[11px] text-white/50">
+              <Zap className="inline w-3 h-3 mr-0.5" style={{ color: LEVELS[level - 1].tier.color }} />
+              {formatSkpShort(currentSkp)} SKP
+            </span>
+            {level < 100 && (
+              <span className="text-[11px] text-white/50">
+                Next: {formatSkpShort(nextSkp)} SKP
+              </span>
+            )}
+          </div>
+          <div className="h-2 rounded-full bg-white/8 overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${level >= 100 ? 100 : progress}%`,
+                background: `linear-gradient(90deg, ${LEVELS[level - 1].tier.color}cc, ${LEVELS[level - 1].tier.color})`,
+                boxShadow: `0 0 8px ${LEVELS[level - 1].tier.glow}`,
+              }}
+            />
+          </div>
+          {level < 100 && (
+            <div className="mt-1.5 text-[11px] text-white/35 text-right">
+              {formatSkpShort(Math.max(0, nextSkp - currentSkp))} SKP remaining
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Levels list */}
-      <div className="flex-1 overflow-y-auto pb-6">
+      {/* ── Stages list ── */}
+      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-6 space-y-1">
         {LEVELS.map((def) => {
-          const isCompleted = level > def.level;
-          const isCurrent   = level === def.level;
-          const isLocked    = level < def.level;
-          const skpMet      = currentSkp >= def.skpRequired;
+          const isCompleted = def.level < level;
+          const isCurrent   = def.level === level;
+          const isLocked    = def.level > level;
+
+          // Tier separator
+          const showTierHeader = def.level === def.tier.from;
 
           return (
-            <div
-              key={def.level}
-              ref={isCurrent ? activeRef : undefined}
-              className="relative"
-            >
-              {/* Tier separator */}
-              {def.level === def.tier.from && (
+            <div key={def.level}>
+              {/* Tier group header */}
+              {showTierHeader && (
                 <div
-                  className="flex items-center gap-2 px-4 py-2 mt-2"
+                  className="flex items-center gap-2 px-2 py-2 mt-3 mb-1 first:mt-0"
                   style={{ borderTop: def.level > 1 ? '1px solid rgba(255,255,255,0.05)' : undefined }}
                 >
                   <span className="text-base">{def.tier.icon}</span>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: def.tier.color }}>
-                    {def.tier.name} — Levels {def.tier.from}–{def.tier.to}
+                    {def.tier.name} — Stages {def.tier.from}–{def.tier.to}
                   </span>
                   <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${def.tier.color}30, transparent)` }} />
                 </div>
               )}
 
-              {/* Level row */}
+              {/* Stage row */}
               <div
-                className="mx-3 mb-1 rounded-2xl overflow-hidden"
+                ref={isCurrent ? activeRef : undefined}
+                className="rounded-xl overflow-hidden transition-all"
                 style={{
                   background: isCurrent
-                    ? `linear-gradient(135deg, ${def.tier.color}18, ${def.tier.color}08)`
-                    : isCompleted ? 'rgba(52,211,153,0.05)' : 'rgba(255,255,255,0.02)',
+                    ? `${def.tier.color}12`
+                    : isCompleted
+                      ? 'rgba(52,211,153,0.04)'
+                      : 'rgba(255,255,255,0.02)',
                   border: isCurrent
-                    ? `1.5px solid ${def.tier.color}50`
-                    : isCompleted ? '1px solid rgba(52,211,153,0.15)' : '1px solid rgba(255,255,255,0.05)',
-                  boxShadow: isCurrent ? `0 0 20px ${def.tier.glow}` : 'none',
+                    ? `1px solid ${def.tier.color}35`
+                    : isCompleted
+                      ? '1px solid rgba(52,211,153,0.12)'
+                      : '1px solid rgba(255,255,255,0.04)',
+                  boxShadow: isCurrent ? `0 0 16px ${def.tier.glow}` : 'none',
                 }}
               >
                 <div className="flex items-center gap-3 px-4 py-3">
-                  {/* Level number */}
+                  {/* Status icon */}
                   <div
-                    className="w-10 h-10 rounded-[14px] flex flex-col items-center justify-center shrink-0"
+                    className="w-9 h-9 rounded-[12px] flex flex-col items-center justify-center shrink-0"
                     style={{
                       background: isCompleted ? 'rgba(52,211,153,0.15)' :
                                   isCurrent   ? `${def.tier.color}20` : 'rgba(255,255,255,0.04)',
@@ -142,12 +151,12 @@ export function LevelProgressScreen({ onClose }: Props) {
                     }}
                   >
                     {isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
                     ) : isLocked ? (
-                      <Lock className="w-4 h-4 text-white/20" />
+                      <Lock className="w-3.5 h-3.5 text-white/20" />
                     ) : (
                       <>
-                        <span className="text-[9px]" style={{ color: def.tier.color }}>{def.tier.icon}</span>
+                        <span className="text-[8px]" style={{ color: def.tier.color }}>{def.tier.icon}</span>
                         <span className="text-[11px] font-black" style={{ color: def.tier.color }}>{def.level}</span>
                       </>
                     )}
@@ -171,93 +180,66 @@ export function LevelProgressScreen({ onClose }: Props) {
                         <span className="text-[8px] font-bold text-primary/60">✓</span>
                       )}
                     </div>
+
+                    {/* Requirement + rewards row */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] ${isLocked ? 'text-white/20' : 'text-white/40'}`}>
-                        {formatSkpShort(def.skpRequired)} SKP
+                      {/* SKP requirement — the ONE clear condition */}
+                      <span
+                        className="flex items-center gap-0.5 text-[10px] font-bold"
+                        style={{ color: isCompleted ? 'rgba(52,211,153,0.7)' : isLocked ? 'rgba(255,255,255,0.2)' : def.tier.color }}
+                      >
+                        <Zap className="w-2.5 h-2.5" />
+                        {def.skpRequired === 0 ? 'Start' : `${formatSkpShort(def.skpRequired)} SKP`}
                       </span>
+
+                      {/* Feature unlock badge */}
                       {def.unlocks && (
                         <span
                           className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
-                            background: isCompleted ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.06)',
-                            color: isCompleted ? '#34d399' : 'rgba(255,255,255,0.3)',
+                            background: isCompleted ? 'rgba(52,211,153,0.15)' : `${def.tier.color}12`,
+                            color: isCompleted ? '#34d399' : isLocked ? 'rgba(255,255,255,0.2)' : def.tier.color,
                           }}
                         >
-                          {def.unlocks.icon} {def.unlocks.feature}
+                          {def.unlocks.icon} Unlocks {def.unlocks.feature}
                         </span>
                       )}
+
+                      {/* Mining bonus badge */}
                       {def.miningBonus && (
                         <span
                           className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{
                             background: isCompleted ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.06)',
-                            color: isCompleted ? '#34d399' : 'rgba(255,255,255,0.3)',
+                            color: isCompleted ? '#34d399' : isLocked ? 'rgba(255,255,255,0.15)' : '#fbbf24',
                           }}
                         >
-                          ⚡ +{def.miningBonus}%
+                          ⚡ +{def.miningBonus}% Mining
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Progress arrow for current / next */}
+                  {/* Current stage arrow or star for max */}
                   {isCurrent && (
-                    <ChevronRight className="w-4 h-4 shrink-0" style={{ color: def.tier.color }} />
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: `${def.tier.color}25` }}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: def.tier.color }} />
+                    </div>
+                  )}
+                  {def.level === 100 && isCompleted && (
+                    <Star className="w-4 h-4 text-amber-400 shrink-0" />
                   )}
                 </div>
-
-                {/* Conditions for current / next 3 levels */}
-                {(isCurrent || (!isCompleted && def.level <= level + 3 && def.conditions.length > 0)) && (
-                  <div className="px-4 pb-3 flex flex-col gap-1.5">
-                    {def.conditions.map((c, ci) => {
-                      const met = isCompleted || conditionMet(def, ci);
-                      const pct = isCompleted ? 100 : conditionProgress(def, ci);
-                      return (
-                        <div key={ci}>
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px]">{c.icon}</span>
-                              <span className={`text-[10px] font-semibold ${met ? 'text-primary' : 'text-white/40'}`}>
-                                {c.label}
-                              </span>
-                            </div>
-                            <span className={`text-[10px] font-bold ${met ? 'text-primary' : 'text-white/30'}`}>
-                              {met ? '✓' : `${pct}%`}
-                            </span>
-                          </div>
-                          {!met && (
-                            <div className="h-1 rounded-full bg-white/8 overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{ width: `${pct}%`, background: def.tier.color }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    {/* SKP progress bar for current */}
-                    {isCurrent && (
-                      <div className="mt-1">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-[10px] text-white/30">Lifetime Points</span>
-                          <span className="text-[10px] text-white/40">{formatSkpShort(currentSkp)} / {formatSkpShort(nextSkp)}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${progress}%`, background: def.tier.color }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           );
         })}
+
+        {/* Bottom padding */}
+        <div className="h-8" />
       </div>
     </div>
   );

@@ -389,33 +389,14 @@ export function getLevelDef(level: number): LevelDef {
   return LEVELS[Math.max(0, Math.min(level - 1, 99))];
 }
 
-export function computeLevel(
-  lifetimePoints: number,
-  totalReferrals: number,
-  miningLevel: number,
-  adsWatched: number,
-  tasksCompleted: number,
-  passiveCardsOwned: number,
-): number {
+export function computeLevel(lifetimePoints: number): number {
   let currentLevel = 1;
   for (let i = 0; i < LEVELS.length; i++) {
-    const def = LEVELS[i];
-    if (lifetimePoints < def.skpRequired) break;
-
-    // Check all conditions
-    const condsMet = def.conditions.every(c => {
-      switch (c.type) {
-        case 'invites': return totalReferrals >= c.value;
-        case 'miningLevel': return miningLevel >= c.value;
-        case 'adsWatched': return adsWatched >= c.value;
-        case 'tasksCompleted': return tasksCompleted >= c.value;
-        case 'passiveCards': return passiveCardsOwned >= c.value;
-        default: return true;
-      }
-    });
-
-    if (!condsMet) break;
-    currentLevel = def.level;
+    if (lifetimePoints >= LEVELS[i].skpRequired) {
+      currentLevel = LEVELS[i].level;
+    } else {
+      break;
+    }
   }
   return currentLevel;
 }

@@ -60,22 +60,13 @@ export function useLevel() {
 // ── Provider ────────────────────────────────────────────────────────────────
 
 export function LevelProvider({ children }: { children: React.ReactNode }) {
-  const { lifetimePoints, totalReferrals, miningLevel, passiveCards } = useVault();
+  const { lifetimePoints } = useVault();
 
   const [totalAds, setTotalAds]   = useState(getTotalAdsWatched);
   const [totalTasks, setTotalTasks] = useState(getTotalTasksCompleted);
   const [pendingLevelUp, setPendingLevelUp] = useState<LevelDef | null>(null);
 
-  const passiveCardsOwned = passiveCards.length;
-
-  const level = computeLevel(
-    lifetimePoints,
-    totalReferrals,
-    miningLevel,
-    totalAds,
-    totalTasks,
-    passiveCardsOwned,
-  );
+  const level = computeLevel(lifetimePoints);
 
   const prevLevelRef = useRef<number>(
     parseInt(localStorage.getItem(LEVEL_KEY) ?? '1', 10)
