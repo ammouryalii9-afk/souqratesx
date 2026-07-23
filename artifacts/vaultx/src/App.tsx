@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { VaultProvider, useVault, getLeague, BADGES } from "./context/VaultContext";
+import { VaultProvider, useVault, BADGES } from "./context/VaultContext";
+import { LevelProvider, useLevel } from "./context/LevelContext";
 import { useLanguage, type Lang } from "./lib/i18n";
 import { BottomNav } from "./components/BottomNav";
 import { SplashScreen } from "./components/SplashScreen";
@@ -10,6 +11,9 @@ import { CelebrationOverlay } from "./components/CelebrationOverlay";
 import { WelcomeReward } from "./components/WelcomeReward";
 import { OfflineEarningsModal } from "./components/OfflineEarningsModal";
 import { BonusRewardModal } from "./components/BonusRewardModal";
+import { LevelUpModal } from "./components/LevelUpModal";
+import { LevelProgressScreen } from "./components/LevelProgressScreen";
+import { LevelGate } from "./components/LevelGate";
 import { VaultTab } from "./tabs/VaultTab";
 import { GamesTab } from "./tabs/GamesTab";
 import { TasksTab } from "./tabs/TasksTab";
@@ -23,6 +27,7 @@ import { getPublicConfig } from "./lib/gameApi";
 import { OnboardingCard, checkTermsAccepted } from "./components/OnboardingCard";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { AppTour, TourButton, checkTourSeen } from "./components/AppTour";
+import { formatSkpShort } from "./lib/levels";
 
 const LANG_OPTIONS: { code: Lang; flag: string; label: string; native: string }[] = [
   { code: 'en', flag: '🇺🇸', label: 'English',  native: 'English'  },
@@ -109,14 +114,15 @@ function LangPicker() {
   );
 }
 
-interface HeaderProps { onOpenTour: () => void; }
+interface HeaderProps { onOpenTour: () => void; onOpenLevels: () => void; }
 
-function Header({ onOpenTour }: HeaderProps) {
+function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
   const { tempMiningPoints, skxBalance, lifetimePoints, profitPerHour, equippedBadgeId } = useVault();
+  const { level, levelDef, progress } = useLevel();
   const { tr } = useLanguage();
-  const league = getLeague(lifetimePoints);
   const badge = equippedBadgeId !== null ? BADGES[equippedBadgeId] : undefined;
   const [dollarBonus, setDollarBonus] = useState(0);
+
   useEffect(() => {
     getPublicConfig().then(c => {
       setDollarBonus(c.dollarBonus);
@@ -129,9 +135,11 @@ function Header({ onOpenTour }: HeaderProps) {
       ? `+${(profitPerHour / 1_000).toFixed(0)}K/hr`
       : `+${profitPerHour}/hr`;
 
+  const { color: tierColor, glow: tierGlow, icon: tierIcon, nameAr: tierNameAr } = levelDef.tier;
+
   return (
     <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3 pb-2.5 flex flex-col gap-2">
-      {/* ── Row 1: identity + controls ───────────────────────────────────── */}
+      {/* ── Row 1: identity + controls ─────────────────────────────────── */}
       <div className="flex items-center gap-2">
         {/* Logo */}
         <div className="w-8 h-8 shrink-0 flex items-center justify-center">
@@ -145,16 +153,21 @@ function Header({ onOpenTour }: HeaderProps) {
           />
         </div>
 
-        {/* Name + league */}
+        {/* Name + level badge */}
         <div className="flex flex-col min-w-0 shrink-0">
           <span className="font-extrabold tracking-tight text-[15px] text-white leading-none">SouqrateX</span>
           <div className="flex items-center gap-1 mt-0.5">
-            <span
-              className="text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider"
-              style={{ background: `${league.color}22`, color: league.color, border: `1px solid ${league.color}44` }}
+            <button
+              onClick={onOpenLevels}
+              className="flex items-center gap-1 active:scale-95 transition-transform"
             >
-              {league.icon} {league.name}
-            </span>
+              <span
+                className="text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                style={{ background: `${tierColor}22`, color: tierColor, border: `1px solid ${tierColor}44` }}
+              >
+                {tierIcon} LVL {level}
+              </span>
+            </button>
             {badge && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-white/10 text-white/70">
                 {badge.label}
@@ -173,7 +186,30 @@ function Header({ onOpenTour }: HeaderProps) {
         </div>
       </div>
 
-      {/* ── Row 2: balance pills — full width, side by side ──────────────── */}
+      {/* ── Level progress bar ──────────────────────────────────────────── */}
+      <button
+        onClick={onOpenLevels}
+        className="w-full active:opacity-80 transition-opacity"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[9px] font-bold" style={{ color: tierColor }}>
+            {tierNameAr} · المرحلة {level}
+          </span>
+          <span className="text-[9px] font-bold text-white/40">{progress}٪ → المرحلة {level + 1}</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${progress}%`,
+              background: `linear-gradient(90deg, ${tierColor}, ${tierColor}cc)`,
+              boxShadow: `0 0 6px ${tierGlow}`,
+            }}
+          />
+        </div>
+      </button>
+
+      {/* ── Row 3: balance pills ────────────────────────────────────────── */}
       <div className="flex items-stretch gap-2">
         {/* SKP */}
         <div
@@ -224,9 +260,10 @@ function MainLayout() {
   const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(new Set(['vault']));
   const [bannerBlockId, setBannerBlockId] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
+  const [showLevels, setShowLevels] = useState(false);
   const { isTelegramUser } = useVault();
 
-  // Auto-show tour once for every user (new + existing)
+  // Auto-show tour once for every user
   useEffect(() => {
     if (checkTourSeen()) return;
     const t = setTimeout(() => setShowTour(true), 800);
@@ -248,7 +285,6 @@ function MainLayout() {
             initOnclickaInpage(config.onclicka.inpageId as string);
           });
         }
-
       })
       .catch(() => setBannerBlockId(null));
   }, []);
@@ -256,24 +292,26 @@ function MainLayout() {
   return (
     <div className="min-h-[100dvh] w-full max-w-[430px] mx-auto bg-background text-foreground relative flex flex-col shadow-2xl overflow-hidden font-sans">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background z-[-1]"></div>
-      <Header onOpenTour={() => setShowTour(true)} />
+      <Header onOpenTour={() => setShowTour(true)} onOpenLevels={() => setShowLevels(true)} />
       <AnnouncementBanner isTelegramUser={isTelegramUser} />
       <EventBanner />
       <CelebrationOverlay />
       <WelcomeReward />
       <OfflineEarningsModal />
       <BonusRewardModal />
+      <LevelUpModal />
       {showTour && <AppTour onClose={() => setShowTour(false)} />}
+      {showLevels && <LevelProgressScreen onClose={() => setShowLevels(false)} />}
 
       <main className="flex-1 overflow-x-hidden relative">
         <div className="absolute inset-0 overflow-y-auto">
-          {mountedTabs.has('vault') && <div className={activeTab !== 'vault' ? 'hidden' : ''}><VaultTab /></div>}
-          {mountedTabs.has('games') && <div className={activeTab !== 'games' ? 'hidden' : ''}><GamesTab /></div>}
-          {mountedTabs.has('tasks') && <div className={activeTab !== 'tasks' ? 'hidden' : ''}><TasksTab /></div>}
-          {mountedTabs.has('squad') && <div className={activeTab !== 'squad' ? 'hidden' : ''}><SquadTab /></div>}
-          {mountedTabs.has('pixels') && <div className={activeTab !== 'pixels' ? 'hidden' : ''}><PixelsTab /></div>}
-          {mountedTabs.has('friends') && <div className={activeTab !== 'friends' ? 'hidden' : ''}><FriendsTab /></div>}
-          {mountedTabs.has('stars') && <div className={activeTab !== 'stars' ? 'hidden' : ''}><StarsTab /></div>}
+          {mountedTabs.has('vault')   && <div className={activeTab !== 'vault'   ? 'hidden' : ''}><VaultTab /></div>}
+          {mountedTabs.has('games')   && <div className={activeTab !== 'games'   ? 'hidden' : ''}><LevelGate feature="games"   onUnlockClick={() => setActiveTab('vault')}><GamesTab /></LevelGate></div>}
+          {mountedTabs.has('tasks')   && <div className={activeTab !== 'tasks'   ? 'hidden' : ''}><LevelGate feature="tasks"   onUnlockClick={() => setActiveTab('vault')}><TasksTab /></LevelGate></div>}
+          {mountedTabs.has('squad')   && <div className={activeTab !== 'squad'   ? 'hidden' : ''}><LevelGate feature="squad"   onUnlockClick={() => setActiveTab('vault')}><SquadTab /></LevelGate></div>}
+          {mountedTabs.has('pixels')  && <div className={activeTab !== 'pixels'  ? 'hidden' : ''}><LevelGate feature="pixels"  onUnlockClick={() => setActiveTab('vault')}><PixelsTab /></LevelGate></div>}
+          {mountedTabs.has('friends') && <div className={activeTab !== 'friends' ? 'hidden' : ''}><LevelGate feature="friends" onUnlockClick={() => setActiveTab('vault')}><FriendsTab /></LevelGate></div>}
+          {mountedTabs.has('stars')   && <div className={activeTab !== 'stars'   ? 'hidden' : ''}><LevelGate feature="stars"   onUnlockClick={() => setActiveTab('vault')}><StarsTab /></LevelGate></div>}
         </div>
       </main>
 
@@ -309,8 +347,10 @@ function App() {
 
   return (
     <VaultProvider>
-      <MainLayout />
-      <Toaster />
+      <LevelProvider>
+        <MainLayout />
+        <Toaster />
+      </LevelProvider>
     </VaultProvider>
   );
 }
