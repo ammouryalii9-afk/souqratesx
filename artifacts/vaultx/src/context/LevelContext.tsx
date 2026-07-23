@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useVault } from './VaultContext';
 import {
   computeLevel, getLevelDef, getLevelProgress, FEATURE_LEVEL_REQUIRED,
@@ -10,6 +10,11 @@ import {
 const ADS_KEY    = 'skx_total_ads_watched';
 const TASKS_KEY  = 'skx_total_tasks_completed';
 const LEVEL_KEY  = 'skx_computed_level';
+
+// Module-level variable: persists across React StrictMode remounts and component
+// re-creations. Initialized to null so the first mount can sync to current level
+// without showing a false level-up modal.
+let _seenLevel: number | null = null;
 
 export function incrementAdsWatched() {
   const cur = parseInt(localStorage.getItem(ADS_KEY) ?? '0', 10);
@@ -68,15 +73,18 @@ export function LevelProvider({ children }: { children: React.ReactNode }) {
 
   const level = computeLevel(lifetimePoints, totalAds, starsPaidLevel);
 
-  const prevLevelRef = useRef<number>(
-    parseInt(localStorage.getItem(LEVEL_KEY) ?? '1', 10)
-  );
-
-  // Detect level-up
+  // Detect genuine level-up during this session.
+  // _seenLevel is module-level so it survives React StrictMode double-mount,
+  // which would otherwise re-initialize a useRef and miss the change.
   useEffect(() => {
-    const prev = prevLevelRef.current;
-    if (level > prev) {
-      prevLevelRef.current = level;
+    if (_seenLevel === null) {
+      // First run: silently record current level — no modal for levels already reached.
+      _seenLevel = level;
+      localStorage.setItem(LEVEL_KEY, String(level));
+      return;
+    }
+    if (level > _seenLevel) {
+      _seenLevel = level;
       localStorage.setItem(LEVEL_KEY, String(level));
       setPendingLevelUp(getLevelDef(level));
     }
