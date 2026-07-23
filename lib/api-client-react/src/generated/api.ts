@@ -53,6 +53,7 @@ import type {
   ReferralTransferResponse,
   SponsoredAd,
   SponsoredAdList,
+  StageSkipInvoiceInput,
   StarProduct,
   StarProductList,
   StarsInvoiceInput,
@@ -3375,6 +3376,77 @@ export const useCreateStarsInvoice = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateStarsInvoiceMutationOptions(options));
+    }
+
+export const getCreateStageSkipInvoiceUrl = () => {
+
+
+
+
+  return `/api/vault/stage-skip/invoice`
+}
+
+/**
+ * @summary Create a Telegram Stars invoice to skip to a specific stage
+ */
+export const createStageSkipInvoice = async (stageSkipInvoiceInput: StageSkipInvoiceInput, options?: RequestInit): Promise<StarsInvoiceResult> => {
+
+  return customFetch<StarsInvoiceResult>(getCreateStageSkipInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(stageSkipInvoiceInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStageSkipInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStageSkipInvoice>>, TError,{data: BodyType<StageSkipInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStageSkipInvoice>>, TError,{data: BodyType<StageSkipInvoiceInput>}, TContext> => {
+
+const mutationKey = ['createStageSkipInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStageSkipInvoice>>, {data: BodyType<StageSkipInvoiceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStageSkipInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStageSkipInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createStageSkipInvoice>>>
+    export type CreateStageSkipInvoiceMutationBody = BodyType<StageSkipInvoiceInput>
+    export type CreateStageSkipInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a Telegram Stars invoice to skip to a specific stage
+ */
+export const useCreateStageSkipInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStageSkipInvoice>>, TError,{data: BodyType<StageSkipInvoiceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStageSkipInvoice>>,
+        TError,
+        {data: BodyType<StageSkipInvoiceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateStageSkipInvoiceMutationOptions(options));
     }
 
 export const getTelegramWebhookUrl = () => {

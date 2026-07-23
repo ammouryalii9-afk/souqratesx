@@ -135,6 +135,10 @@ export function createStarsInvoice(productId: number): Promise<{ invoiceUrl: str
   return apiFetch("/stars/invoice", { method: "POST", body: JSON.stringify({ productId }) });
 }
 
+export function createStageSkipInvoice(targetLevel: number): Promise<{ invoiceUrl: string; priceStars: number }> {
+  return apiFetch("/vault/stage-skip/invoice", { method: "POST", body: JSON.stringify({ targetLevel }) });
+}
+
 export type SponsoredAdTask = {
   id: number;
   title: string;

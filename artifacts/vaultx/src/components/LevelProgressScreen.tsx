@@ -1,18 +1,47 @@
-import { useRef, useEffect } from 'react';
-import { CheckCircle2, Lock, X, Zap, Star } from 'lucide-react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { CheckCircle2, Lock, X, Zap, Star, Video } from 'lucide-react';
 import { useLevel } from '../context/LevelContext';
+import { useVault } from '../context/VaultContext';
 import { LEVELS, formatSkpShort } from '../lib/levels';
-import { haptic } from '../lib/telegram';
+import { haptic, getTelegramWebApp } from '../lib/telegram';
+import { createStageSkipInvoice } from '../lib/gameApi';
 
 interface Props { onClose: () => void }
 
 export function LevelProgressScreen({ onClose }: Props) {
-  const { level, progress, nextSkp, currentSkp } = useLevel();
+  const { level, progress, nextSkp, currentSkp, totalAdsWatched } = useLevel();
+  const { refreshFromServer, isTelegramUser } = useVault();
   const activeRef = useRef<HTMLDivElement>(null);
+  const [skippingLevel, setSkippingLevel] = useState<number | null>(null);
 
   useEffect(() => {
     setTimeout(() => activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   }, []);
+
+  const handleSkip = useCallback(async (targetLevel: number) => {
+    if (skippingLevel !== null) return;
+    haptic('medium');
+    setSkippingLevel(targetLevel);
+    try {
+      const { invoiceUrl } = await createStageSkipInvoice(targetLevel);
+      const webApp = getTelegramWebApp();
+      if (webApp?.openInvoice) {
+        webApp.openInvoice(invoiceUrl, async (status: string) => {
+          if (status === 'paid') {
+            haptic('success');
+            await refreshFromServer();
+          }
+          setSkippingLevel(null);
+        });
+      } else {
+        window.open(invoiceUrl, '_blank');
+        setSkippingLevel(null);
+      }
+    } catch {
+      haptic('error');
+      setSkippingLevel(null);
+    }
+  }, [skippingLevel, refreshFromServer]);
 
   return (
     <div className="fixed inset-0 z-[150] flex flex-col bg-[#060d1a] animate-in slide-in-from-bottom duration-300">
@@ -92,7 +121,48 @@ export function LevelProgressScreen({ onClose }: Props) {
               {formatSkpShort(Math.max(0, nextSkp - currentSkp))} SKP remaining
             </div>
           )}
+
+          {/* Video progress for next stage */}
+          {level < 100 && LEVELS[level].videosRequired > 0 && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <Video className="w-3.5 h-3.5 text-sky-400" />
+              <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(100, (totalAdsWatched / LEVELS[level].videosRequired) * 100)}%`,
+                    background: totalAdsWatched >= LEVELS[level].videosRequired
+                      ? 'linear-gradient(90deg, #34d399cc, #34d399)'
+                      : 'linear-gradient(90deg, #38bdf8cc, #38bdf8)',
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-bold"
+                style={{ color: totalAdsWatched >= LEVELS[level].videosRequired ? '#34d399' : '#38bdf8' }}
+              >
+                {Math.min(totalAdsWatched, LEVELS[level].videosRequired)}/{LEVELS[level].videosRequired} videos
+              </span>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* ── Legend ── */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-white/4">
+        <div className="flex items-center gap-1 text-[10px] text-white/40">
+          <Zap className="w-3 h-3 text-amber-400" />
+          <span>SKP required</span>
+        </div>
+        <div className="flex items-center gap-1 text-[10px] text-white/40">
+          <Video className="w-3 h-3 text-sky-400" />
+          <span>Videos required</span>
+        </div>
+        {isTelegramUser && (
+          <div className="flex items-center gap-1 text-[10px] text-white/40">
+            <Star className="w-3 h-3 text-amber-400" />
+            <span>Skip with Stars</span>
+          </div>
+        )}
       </div>
 
       {/* ── Stages list ── */}
@@ -101,6 +171,8 @@ export function LevelProgressScreen({ onClose }: Props) {
           const isCompleted = def.level < level;
           const isCurrent   = def.level === level;
           const isLocked    = def.level > level;
+          const skpMet = currentSkp >= def.skpRequired;
+          const videosMet = totalAdsWatched >= def.videosRequired;
 
           // Tier separator
           const showTierHeader = def.level === def.tier.from;
@@ -181,16 +253,29 @@ export function LevelProgressScreen({ onClose }: Props) {
                       )}
                     </div>
 
-                    {/* Requirement + rewards row */}
+                    {/* Requirements + rewards */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* SKP requirement — the ONE clear condition */}
+                      {/* SKP requirement */}
                       <span
                         className="flex items-center gap-0.5 text-[10px] font-bold"
-                        style={{ color: isCompleted ? 'rgba(52,211,153,0.7)' : isLocked ? 'rgba(255,255,255,0.2)' : def.tier.color }}
+                        style={{ color: isCompleted || skpMet ? 'rgba(52,211,153,0.7)' : isLocked ? 'rgba(255,255,255,0.2)' : def.tier.color }}
                       >
                         <Zap className="w-2.5 h-2.5" />
                         {def.skpRequired === 0 ? 'Start' : `${formatSkpShort(def.skpRequired)} SKP`}
+                        {(isCompleted || skpMet) && ' ✓'}
                       </span>
+
+                      {/* Video requirement */}
+                      {def.videosRequired > 0 && (
+                        <span
+                          className="flex items-center gap-0.5 text-[10px] font-bold"
+                          style={{ color: isCompleted || videosMet ? 'rgba(52,211,153,0.7)' : isLocked ? 'rgba(255,255,255,0.15)' : '#38bdf8' }}
+                        >
+                          <Video className="w-2.5 h-2.5" />
+                          {def.videosRequired} videos
+                          {(isCompleted || videosMet) && ' ✓'}
+                        </span>
+                      )}
 
                       {/* Feature unlock badge */}
                       {def.unlocks && (
@@ -220,18 +305,42 @@ export function LevelProgressScreen({ onClose }: Props) {
                     </div>
                   </div>
 
-                  {/* Current stage arrow or star for max */}
-                  {isCurrent && (
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: `${def.tier.color}25` }}
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: def.tier.color }} />
-                    </div>
-                  )}
-                  {def.level === 100 && isCompleted && (
-                    <Star className="w-4 h-4 text-amber-400 shrink-0" />
-                  )}
+                  {/* Right side: skip button or status indicator */}
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    {/* Stars skip button — locked stages only, Telegram users only */}
+                    {isLocked && isTelegramUser && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSkip(def.level); }}
+                        disabled={skippingLevel !== null}
+                        className="flex items-center gap-0.5 px-2 py-1 rounded-lg active:scale-95 transition-all"
+                        style={{
+                          background: 'rgba(250,204,21,0.1)',
+                          border: '1px solid rgba(250,204,21,0.22)',
+                          opacity: skippingLevel !== null ? 0.5 : 1,
+                        }}
+                      >
+                        <Star className="w-3 h-3 text-amber-400" />
+                        <span className="text-[10px] font-black text-amber-400">
+                          {skippingLevel === def.level ? '…' : def.starsSkipCost}
+                        </span>
+                      </button>
+                    )}
+
+                    {/* Current stage pulse */}
+                    {isCurrent && (
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: `${def.tier.color}25` }}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: def.tier.color }} />
+                      </div>
+                    )}
+
+                    {/* Max level star */}
+                    {def.level === 100 && isCompleted && (
+                      <Star className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -437,6 +437,19 @@ router.post("/telegram/webhook", async (req, res): Promise<void> => {
               })
               .onConflictDoNothing();
           }
+        } else if (payload.effect === "stage_skip" && typeof (payload as any).targetLevel === "number") {
+          const targetLevel = Math.min(100, Math.max(1, Math.floor((payload as any).targetLevel)));
+          await db.execute(sql`
+            UPDATE vault_users
+            SET
+              state = jsonb_set(
+                COALESCE(state, '{}'),
+                '{starsPaidLevel}',
+                to_jsonb(GREATEST(COALESCE((state->>'starsPaidLevel')::int, 0), ${targetLevel}::int))
+              ),
+              stars_balance = stars_balance + ${payment.total_amount}::int
+            WHERE telegram_id = ${telegramId}
+          `);
         } else {
           await db
             .update(vaultUsersTable)

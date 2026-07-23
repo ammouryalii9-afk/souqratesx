@@ -62,6 +62,7 @@ export * from './publicConfigStars';
 export * from './referralTransferResponse';
 export * from './sponsoredAd';
 export * from './sponsoredAdList';
+export * from './stageSkipInvoiceInput';
 export * from './starProduct';
 export * from './starProductEffectType';
 export * from './starProductList';

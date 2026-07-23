@@ -894,6 +894,23 @@ export const CreateStarsInvoiceResponse = zod.object({
 
 
 /**
+ * @summary Create a Telegram Stars invoice to skip to a specific stage
+ */
+export const createStageSkipInvoiceBodyTargetLevelMax = 100;
+
+
+
+export const CreateStageSkipInvoiceBody = zod.object({
+  "targetLevel": zod.number().min(1).max(createStageSkipInvoiceBodyTargetLevelMax)
+})
+
+export const CreateStageSkipInvoiceResponse = zod.object({
+  "invoiceUrl": zod.string(),
+  "priceStars": zod.number()
+})
+
+
+/**
  * @summary Receives Telegram Bot API updates (pre_checkout_query, successful_payment) to process Stars purchases
  */
 export const TelegramWebhookBody = zod.record(zod.string(), zod.unknown()).describe('Raw Telegram Bot API Update object')

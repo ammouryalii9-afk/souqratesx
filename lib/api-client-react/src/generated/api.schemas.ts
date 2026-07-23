@@ -476,6 +476,14 @@ export interface EarnOffersResponse {
   offers: EarnOffer[];
 }
 
+export interface StageSkipInvoiceInput {
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  targetLevel: number;
+}
+
 export interface StarsInvoiceInput {
   productId: number;
 }

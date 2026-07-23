@@ -1102,6 +1102,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /vault/stage-skip/invoice:
+    post:
+      operationId: createStageSkipInvoice
+      tags: [vault]
+      summary: Create a Telegram Stars invoice to skip to a specific stage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageSkipInvoiceInput"
+      responses:
+        "200":
+          description: Invoice link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarsInvoiceResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid level or Stars not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /telegram/webhook:
     post:
       operationId: telegramWebhook
@@ -1894,6 +1924,14 @@ components:
             $ref: "#/components/schemas/EarnOffer"
       required:
         - offers
+    StageSkipInvoiceInput:
+      type: object
+      required: [targetLevel]
+      properties:
+        targetLevel:
+          type: integer
+          minimum: 1
+          maximum: 100
     StarsInvoiceInput:
       type: object
       properties:

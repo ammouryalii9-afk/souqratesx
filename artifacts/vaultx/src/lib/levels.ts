@@ -24,6 +24,8 @@ export type LevelDef = {
   nameAr: string;
   tier: LevelTier;
   skpRequired: number;
+  videosRequired: number;
+  starsSkipCost: number;
   conditions: LevelCondition[];
   unlocks?: { feature: string; featureAr: string; icon: string };
   miningBonus?: number;
@@ -365,6 +367,18 @@ function buildConditions(level: number): LevelCondition[] {
   return conds;
 }
 
+// Videos required per level: floor((i)^1.5 * 0.4) — level 10≈6, level 50≈137, level 100≈394
+const VIDEOS_TABLE: number[] = Array.from({ length: 100 }, (_, i) =>
+  Math.floor(Math.pow(i, 1.5) * 0.4)
+);
+
+// Stars skip cost by tier index (Rookie→Grandmaster)
+const TIER_STARS_COSTS = [50, 75, 100, 150, 200, 250, 300, 350, 400, 400];
+function getStarsSkipCost(level: number): number {
+  const tierIdx = TIERS.findIndex(t => level >= t.from && level <= t.to);
+  return TIER_STARS_COSTS[Math.max(0, tierIdx)] ?? 400;
+}
+
 // Build all 100 levels
 export const LEVELS: LevelDef[] = Array.from({ length: 100 }, (_, i) => {
   const level = i + 1;
@@ -378,6 +392,8 @@ export const LEVELS: LevelDef[] = Array.from({ length: 100 }, (_, i) => {
     nameAr,
     tier,
     skpRequired: SKP_TABLE[i],
+    videosRequired: VIDEOS_TABLE[i],
+    starsSkipCost: getStarsSkipCost(level),
     conditions: buildConditions(level),
     unlocks: UNLOCKS[level],
     miningBonus,
@@ -389,16 +405,26 @@ export function getLevelDef(level: number): LevelDef {
   return LEVELS[Math.max(0, Math.min(level - 1, 99))];
 }
 
-export function computeLevel(lifetimePoints: number): number {
-  let currentLevel = 1;
+export function computeLevel(
+  lifetimePoints: number,
+  videosWatched: number,
+  starsPaidLevel: number,
+): number {
+  // Find highest level reachable by SKP
+  let skpLevel = 1;
   for (let i = 0; i < LEVELS.length; i++) {
-    if (lifetimePoints >= LEVELS[i].skpRequired) {
-      currentLevel = LEVELS[i].level;
-    } else {
-      break;
-    }
+    if (lifetimePoints >= LEVELS[i].skpRequired) skpLevel = LEVELS[i].level;
+    else break;
   }
-  return currentLevel;
+  // Find highest level reachable by videos
+  let videoLevel = 1;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (videosWatched >= LEVELS[i].videosRequired) videoLevel = LEVELS[i].level;
+    else break;
+  }
+  // Both SKP and videos must be earned; Stars skip overrides
+  const earnedLevel = Math.min(skpLevel, videoLevel);
+  return Math.max(earnedLevel, Math.min(Math.max(starsPaidLevel, 0), 100));
 }
 
 export function getLevelProgress(

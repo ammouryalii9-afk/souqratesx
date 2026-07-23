@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { getSessionTelegramId } from "../lib/session";
 import { getSettingsMap, asNumber } from "../lib/settings";
+import { createStarsInvoiceLink, isTelegramBotConfigured } from "../lib/telegramBot";
 import { weekKey } from "../lib/weeklyCredit";
 import { redeemPendingBonus } from "../lib/pendingBonus";
 
@@ -513,6 +514,44 @@ router.post("/vault/heartbeat", rateLimit("vault-heartbeat", 120, 60_000), async
     .where(eq(vaultUsersTable.telegramId, telegramId));
 
   res.json({ ok: true });
+});
+
+// Stars cost per tier (matches frontend TIER_STARS_COSTS)
+const TIER_STARS_COSTS = [50, 75, 100, 150, 200, 250, 300, 350, 400, 400];
+function stageSkipCost(level: number): number {
+  const tierIdx = Math.floor((Math.max(1, Math.min(100, level)) - 1) / 10);
+  return TIER_STARS_COSTS[Math.min(tierIdx, TIER_STARS_COSTS.length - 1)];
+}
+
+router.post("/vault/stage-skip/invoice", rateLimit("vault-stage-skip", 10, 60_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  if (!isTelegramBotConfigured()) {
+    res.status(400).json({ error: "Telegram Stars purchases are not configured" });
+    return;
+  }
+  const targetLevel = Number(req.body?.targetLevel);
+  if (!Number.isInteger(targetLevel) || targetLevel < 1 || targetLevel > 100) {
+    res.status(400).json({ error: "targetLevel must be 1–100" });
+    return;
+  }
+  const priceStars = stageSkipCost(targetLevel);
+  const payload = JSON.stringify({ telegramId, effect: "stage_skip", targetLevel });
+  try {
+    const invoiceUrl = await createStarsInvoiceLink({
+      title: `Skip to Stage ${targetLevel}`,
+      description: `Instantly unlock Stage ${targetLevel} and all previous stages.`,
+      payload,
+      amountStars: priceStars,
+    });
+    res.json({ invoiceUrl, priceStars });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create stage-skip invoice");
+    res.status(400).json({ error: "Failed to create invoice" });
+  }
 });
 
 export default router;

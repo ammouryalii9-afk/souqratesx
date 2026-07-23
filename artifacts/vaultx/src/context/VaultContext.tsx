@@ -42,6 +42,7 @@ type SyncedState = {
   selectedExchange?: string | null;
   claimedAchievements?: string[];
   hasClaimedWelcome?: boolean;
+  starsPaidLevel?: number;
 };
 
 export const BADGES: Record<number, { label: string; color: string }> = {
@@ -101,6 +102,7 @@ type VaultContextType = {
   selectedExchange: string | null;
   claimedAchievements: string[];
   hasClaimedWelcome: boolean;
+  starsPaidLevel: number;
   claimWelcomeReward: () => void;
   offlineEarnings: { amount: number; awayMs: number } | null;
   claimOfflineEarnings: () => void;
@@ -249,6 +251,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try { return JSON.parse(localStorage.getItem('claimedAchievements') || '[]'); } catch { return []; }
   });
   const [hasClaimedWelcome, setHasClaimedWelcome] = useState<boolean>(() => localStorage.getItem('hasClaimedWelcome') === 'true');
+  const [starsPaidLevel, setStarsPaidLevel] = useState<number>(() => Number(localStorage.getItem('starsPaidLevel') ?? '0') || 0);
   const [isPremium, setIsPremium] = useState(false);
 
   // Offline passive earnings, computed once after hydration from the gap since
@@ -341,6 +344,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
         if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
         setHasClaimedWelcome(!!state.hasClaimedWelcome);
+        if (typeof state.starsPaidLevel === 'number' && state.starsPaidLevel > 0) setStarsPaidLevel(state.starsPaidLevel);
         setIsPremium(!!data.user.isPremium);
         if (typeof data.redeemedBonus === 'number' && data.redeemedBonus > 0) {
           setBonusReward(data.redeemedBonus);
@@ -421,7 +425,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('selectedExchange', selectedExchange ?? '');
     localStorage.setItem('claimedAchievements', JSON.stringify(claimedAchievements));
     localStorage.setItem('hasClaimedWelcome', hasClaimedWelcome ? 'true' : 'false');
-  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, claimedPoints, skxBalance, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome]);
+    localStorage.setItem('starsPaidLevel', starsPaidLevel.toString());
+  }, [totalBalanceUSD, tempMiningPoints, adMiningPoints, claimedPoints, skxBalance, miningLevel, energy, maxEnergy, lifetimePoints, turboUsesToday, rechargeUsesToday, farmState, farmStartTime, passiveCards, totalReferrals, referralEarnings, permanentMultiplierPercent, ownedBadgeIds, equippedBadgeId, ownedSkinIds, equippedSkinId, selectedExchange, claimedAchievements, hasClaimedWelcome, starsPaidLevel]);
 
   // Debounced sync to the server whenever game state changes (Telegram users only).
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -452,6 +457,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         selectedExchange,
         claimedAchievements,
         hasClaimedWelcome,
+        starsPaidLevel,
       };
       apiFetch('/vault/me', {
         method: 'PUT',
@@ -821,6 +827,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (typeof state.selectedExchange === 'string') setSelectedExchange(state.selectedExchange);
       if (Array.isArray(state.claimedAchievements)) setClaimedAchievements(state.claimedAchievements as string[]);
       setHasClaimedWelcome(!!state.hasClaimedWelcome);
+      if (typeof state.starsPaidLevel === 'number' && state.starsPaidLevel > 0) setStarsPaidLevel(state.starsPaidLevel);
       setIsPremium(!!data.user.isPremium);
       if (typeof data.redeemedBonus === 'number' && data.redeemedBonus > 0) {
         setBonusReward(data.redeemedBonus);
@@ -885,6 +892,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         selectedExchange,
         claimedAchievements,
         hasClaimedWelcome,
+        starsPaidLevel,
         claimWelcomeReward,
         offlineEarnings,
         claimOfflineEarnings,
