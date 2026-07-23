@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
+import { useLevel } from '../context/LevelContext';
 import { AchievementsSection } from '../components/AchievementsSection';
 import { EngagementHub } from '../components/EngagementHub';
 import { useToast } from '@/hooks/use-toast';
@@ -44,6 +45,7 @@ const TASK_TABS: {
 
 export const TasksTab = () => {
   const { userId, setTempMiningPoints, addLifetimePoints, refreshFromServer, lifetimePoints, miningLevel, profitPerHour, totalReferrals, isPremium, selectedExchange, farmStartTime, farmState, claimedAchievements, addClaimedAchievement } = useVault();
+  const { notifyAdWatched } = useLevel();
   const { toast } = useToast();
   const { tr, lang } = useLanguage();
 
@@ -175,6 +177,7 @@ export const TasksTab = () => {
     setClaimingAdId(ad.id);
     try {
       const result = await claimAd(ad.id);
+      notifyAdWatched();
       await refreshFromServer();
       setSponsoredAds(prev => prev.map(a => a.id === ad.id ? { ...a, claimed: true } : a));
       toast({ title: tr.tasks.rewardClaimed, description: tr.tasks.adWatchedDesc(result.creditedPoints), variant: 'success' });
@@ -193,6 +196,7 @@ export const TasksTab = () => {
     setAdLoading(true);
     try {
       const provider = await watchRewardedAdWithFallback(config);
+      notifyAdWatched();
       const result = provider === 'adsgram' ? await claimAdsgramReward()
         : provider === 'monetag' ? await claimMonetagReward()
         : await claimOnclickaReward();
@@ -211,6 +215,7 @@ export const TasksTab = () => {
     try {
       const bannerConfig = { ...config, adsgram: { ...config.adsgram, blockId: config.adsgram.bannerBlockId } };
       const provider = await watchRewardedAdWithFallback(bannerConfig);
+      notifyAdWatched();
       const result = provider === 'adsgram' ? await claimAdsgramReward() : await claimOnclickaReward();
       void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });
@@ -227,6 +232,7 @@ export const TasksTab = () => {
     try {
       const { showMonetagRewardedAd } = await import('../lib/monetag');
       await showMonetagRewardedAd(config.monetag.zoneId);
+      notifyAdWatched();
       const result = await claimMonetagReward();
       void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });
@@ -243,6 +249,7 @@ export const TasksTab = () => {
     try {
       const { showOnclickaRewardedAd } = await import('../lib/onclicka');
       await showOnclickaRewardedAd(config.onclicka.spotId);
+      notifyAdWatched();
       const result = await claimOnclickaReward();
       void refreshFromServer();
       toast({ title: 'Ad Watched!', description: `+${result.creditedPoints.toLocaleString()} points`, variant: 'success' });

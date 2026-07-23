@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useVault, getLeague } from '../context/VaultContext';
+import { useLevel } from '../context/LevelContext';
 import { getEngageStatus, type EngageStatus } from '../lib/engageApi';
 import { ExchangeSelector } from '../components/ExchangeSelector';
 import { WithdrawModal } from '../components/WithdrawModal';
@@ -45,6 +46,7 @@ export const VaultTab = () => {
     totalReferrals, referralUsdCents, transferReferralUsd,
     refreshFromServer,
   } = useVault();
+  const { notifyAdWatched } = useLevel();
 
   const { tr } = useLanguage();
   const [idCopied, setIdCopied] = useState(false);
@@ -122,6 +124,7 @@ export const VaultTab = () => {
   // Watch an ad and credit SKX server-side. Returns the provider that served it.
   const watchAndClaimAd = async () => {
     const provider = await watchRewardedAdWithFallback(config);
+    notifyAdWatched();
     // Fire-and-forget server SKX credit — failure must never block the client reward
     try {
       if (provider === 'adsgram') await claimAdsgramReward();

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shield, Clock, Star, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Zap, Lock, Target } from "lucide-react";
 import { useVault } from "../context/VaultContext";
+import { useLevel } from "../context/LevelContext";
 import { haptic } from "../lib/telegram";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "../lib/i18n";
@@ -2210,6 +2211,7 @@ function GridView({
 
 function ArcadeTabInner() {
   const { refreshFromServer } = useVault();
+  const { notifyAdWatched } = useLevel();
   const { toast } = useToast();
   const { tr } = useLanguage();
 
@@ -2390,6 +2392,7 @@ function ArcadeTabInner() {
     setActionLoading(true);
     try {
       await watchRewardedAdWithFallback(config!);
+      notifyAdWatched();
       const data = await apiPost<{ ok?: boolean; limitReached?: boolean; shieldExpiresAt?: string; extraCellCredits?: number }>(
         "/arcade/ad/reward",
         { itemType, sessionId },

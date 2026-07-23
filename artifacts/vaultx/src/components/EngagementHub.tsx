@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useVault } from '../context/VaultContext';
+import { useLevel } from '../context/LevelContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Flame, Gift, Target, Check, Lock, Clock, Sparkles } from 'lucide-react';
@@ -44,6 +45,7 @@ function useCountdown(target: number): string {
 
 export function EngagementHub() {
   const { isTelegramUser, refreshFromServer } = useVault();
+  const { notifyAdWatched } = useLevel();
   const { toast } = useToast();
   const [status, setStatus] = useState<EngageStatus | null>(null);
   const [config, setConfig] = useState<PublicConfig | null>(null);
@@ -94,7 +96,10 @@ export function EngagementHub() {
     if (busy) return;
     setBusy(`box-${source}`);
     try {
-      if (source === 'ad') await watchRewardedAd();
+      if (source === 'ad') {
+        await watchRewardedAd();
+        notifyAdWatched();
+      }
       const r = await openMysteryBox(source);
       haptic('heavy');
       setReveal({ tier: r.tier, reward: r.reward });
