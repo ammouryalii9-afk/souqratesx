@@ -18,7 +18,7 @@ export function LevelUpModal() {
 
   if (!pendingLevelUp) return null;
 
-  const { level, name, nameAr, tier, unlocks, miningBonus } = pendingLevelUp;
+  const { level, name, tier, unlocks, miningBonus } = pendingLevelUp;
 
   return (
     <div
@@ -81,10 +81,10 @@ export function LevelUpModal() {
           className="text-[11px] font-black uppercase tracking-[0.2em] mb-1"
           style={{ color: tier.color }}
         >
-          ترقية المرحلة!
+          Level Up!
         </div>
-        <h2 className="text-2xl font-black text-white mb-0.5 text-center">{nameAr}</h2>
-        <p className="text-[13px] text-white/40 mb-6 text-center">{name} · {tier.nameAr}</p>
+        <h2 className="text-2xl font-black text-white mb-0.5 text-center">{name}</h2>
+        <p className="text-[13px] text-white/40 mb-6 text-center">{tier.name} Tier</p>
 
         {/* Rewards */}
         <div className="w-full flex flex-col gap-2 mb-6">
@@ -95,8 +95,8 @@ export function LevelUpModal() {
             >
               <span className="text-xl">{unlocks.icon}</span>
               <div>
-                <div className="text-[10px] text-white/40">تم الفتح</div>
-                <div className="text-sm font-bold text-white">{unlocks.featureAr}</div>
+                <div className="text-[10px] text-white/40">Unlocked</div>
+                <div className="text-sm font-bold text-white">{unlocks.feature}</div>
               </div>
             </div>
           )}
@@ -107,8 +107,8 @@ export function LevelUpModal() {
             >
               <span className="text-xl">⚡</span>
               <div>
-                <div className="text-[10px] text-white/40">مكافأة التعدين</div>
-                <div className="text-sm font-bold text-primary">+{miningBonus}٪ إضافي</div>
+                <div className="text-[10px] text-white/40">Mining Bonus</div>
+                <div className="text-sm font-bold text-primary">+{miningBonus}% extra</div>
               </div>
             </div>
           )}
@@ -119,8 +119,8 @@ export function LevelUpModal() {
             >
               <span className="text-xl">🎯</span>
               <div>
-                <div className="text-[10px] text-white/40">استمر في التقدم</div>
-                <div className="text-sm font-bold text-white">المرحلة {level} مكتملة</div>
+                <div className="text-[10px] text-white/40">Keep going!</div>
+                <div className="text-sm font-bold text-white">Level {level} Complete</div>
               </div>
             </div>
           )}
@@ -136,7 +136,7 @@ export function LevelUpModal() {
             boxShadow: `0 4px 20px ${tier.glow}`,
           }}
         >
-          رائع! 🚀
+          Awesome! 🚀
         </button>
       </div>
     </div>

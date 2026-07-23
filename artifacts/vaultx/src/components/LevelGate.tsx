@@ -24,7 +24,6 @@ export function LevelGate({ feature, children, onUnlockClick }: LevelGateProps) 
       currentTierIcon={levelDef.tier.icon}
       requiredLevel={required}
       requiredName={reqDef.name}
-      requiredNameAr={reqDef.nameAr}
       requiredTierIcon={reqDef.tier.icon}
       requiredTierColor={reqDef.tier.color}
       skpNeeded={skpNeeded}
@@ -38,7 +37,6 @@ interface LockedScreenProps {
   currentTierIcon: string;
   requiredLevel: number;
   requiredName: string;
-  requiredNameAr: string;
   requiredTierIcon: string;
   requiredTierColor: string;
   skpNeeded: number;
@@ -50,7 +48,6 @@ function LockedScreen({
   currentTierIcon,
   requiredLevel,
   requiredName,
-  requiredNameAr,
   requiredTierIcon,
   requiredTierColor,
   skpNeeded,
@@ -79,8 +76,8 @@ function LockedScreen({
       </div>
 
       {/* Locked text */}
-      <h2 className="text-xl font-black text-white mb-1 text-center">محتوى مقفل</h2>
-      <p className="text-sm text-white/50 text-center mb-6">هذا التبويب يفتح عند الوصول لـ</p>
+      <h2 className="text-xl font-black text-white mb-1 text-center">Locked Content</h2>
+      <p className="text-sm text-white/50 text-center mb-6">This tab unlocks when you reach</p>
 
       {/* Required level badge */}
       <div
@@ -92,16 +89,16 @@ function LockedScreen({
       >
         <span className="text-2xl">{requiredTierIcon}</span>
         <div>
-          <div className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">المرحلة المطلوبة</div>
+          <div className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">Required Level</div>
           <div className="font-black text-white text-lg">
-            المرحلة {requiredLevel} — {requiredNameAr}
+            Level {requiredLevel} — {requiredName}
           </div>
         </div>
       </div>
 
       {/* SKP needed */}
       <div className="text-[13px] text-white/40 mb-8 text-center">
-        تحتاج <span className="text-primary font-bold">{formatSkpShort(skpNeeded)}</span> نقطة مدى الحياة
+        Need <span className="text-primary font-bold">{formatSkpShort(skpNeeded)}</span> lifetime points
       </div>
 
       {/* Progress hint */}
@@ -111,11 +108,11 @@ function LockedScreen({
       >
         <span className="text-2xl">{currentTierIcon}</span>
         <div className="flex-1">
-          <div className="text-[11px] text-white/40 mb-0.5">مرحلتك الحالية</div>
-          <div className="text-sm font-bold text-white">المرحلة {currentLevel}</div>
+          <div className="text-[11px] text-white/40 mb-0.5">Your Current Level</div>
+          <div className="text-sm font-bold text-white">Level {currentLevel}</div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-white/30">{levelsAway} مرحلة متبقية</div>
+          <div className="text-[10px] text-white/30">{levelsAway} level{levelsAway !== 1 ? 's' : ''} away</div>
         </div>
       </div>
 
@@ -129,7 +126,7 @@ function LockedScreen({
           boxShadow: `0 4px 20px ${requiredTierColor}40`,
         }}
       >
-        ارفع مستواك الآن ⚡
+        Level Up Now ⚡
       </button>
     </div>
   );

@@ -54,8 +54,8 @@ export function LevelProgressScreen({ onClose }: Props) {
           <X className="w-5 h-5 text-white/70" />
         </button>
         <div className="flex-1">
-          <h2 className="font-black text-white text-lg leading-none">مراحل التقدم</h2>
-          <p className="text-[11px] text-white/40 mt-0.5">100 مرحلة · مستواك الحالي {level}</p>
+          <h2 className="font-black text-white text-lg leading-none">Level Progress</h2>
+          <p className="text-[11px] text-white/40 mt-0.5">100 Levels · Your Level {level}</p>
         </div>
         <div
           className="px-3 py-1.5 rounded-xl text-[12px] font-black"
@@ -65,7 +65,7 @@ export function LevelProgressScreen({ onClose }: Props) {
             border: `1px solid ${LEVELS[level - 1].tier.color}30`,
           }}
         >
-          {LEVELS[level - 1].tier.icon} {LEVELS[level - 1].tier.nameAr}
+          {LEVELS[level - 1].tier.icon} {LEVELS[level - 1].tier.name}
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export function LevelProgressScreen({ onClose }: Props) {
           <span className="text-[12px] font-bold text-white/60">
             {formatSkpShort(currentSkp)} / {formatSkpShort(nextSkp)}
           </span>
-          <span className="text-[12px] font-black text-primary">{progress}٪</span>
+          <span className="text-[12px] font-black text-primary">{progress}%</span>
         </div>
         <div className="h-2 rounded-full bg-white/8 overflow-hidden">
           <div
@@ -111,7 +111,7 @@ export function LevelProgressScreen({ onClose }: Props) {
                 >
                   <span className="text-base">{def.tier.icon}</span>
                   <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: def.tier.color }}>
-                    {def.tier.nameAr} — المراحل {def.tier.from}–{def.tier.to}
+                    {def.tier.name} — Levels {def.tier.from}–{def.tier.to}
                   </span>
                   <div className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${def.tier.color}30, transparent)` }} />
                 </div>
@@ -157,14 +157,14 @@ export function LevelProgressScreen({ onClose }: Props) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span className={`text-[13px] font-black ${isLocked ? 'text-white/25' : 'text-white'}`}>
-                        {def.nameAr}
+                        {def.name}
                       </span>
                       {isCurrent && (
                         <span
                           className="text-[8px] font-black px-1.5 py-0.5 rounded-full"
                           style={{ background: `${def.tier.color}25`, color: def.tier.color }}
                         >
-                          الحالي
+                          Current
                         </span>
                       )}
                       {isCompleted && (
@@ -183,7 +183,7 @@ export function LevelProgressScreen({ onClose }: Props) {
                             color: isCompleted ? '#34d399' : 'rgba(255,255,255,0.3)',
                           }}
                         >
-                          {def.unlocks.icon} {def.unlocks.featureAr}
+                          {def.unlocks.icon} {def.unlocks.feature}
                         </span>
                       )}
                       {def.miningBonus && (
@@ -194,7 +194,7 @@ export function LevelProgressScreen({ onClose }: Props) {
                             color: isCompleted ? '#34d399' : 'rgba(255,255,255,0.3)',
                           }}
                         >
-                          ⚡ +{def.miningBonus}٪
+                          ⚡ +{def.miningBonus}%
                         </span>
                       )}
                     </div>
@@ -218,11 +218,11 @@ export function LevelProgressScreen({ onClose }: Props) {
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px]">{c.icon}</span>
                               <span className={`text-[10px] font-semibold ${met ? 'text-primary' : 'text-white/40'}`}>
-                                {c.labelAr}
+                                {c.label}
                               </span>
                             </div>
                             <span className={`text-[10px] font-bold ${met ? 'text-primary' : 'text-white/30'}`}>
-                              {met ? '✓' : `${pct}٪`}
+                              {met ? '✓' : `${pct}%`}
                             </span>
                           </div>
                           {!met && (
@@ -241,7 +241,7 @@ export function LevelProgressScreen({ onClose }: Props) {
                     {isCurrent && (
                       <div className="mt-1">
                         <div className="flex justify-between mb-1">
-                          <span className="text-[10px] text-white/30">نقاط مدى الحياة</span>
+                          <span className="text-[10px] text-white/30">Lifetime Points</span>
                           <span className="text-[10px] text-white/40">{formatSkpShort(currentSkp)} / {formatSkpShort(nextSkp)}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">

@@ -135,7 +135,7 @@ function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
       ? `+${(profitPerHour / 1_000).toFixed(0)}K/hr`
       : `+${profitPerHour}/hr`;
 
-  const { color: tierColor, glow: tierGlow, icon: tierIcon, nameAr: tierNameAr } = levelDef.tier;
+  const { color: tierColor, glow: tierGlow, icon: tierIcon, name: tierName } = levelDef.tier;
 
   return (
     <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-white/5 px-4 pt-3 pb-2.5 flex flex-col gap-2">
@@ -193,9 +193,9 @@ function Header({ onOpenTour, onOpenLevels }: HeaderProps) {
       >
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold" style={{ color: tierColor }}>
-            {tierNameAr} · المرحلة {level}
+            {tierName} · Level {level}
           </span>
-          <span className="text-[9px] font-bold text-white/40">{progress}٪ → المرحلة {level + 1}</span>
+          <span className="text-[9px] font-bold text-white/40">{progress}% → Level {level + 1}</span>
         </div>
         <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
           <div
