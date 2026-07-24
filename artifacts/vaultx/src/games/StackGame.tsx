@@ -413,7 +413,7 @@ export function StackGame({ onBack }: { onBack: () => void }) {
   );
 
   return (
-    <div className="flex flex-col bg-[#07101f]" style={{ height: '100dvh', overflow: 'hidden' }}>
+    <div className="fixed inset-0 flex flex-col bg-[#07101f]" style={{ zIndex: 100 }}>
 
       {/* Fixed 64px header — no layout shift */}
       <div className="shrink-0 h-16 flex items-center justify-between px-4">

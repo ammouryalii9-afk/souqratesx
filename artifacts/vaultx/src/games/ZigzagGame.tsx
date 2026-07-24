@@ -401,7 +401,7 @@ export function ZigzagGame({ onBack }: { onBack: () => void }) {
   );
 
   return (
-    <div className="flex flex-col bg-[#0a1628]" style={{ height: '100dvh', overflow: 'hidden' }}>
+    <div className="fixed inset-0 flex flex-col bg-[#0a1628]" style={{ zIndex: 100 }}>
 
       {/* Fixed 64px header */}
       <div className="shrink-0 h-16 flex items-center justify-between px-4">
