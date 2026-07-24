@@ -288,7 +288,11 @@ export function requestPixelUsdWithdrawal(): Promise<{ ok: boolean; id: number; 
   return apiFetch("/pixels/withdraw-usd", { method: "POST" });
 }
 
-// ── Stack Tower: credit score ─────────────────────────────────────────────────
+// ── Stack Tower ───────────────────────────────────────────────────────────────
 export function creditStackTower(score: number): Promise<{ credited: number }> {
   return apiFetch("/games/stack/credit", { method: "POST", body: JSON.stringify({ score }) });
+}
+
+export function createStackContinueInvoice(): Promise<{ invoiceUrl: string; priceStars: number }> {
+  return apiFetch("/games/stack/continue-invoice", { method: "POST" });
 }

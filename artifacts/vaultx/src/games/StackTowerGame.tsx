@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { haptic } from '../lib/telegram';
-import { ArrowLeft } from 'lucide-react';
-import { creditStackTower } from '../lib/gameApi';
+import { haptic, getTelegramWebApp } from '../lib/telegram';
+import { ArrowLeft, PlayCircle, Star } from 'lucide-react';
+import { creditStackTower, createStackContinueInvoice, getPublicConfig, type PublicConfig } from '../lib/gameApi';
+import { watchRewardedAdWithFallback } from '../lib/adFallback';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const BLOCK_H    = 34;   // total block height (incl. depth face)
-const DEPTH      = 8;    // 3-D bottom face height
-const INIT_W     = 210;  // starting block width
-const MIN_W      = 22;   // game over if block gets thinner than this
-const PERF_TOL   = 6;    // px window for "perfect" placement
-const INIT_SPEED = 130;  // px / s at floor 1
-const SPEED_STEP = 11;   // px / s added each floor
-const SIDE_PAD   = 16;   // min distance from canvas edge
-const REWARD_PER = 18;   // SKP per floor
+const BLOCK_H    = 34;    // px (includes 3-D depth face)
+const DEPTH      = 8;     // px for bottom depth face
+const INIT_W     = 200;   // starting block width
+const MIN_W      = 24;    // thinner than this → game over
+const PERF_TOL   = 6;     // px tolerance for "perfect" placement
+const INIT_SPEED = 120;   // px/s at floor 1
+const SPEED_STEP = 10;    // px/s added every floor
+const SIDE_PAD   = 18;    // min gap from canvas edge
+const REWARD_PER = 18;    // SKP per floor
+const CONTINUE_SECS = 10; // countdown before auto game-over
 
-// ─── Block colour palette ─────────────────────────────────────────────────────
+// ─── Colour palette ───────────────────────────────────────────────────────────
 const HUES = [168, 195, 220, 258, 292, 328, 0, 28, 52, 84, 130];
-function blockHue(idx: number) { return HUES[idx % HUES.length]; }
+function bHue(idx: number) { return HUES[idx % HUES.length]; }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Block { x: number; w: number; idx: number; perfect: boolean }
@@ -25,14 +27,14 @@ interface Particle {
   life: number; maxLife: number; size: number; hue: number;
 }
 interface GS {
-  phase: 'idle' | 'playing' | 'dead';
+  phase: 'idle' | 'playing' | 'continue' | 'dead';
   blocks: Block[];
   curX: number; curW: number; dir: 1 | -1; speed: number;
   camOff: number; camTarget: number;
   particles: Particle[];
-  combo: number; score: number;
-  flash: number;    // 0‥1 white overlay alpha
-  shake: number;    // screen shake magnitude
+  score: number; combo: number;
+  flash: number; shake: number;
+  hasContinued: boolean;
 }
 
 function freshGS(): GS {
@@ -40,11 +42,16 @@ function freshGS(): GS {
     phase: 'idle', blocks: [],
     curX: 0, curW: INIT_W, dir: 1, speed: INIT_SPEED,
     camOff: 0, camTarget: 0,
-    particles: [], combo: 0, score: 0, flash: 0, shake: 0,
+    particles: [], score: 0, combo: 0,
+    flash: 0, shake: 0, hasContinued: false,
   };
 }
 
-// ─── Pure drawing helpers ────────────────────────────────────────────────────
+// ─── Module-level drawing helpers (pure, no closure deps) ────────────────────
+function blockCanvasY(gs: GS, idx: number, H: number): number {
+  return H - (idx + 1) * BLOCK_H + gs.camOff;
+}
+
 function drawBlock(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number,
@@ -53,38 +60,39 @@ function drawBlock(
   if (w <= 0) return;
   const r = Math.min(8, w / 2);
 
-  ctx.shadowColor = `hsla(${hue},75%,55%,${perfect ? 0.6 : 0.3})`;
-  ctx.shadowBlur  = perfect ? 22 : 10;
+  // Glow shadow
+  ctx.shadowColor = `hsla(${hue},75%,55%,${perfect ? 0.65 : 0.28})`;
+  ctx.shadowBlur  = perfect ? 24 : 10;
 
-  // Main face
+  // Main face gradient
   const g = ctx.createLinearGradient(x, y, x, y + BLOCK_H - DEPTH);
-  g.addColorStop(0,   `hsl(${hue},75%,67%)`);
+  g.addColorStop(0,   `hsl(${hue},76%,68%)`);
   g.addColorStop(0.5, `hsl(${hue},70%,56%)`);
-  g.addColorStop(1,   `hsl(${hue},65%,48%)`);
+  g.addColorStop(1,   `hsl(${hue},65%,47%)`);
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.roundRect(x, y, w, BLOCK_H - DEPTH, [r, r, 0, 0]);
   ctx.fill();
 
-  // 3-D bottom depth
+  // 3-D bottom depth face
   ctx.shadowBlur  = 0;
-  ctx.fillStyle   = `hsl(${hue},58%,28%)`;
+  ctx.fillStyle   = `hsl(${hue},58%,26%)`;
   ctx.beginPath();
   ctx.roundRect(x, y + BLOCK_H - DEPTH, w, DEPTH, [0, 0, r, r]);
   ctx.fill();
 
-  // Top specular highlight
-  const hw = Math.max(0, w - 8);
+  // Top specular stripe
+  const sw = Math.max(0, w - 8);
   ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.beginPath();
-  ctx.roundRect(x + 4, y + 4, hw, 5, 2);
+  ctx.roundRect(x + 4, y + 4, sw, 5, 2);
   ctx.fill();
 
   // Perfect glow ring
   if (perfect) {
-    ctx.shadowColor = `hsl(${hue},100%,78%)`;
-    ctx.shadowBlur  = 14;
-    ctx.strokeStyle = `hsl(${hue},100%,82%)`;
+    ctx.shadowColor = `hsl(${hue},100%,80%)`;
+    ctx.shadowBlur  = 16;
+    ctx.strokeStyle = `hsl(${hue},100%,84%)`;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.roundRect(x + 1, y + 1, w - 2, BLOCK_H - DEPTH - 2, r);
@@ -97,51 +105,133 @@ function drawBlock(
 
 function spawnBurst(gs: GS, cx: number, cy: number, hue: number) {
   for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * Math.PI * 2 + Math.random() * 0.3;
-    const s = 55 + Math.random() * 110;
+    const a = (i / 18) * Math.PI * 2 + Math.random() * 0.35;
+    const s = 50 + Math.random() * 120;
     gs.particles.push({
       x: cx, y: cy,
       vx: Math.cos(a) * s,
-      vy: Math.sin(a) * s - 35,
-      life: 0.65 + Math.random() * 0.45,
+      vy: Math.sin(a) * s - 40,
+      life: 0.6 + Math.random() * 0.5,
       maxLife: 1.1,
       size: 3 + Math.random() * 5,
-      hue: hue + (Math.random() - 0.5) * 35,
+      hue: hue + (Math.random() - 0.5) * 40,
     });
   }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StackTowerGame({ onBack }: { onBack: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gsRef     = useRef<GS>(freshGS());
-  const rafRef    = useRef<number>(0);
-  const prevTRef  = useRef<number>(0);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const gsRef      = useRef<GS>(freshGS());
+  const rafRef     = useRef<number>(0);
+  const prevTRef   = useRef<number>(0);
+  const cntdwnRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [ui, setUi] = useState<{ phase: GS['phase']; score: number; reward: number }>({
-    phase: 'idle', score: 0, reward: 0,
-  });
+  // UI state (React-side, for overlay rendering)
+  const [phase,      setPhase]      = useState<GS['phase']>('idle');
+  const [score,      setScore]      = useState(0);
+  const [reward,     setReward]     = useState(0);
+  const [countdown,  setCountdown]  = useState(CONTINUE_SECS);
+  const [adLoading,  setAdLoading]  = useState(false);
+  const [starLoading,setStarLoading]= useState(false);
+  const [adConfig,   setAdConfig]   = useState<PublicConfig | null>(null);
 
-  // canvas-Y for block at world index `idx`
-  const blockY = (gs: GS, idx: number, H: number) =>
-    H - (idx + 1) * BLOCK_H + gs.camOff;
+  // Load ad config once
+  useEffect(() => { getPublicConfig().then(setAdConfig).catch(() => {}); }, []);
 
-  // ── Start ────────────────────────────────────────────────────────────────
-  const startGame = useCallback(() => {
+  // ── Countdown while in 'continue' phase ───────────────────────────────────
+  useEffect(() => {
+    if (phase !== 'continue') return;
+    setCountdown(CONTINUE_SECS);
+    cntdwnRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(cntdwnRef.current!);
+          // Force game over
+          const gs = gsRef.current;
+          if (gs.phase === 'continue') {
+            gs.phase = 'dead';
+            const s = gs.score;
+            const r = s * REWARD_PER;
+            if (s > 0) creditStackTower(s).catch(() => {});
+            setPhase('dead');
+            setReward(r);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (cntdwnRef.current) clearInterval(cntdwnRef.current); };
+  }, [phase]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const clearCountdown = () => {
+    if (cntdwnRef.current) { clearInterval(cntdwnRef.current); cntdwnRef.current = null; }
+  };
+
+  // ── Trigger game over (from miss or timeout) ──────────────────────────────
+  const triggerDeath = useCallback((gs: GS) => {
+    clearCountdown();
+    gs.phase  = 'dead';
+    gs.shake  = 14;
+    haptic('error');
+    const s = gs.score;
+    const r = s * REWARD_PER;
+    if (s > 0) creditStackTower(s).catch(() => {});
+    setPhase('dead');
+    setScore(s);
+    setReward(r);
+  }, []);
+
+  // ── Trigger continue screen ───────────────────────────────────────────────
+  const triggerContinue = useCallback((gs: GS) => {
+    gs.phase = 'continue';
+    gs.shake = 8;
+    haptic('error');
+    const s = gs.score;
+    setPhase('continue');
+    setScore(s);
+    setReward(s * REWARD_PER);
+  }, []);
+
+  // ── Resume game after ad or stars ─────────────────────────────────────────
+  const continueGame = useCallback(() => {
+    clearCountdown();
+    const gs     = gsRef.current;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const W = canvas.width;
+    const W    = canvas.width;
+    const last = gs.blocks[gs.blocks.length - 1];
+    gs.hasContinued = true;
+    gs.phase  = 'playing';
+    gs.shake  = 0;
+    gs.flash  = 0.4;
+    gs.curW   = last.w;
+    gs.curX   = W / 2 - last.w / 2;
+    gs.dir    = 1;
+    haptic('success');
+    setPhase('playing');
+  }, []);
+
+  // ── Start new game ────────────────────────────────────────────────────────
+  const startGame = useCallback(() => {
+    clearCountdown();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const W  = canvas.width;
     const gs = freshGS();
     gs.phase  = 'playing';
     gs.blocks = [{ x: W / 2 - INIT_W / 2, w: INIT_W, idx: 0, perfect: false }];
-    gs.curX   = W / 2 - INIT_W / 2 + 70;
+    gs.curX   = W / 2 - INIT_W / 2 + 65;
     gs.curW   = INIT_W;
-    gs.dir    = 1;
     gsRef.current = gs;
-    setUi({ phase: 'playing', score: 0, reward: 0 });
+    setPhase('playing');
+    setScore(0);
+    setReward(0);
   }, []);
 
-  // ── Place ────────────────────────────────────────────────────────────────
+  // ── Place block ───────────────────────────────────────────────────────────
   const placeBlock = useCallback(() => {
     const gs     = gsRef.current;
     const canvas = canvasRef.current;
@@ -152,22 +242,18 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const oR       = Math.min(gs.curX + gs.curW, last.x + last.w);
     const overlapW = oR - oL;
 
-    const kill = (doShake = true) => {
-      gs.phase = 'dead';
-      if (doShake) gs.shake = 14;
-      haptic('error');
-      const reward = gs.score * REWARD_PER;
-      if (gs.score > 0) creditStackTower(gs.score).catch(() => {});
-      setUi({ phase: 'dead', score: gs.score, reward });
+    const handleMiss = () => {
+      if (!gs.hasContinued) { triggerContinue(gs); }
+      else                   { triggerDeath(gs); }
     };
 
-    if (overlapW <= 0) { kill(); return; }
+    if (overlapW <= 0) { handleMiss(); return; }
 
     const isPerfect = Math.abs(gs.curX - last.x) <= PERF_TOL;
-    const newW = isPerfect ? last.w : overlapW;
-    const newX = isPerfect ? last.x : oL;
+    const newW      = isPerfect ? last.w : overlapW;
+    const newX      = isPerfect ? last.x : oL;
 
-    if (!isPerfect && newW < MIN_W) { kill(false); return; }
+    if (!isPerfect && newW < MIN_W) { handleMiss(); return; }
 
     const idx = gs.blocks.length;
     gs.blocks.push({ x: newX, w: newW, idx, perfect: isPerfect });
@@ -177,28 +263,62 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
       gs.combo++;
       gs.flash = 0.55;
       haptic('success');
-      const cy = blockY(gs, idx, canvas.height) + BLOCK_H / 2;
-      spawnBurst(gs, newX + newW / 2, cy, blockHue(idx));
+      const cy = blockCanvasY(gs, idx, canvas.height) + BLOCK_H / 2;
+      spawnBurst(gs, newX + newW / 2, cy, bHue(idx));
     } else {
       gs.combo = 0;
       gs.flash = 0.07;
       haptic('light');
     }
 
-    // Prep next mover
+    // Next moving block
     gs.curX  = newX;
     gs.curW  = newW;
     gs.dir   = (Math.random() < 0.5 ? 1 : -1) as 1 | -1;
     gs.speed = INIT_SPEED + gs.score * SPEED_STEP;
 
-    // Camera target: keep moving block at ~38 % from top
+    // Scroll camera to keep moving block at ~38% from top
     const H = canvas.height;
     gs.camTarget = Math.max(0, (idx + 2) * BLOCK_H - H * 0.62);
 
-    setUi(u => ({ ...u, score: gs.score }));
-  }, []);
+    setScore(gs.score);
+  }, [triggerContinue, triggerDeath]);
 
-  // ── Draw loop ────────────────────────────────────────────────────────────
+  // ── Watch Ad → continue ───────────────────────────────────────────────────
+  const handleWatchAd = useCallback(async () => {
+    if (adLoading || starLoading) return;
+    setAdLoading(true);
+    try {
+      await watchRewardedAdWithFallback(adConfig);
+      continueGame();
+    } catch {
+      // no-fill or dismissed — stay on continue screen
+    } finally {
+      setAdLoading(false);
+    }
+  }, [adConfig, adLoading, starLoading, continueGame]);
+
+  // ── Pay Stars → continue ──────────────────────────────────────────────────
+  const handlePayStars = useCallback(async () => {
+    if (adLoading || starLoading) return;
+    setStarLoading(true);
+    try {
+      const { invoiceUrl } = await createStackContinueInvoice();
+      const twa = getTelegramWebApp();
+      if (twa?.openInvoice) {
+        twa.openInvoice(invoiceUrl, (status) => {
+          setStarLoading(false);
+          if (status === 'paid') continueGame();
+        });
+      } else {
+        setStarLoading(false);
+      }
+    } catch {
+      setStarLoading(false);
+    }
+  }, [adLoading, starLoading, continueGame]);
+
+  // ── Draw loop ─────────────────────────────────────────────────────────────
   const draw = useCallback((dt: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -207,7 +327,7 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const W = canvas.width, H = canvas.height;
     const gs = gsRef.current;
 
-    // Physics
+    // Physics (only while playing)
     if (gs.phase === 'playing') {
       gs.curX += gs.speed * gs.dir * dt;
       const maxX = W - SIDE_PAD - gs.curW;
@@ -215,64 +335,60 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
       if (gs.curX >= maxX)      { gs.curX = maxX;      gs.dir = -1; }
     }
 
-    // Camera lerp
+    // Smooth camera
     gs.camOff += (gs.camTarget - gs.camOff) * Math.min(1, dt * 7);
 
-    // Decay
-    gs.flash = Math.max(0, gs.flash - dt * 3.2);
-    gs.shake = Math.max(0, gs.shake - dt * 45);
+    // Decay effects
+    gs.flash = Math.max(0, gs.flash - dt * 3);
+    gs.shake = Math.max(0, gs.shake - dt * 42);
 
     // Particles
     for (const p of gs.particles) {
       p.x    += p.vx * dt;
       p.y    += p.vy * dt;
-      p.vy   += 340 * dt;
+      p.vy   += 330 * dt;
       p.life -= dt;
     }
     gs.particles = gs.particles.filter(p => p.life > 0);
 
-    // ── Canvas transform (shake) ─────────────────────────────────────
+    // ── Canvas: screen shake ─────────────────────────────────────────
     ctx.save();
     if (gs.shake > 0.5) {
-      ctx.translate(
-        (Math.random() - 0.5) * gs.shake,
-        (Math.random() - 0.5) * gs.shake,
-      );
+      ctx.translate((Math.random() - 0.5) * gs.shake, (Math.random() - 0.5) * gs.shake);
     }
 
     // ── Background ───────────────────────────────────────────────────
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, '#080d1a');
-    bgGrad.addColorStop(1, '#030608');
-    ctx.fillStyle = bgGrad;
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#080d1a');
+    bg.addColorStop(1, '#030608');
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Floor lines (scrolling depth grid)
-    ctx.strokeStyle = 'rgba(255,255,255,0.022)';
+    // Scrolling depth lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.02)';
     ctx.lineWidth   = 1;
-    const step   = BLOCK_H;
-    const offset = gs.camOff % step;
-    for (let y = offset; y < H; y += step) {
+    const lineOff = gs.camOff % BLOCK_H;
+    for (let y = lineOff; y < H; y += BLOCK_H) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
     // ── Placed blocks ────────────────────────────────────────────────
     for (const b of gs.blocks) {
-      const by = blockY(gs, b.idx, H);
-      if (by > H + 10 || by + BLOCK_H < -10) continue;
-      drawBlock(ctx, b.x, by, b.w, blockHue(b.idx), b.perfect);
+      const by = blockCanvasY(gs, b.idx, H);
+      if (by > H + 4 || by + BLOCK_H < -4) continue;
+      drawBlock(ctx, b.x, by, b.w, bHue(b.idx), b.perfect);
     }
 
-    // ── Moving block ─────────────────────────────────────────────────
+    // ── Moving block (playing only) ───────────────────────────────────
     if (gs.phase === 'playing') {
       const movIdx = gs.blocks.length;
-      const movY   = blockY(gs, movIdx, H);
-      const hue    = blockHue(movIdx);
+      const movY   = blockCanvasY(gs, movIdx, H);
+      const hue    = bHue(movIdx);
 
-      // Dotted guide line
+      // Dotted guide line below block
       ctx.save();
       ctx.setLineDash([4, 7]);
-      ctx.strokeStyle = `hsla(${hue},60%,60%,0.12)`;
+      ctx.strokeStyle = `hsla(${hue},55%,55%,0.10)`;
       ctx.lineWidth   = 1;
       ctx.beginPath();
       ctx.moveTo(gs.curX + gs.curW / 2, movY + BLOCK_H);
@@ -280,12 +396,12 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
       ctx.stroke();
       ctx.restore();
 
-      // Glow halo below block
-      const glow = ctx.createLinearGradient(0, movY + BLOCK_H, 0, movY + BLOCK_H + 32);
-      glow.addColorStop(0, `hsla(${hue},80%,60%,0.2)`);
+      // Soft glow halo beneath block
+      const glow = ctx.createLinearGradient(0, movY + BLOCK_H, 0, movY + BLOCK_H + 30);
+      glow.addColorStop(0, `hsla(${hue},80%,60%,0.18)`);
       glow.addColorStop(1, 'transparent');
       ctx.fillStyle = glow;
-      ctx.fillRect(gs.curX - 8, movY + BLOCK_H, gs.curW + 16, 32);
+      ctx.fillRect(gs.curX - 8, movY + BLOCK_H, gs.curW + 16, 30);
 
       drawBlock(ctx, gs.curX, movY, gs.curW, hue, false);
     }
@@ -302,32 +418,32 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
 
     // ── White flash ──────────────────────────────────────────────────
     if (gs.flash > 0.01) {
-      ctx.fillStyle = `rgba(255,255,255,${gs.flash * 0.38})`;
+      ctx.fillStyle = `rgba(255,255,255,${gs.flash * 0.36})`;
       ctx.fillRect(0, 0, W, H);
     }
 
     // ── Score watermark ──────────────────────────────────────────────
-    if (gs.phase === 'playing' && gs.score > 0) {
+    if ((gs.phase === 'playing' || gs.phase === 'continue') && gs.score > 0) {
       ctx.textAlign = 'center';
       ctx.font      = `bold ${Math.min(96, 44 + gs.score * 2)}px system-ui`;
-      ctx.fillStyle = 'rgba(255,255,255,0.035)';
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
       ctx.fillText(String(gs.score), W / 2, H * 0.5 + 32);
     }
 
-    // ── Idle demo animation ──────────────────────────────────────────
+    // ── Idle demo (animated preview) ──────────────────────────────────
     if (gs.phase === 'idle') {
-      const t    = Date.now() / 1000;
-      const amp  = (W / 2 - SIDE_PAD - INIT_W / 2) * 0.88;
-      const px   = W / 2 - INIT_W / 2 + Math.sin(t * 1.35) * amp;
-      const base = H * 0.58;
-      drawBlock(ctx, W / 2 - INIT_W / 2, base,          INIT_W, blockHue(0), false);
-      drawBlock(ctx, px,                  base - BLOCK_H, INIT_W, blockHue(1), false);
+      const t   = Date.now() / 1000;
+      const amp = (W / 2 - SIDE_PAD - INIT_W / 2) * 0.85;
+      const px  = W / 2 - INIT_W / 2 + Math.sin(t * 1.35) * amp;
+      const by  = H * 0.57;
+      drawBlock(ctx, W / 2 - INIT_W / 2, by,          INIT_W, bHue(0), false);
+      drawBlock(ctx, px,                  by - BLOCK_H, INIT_W, bHue(1), false);
     }
 
     ctx.restore();
   }, []);
 
-  // ── RAF ──────────────────────────────────────────────────────────────────
+  // ── RAF loop ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const loop = (t: number) => {
       const dt = Math.min((t - (prevTRef.current || t)) / 1000, 0.05);
@@ -339,7 +455,7 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [draw]);
 
-  // ── Canvas resize ────────────────────────────────────────────────────────
+  // ── Canvas resize ─────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -353,25 +469,25 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     return () => ro.disconnect();
   }, []);
 
-  // ── Tap ──────────────────────────────────────────────────────────────────
-  const onTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  // ── Pointer handler (canvas tap — fires once for both mouse & touch) ──────
+  const onCanvasTap = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    const { phase } = gsRef.current;
     if (phase === 'idle')    { startGame();   return; }
     if (phase === 'playing') { placeBlock();  return; }
-  }, [startGame, placeBlock]);
+  }, [phase, startGame, placeBlock]);
 
-  const isIdle  = ui.phase === 'idle';
-  const isDead  = ui.phase === 'dead';
-  const isPlay  = ui.phase === 'playing';
-  const speedBars = Math.min(5, Math.ceil(ui.score / 4));
+  // ── Derived display ───────────────────────────────────────────────────────
+  const adReady = !!(
+    (adConfig?.adsgram.enabled  && adConfig.adsgram.blockId)  ||
+    (adConfig?.monetag.enabled  && adConfig.monetag.zoneId)   ||
+    (adConfig?.onclicka.enabled && adConfig.onclicka.spotId)
+  );
+  const speedBars = Math.min(5, Math.ceil(score / 4));
 
   return (
-    <div
-      className="flex flex-col bg-[#080d1a]"
-      style={{ height: '100dvh', overflow: 'hidden' }}
-    >
-      {/* ── Header ──────────────────────────────────────────────────── */}
+    <div className="flex flex-col bg-[#080d1a]" style={{ height: '100dvh', overflow: 'hidden' }}>
+
+      {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
         <button
           onClick={onBack}
@@ -382,28 +498,20 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
 
         <div className="text-center">
           <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Stack Tower</p>
-          {isPlay && (
-            <p className="text-3xl font-black text-white leading-none tabular-nums mt-0.5">
-              {ui.score}
-            </p>
+          {(phase === 'playing' || phase === 'continue') && (
+            <p className="text-3xl font-black text-white leading-none tabular-nums mt-0.5">{score}</p>
           )}
         </div>
 
         {/* Speed bars */}
         <div className="flex flex-col items-end gap-1 w-12">
-          {isPlay && speedBars > 0 && (
+          {phase === 'playing' && speedBars > 0 && (
             <>
               <span className="text-[8px] text-white/25 font-bold uppercase tracking-wider">Speed</span>
               <div className="flex gap-0.5 items-end">
                 {Array.from({ length: speedBars }, (_, i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 rounded-sm"
-                    style={{
-                      height: `${6 + i * 2}px`,
-                      background: `hsl(${168 + i * 16},80%,55%)`,
-                    }}
-                  />
+                  <div key={i} className="w-1.5 rounded-sm"
+                    style={{ height: `${6 + i * 2}px`, background: `hsl(${168 + i * 16},78%,55%)` }} />
                 ))}
               </div>
             </>
@@ -411,68 +519,145 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* ── Canvas area ─────────────────────────────────────────────── */}
-      <div
-        className="flex-1 relative select-none"
-        onClick={onTap}
-        onTouchStart={onTap}
-        style={{ cursor: isPlay ? 'pointer' : 'default' }}
-      >
+      {/* ── Canvas area ───────────────────────────────────────────────── */}
+      <div className="flex-1 relative select-none" style={{ touchAction: 'none' }}>
+
+        {/* Canvas — only tappable during idle/playing */}
         <canvas
           ref={canvasRef}
           className="w-full h-full block"
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', cursor: phase === 'playing' ? 'pointer' : 'default' }}
+          onPointerDown={phase === 'idle' || phase === 'playing' ? onCanvasTap : undefined}
         />
 
-        {/* Idle overlay */}
-        {isIdle && (
-          <div className="absolute inset-0 flex flex-col items-center justify-end pb-20 pointer-events-none">
+        {/* ── Idle overlay ────────────────────────────────────────────── */}
+        {phase === 'idle' && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-end pb-20 pointer-events-none"
+          >
             <p className="text-4xl font-black text-white tracking-tight drop-shadow-xl">Stack Tower</p>
-            <p className="text-sm text-white/40 mt-2 mb-10">اضغط في أي مكان للبدء</p>
+            <p className="text-sm text-white/40 mt-2 mb-10">Tap anywhere to start</p>
             <div className="text-3xl animate-bounce">👆</div>
           </div>
         )}
 
-        {/* Game Over overlay */}
-        {isDead && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/78 backdrop-blur-[8px]">
-            <div className="text-center px-8 w-full max-w-[300px] mx-auto">
-              <p className="text-6xl mb-3">💥</p>
-              <p className="text-2xl font-black text-white mb-1">انتهت اللعبة</p>
+        {/* ── Continue overlay ────────────────────────────────────────── */}
+        {phase === 'continue' && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/82 backdrop-blur-[10px]"
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <div className="text-center px-8 w-full max-w-[310px] mx-auto">
+              {/* Countdown ring */}
+              <div className="relative w-20 h-20 mx-auto mb-5">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
+                  <circle
+                    cx="40" cy="40" r="34" fill="none"
+                    stroke={countdown <= 3 ? '#f87171' : '#34d399'}
+                    strokeWidth="6"
+                    strokeDasharray={`${2 * Math.PI * 34}`}
+                    strokeDashoffset={`${2 * Math.PI * 34 * (1 - countdown / CONTINUE_SECS)}`}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.9s linear, stroke 0.3s' }}
+                  />
+                </svg>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-2xl font-black"
+                  style={{ color: countdown <= 3 ? '#f87171' : '#34d399' }}
+                >
+                  {countdown}
+                </span>
+              </div>
+
+              <p className="text-2xl font-black text-white mb-1">Continue?</p>
               <p className="text-sm text-white/40 mb-7">
-                {ui.score === 0
-                  ? 'لم تضع أي طبقة!'
-                  : `وصلت إلى ${ui.score} طبقة`}
+                {score === 0 ? 'No blocks placed' : `You reached floor ${score}`}
               </p>
 
-              {ui.reward > 0 && (
+              {/* Ad button */}
+              {adReady && (
+                <button
+                  onClick={handleWatchAd}
+                  disabled={adLoading || starLoading}
+                  className="w-full py-4 rounded-2xl text-sm font-black text-black mb-3 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg,#34d399,#10b981)' }}
+                >
+                  {adLoading ? (
+                    <><span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" /> Loading ad…</>
+                  ) : (
+                    <><PlayCircle className="w-4 h-4" /> Watch Ad — Free</>
+                  )}
+                </button>
+              )}
+
+              {/* Stars button */}
+              <button
+                onClick={handlePayStars}
+                disabled={adLoading || starLoading}
+                className="w-full py-4 rounded-2xl text-sm font-black mb-3 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg,rgba(251,191,36,0.15),rgba(251,191,36,0.08))',
+                  border: '1px solid rgba(251,191,36,0.35)',
+                  color: '#fbbf24',
+                }}
+              >
+                {starLoading ? (
+                  <><span className="w-4 h-4 border-2 border-yellow-400/40 border-t-yellow-400 rounded-full animate-spin" /> Opening…</>
+                ) : (
+                  <><Star className="w-4 h-4 fill-current" /> Pay ★10 — Continue</>
+                )}
+              </button>
+
+              {/* Decline */}
+              <button
+                onClick={() => triggerDeath(gsRef.current)}
+                disabled={adLoading || starLoading}
+                className="w-full py-3 rounded-2xl text-sm font-semibold text-white/35 bg-white/4 active:scale-95 transition-all"
+              >
+                Give up
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Game Over overlay ────────────────────────────────────────── */}
+        {phase === 'dead' && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-[8px]"
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <div className="text-center px-8 w-full max-w-[300px] mx-auto">
+              <p className="text-6xl mb-3">💥</p>
+              <p className="text-2xl font-black text-white mb-1">Game Over</p>
+              <p className="text-sm text-white/40 mb-6">
+                {score === 0 ? 'No blocks placed' : `You stacked ${score} floor${score !== 1 ? 's' : ''}`}
+              </p>
+
+              {reward > 0 && (
                 <div
                   className="mb-6 px-5 py-4 rounded-2xl"
-                  style={{
-                    background: 'rgba(52,211,153,0.07)',
-                    border:     '1px solid rgba(52,211,153,0.18)',
-                  }}
+                  style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.18)' }}
                 >
-                  <p className="text-[10px] text-white/35 mb-1">مكافأتك</p>
+                  <p className="text-[10px] text-white/35 mb-1 uppercase tracking-wider">Reward</p>
                   <p className="text-2xl font-black text-primary">
-                    +{ui.reward.toLocaleString()}{' '}
-                    <span className="text-sm font-semibold opacity-70">SKP</span>
+                    +{reward.toLocaleString()} <span className="text-sm font-semibold opacity-60">SKP</span>
                   </p>
                 </div>
               )}
 
               <button
-                onClick={e => { e.stopPropagation(); startGame(); }}
+                onClick={startGame}
                 className="w-full py-4 rounded-2xl text-sm font-black text-black active:scale-95 transition-transform"
                 style={{ background: 'linear-gradient(135deg,#34d399,#10b981)' }}
               >
-                🔄 العب مجدداً
+                🔄 Play Again
               </button>
               <button
-                onClick={e => { e.stopPropagation(); onBack(); }}
-                className="w-full mt-3 py-3 rounded-2xl text-sm font-bold text-white/45 bg-white/5 border border-white/8 active:scale-95 transition-transform"
+                onClick={onBack}
+                className="w-full mt-3 py-3 rounded-2xl text-sm font-semibold text-white/40 bg-white/5 border border-white/8 active:scale-95 transition-transform"
               >
-                الخروج
+                Exit
               </button>
             </div>
           </div>
