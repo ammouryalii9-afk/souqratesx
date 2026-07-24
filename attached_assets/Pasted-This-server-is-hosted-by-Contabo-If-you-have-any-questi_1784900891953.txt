@@ -1,0 +1,63 @@
+This server is hosted by Contabo. If you have any questions or need help,
+please raise a support ticket from your customer control panel.
+Last login: Fri Jul 24 15:21:47 2026 from 8.231.125.52
+root@vmi3329645:~# # تحقق من حالة nginx وpm2
+sudo systemctl status nginx
+pm2 status
+
+# إذا nginx متوقف:
+sudo systemctl start nginx
+
+# إذا pm2 متوقف أو العملية غير موجودة:
+cd /opt/souqratex
+pm2 startOrReload deploy/contabo/pm2.config.cjs --update-env
+pm2 save
+
+# تأكد كل شيء شغال
+sudo systemctl status nginx | grep Active
+pm2 status
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Fri 2026-07-24 15:44:49 CEST; 2min 41s ago
+       Docs: man:nginx(8)
+    Process: 878 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 910 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 913 (nginx)
+      Tasks: 7 (limit: 14306)
+     Memory: 6.8M (peak: 7.0M)
+        CPU: 83ms
+     CGroup: /system.slice/nginx.service
+             ├─913 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─914 "nginx: worker process"
+             ├─915 "nginx: worker process"
+             ├─916 "nginx: worker process"
+             ├─917 "nginx: worker process"
+             ├─918 "nginx: worker process"
+             └─919 "nginx: worker process"
+
+Jul 24 15:44:49 vmi3329645 systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Jul 24 15:44:49 vmi3329645 systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+┌────┬──────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name             │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼──────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ souqratex-api    │ cluster  │ 0    │ online    │ 0%       │ 92.7mb   │
+└────┴──────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+host metrics | cpu: 3.1% | ram usage: 5% | eth0: ⇓ 0mb/s ⇑ 0.001mb/s |
+[PM2] Applying action reloadProcessId on app [souqratex-api](ids: [ 0 ])
+[PM2] [souqratex-api](0) ✓
+┌────┬──────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name             │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼──────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ souqratex-api    │ cluster  │ 1    │ online    │ 0%       │ 105.5mb  │
+└────┴──────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+host metrics | cpu: 3.1% | ram usage: 5% | eth0: ⇓ 0mb/s ⇑ 0.001mb/s |
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+     Active: active (running) since Fri 2026-07-24 15:44:49 CEST; 2min 43s ago
+┌────┬──────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name             │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼──────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ souqratex-api    │ cluster  │ 1    │ online    │ 0%       │ 105.7mb  │
+└────┴──────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+host metrics | cpu: 3.1% | ram usage: 5% | eth0: ⇓ 0mb/s ⇑ 0.001mb/s |
+root@vmi3329645:/opt/souqratex# 
