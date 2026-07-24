@@ -42,6 +42,7 @@ const SPEED_STEP = 8;
 const SIDE_PAD   = 14;
 const REWARD_PER = 18;
 const CONTINUE_SECS = 10;
+const BOTTOM_PAD = 60;   // px — lifts the tower off the very bottom edge
 const PALETTE    = ['#34d399','#22d3ee','#818cf8','#c084fc','#f472b6','#fb923c','#facc15','#4ade80'];
 const bCol       = (i: number) => PALETTE[i % PALETTE.length]!;
 
@@ -132,7 +133,7 @@ function fresh(): GS {
 }
 
 function blockY(gs: GS, idx: number, H: number): number {
-  return H - (idx + 1) * BLOCK_H + gs.camOff;
+  return H - BOTTOM_PAD - (idx + 1) * BLOCK_H + gs.camOff;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -274,13 +275,14 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
         ctx.restore();
       }
 
-      // Idle demo animation
+      // Idle demo animation — placed at the same height the real base block uses
       if (gs.phase === 'idle') {
-        const t2  = t / 1000;
-        const amp = (W / 2 - SIDE_PAD - INIT_W / 2) * 0.7;
-        const px  = W / 2 - INIT_W / 2 + Math.sin(t2 * 1.4) * amp;
-        drawBlock(ctx, W / 2 - INIT_W / 2, H * 0.55,            INIT_W, bCol(0), false);
-        drawBlock(ctx, px,                  H * 0.55 - BLOCK_H,  INIT_W, bCol(1), true);
+        const t2    = t / 1000;
+        const baseY = H - BOTTOM_PAD - BLOCK_H;          // same as blockY(idx=0)
+        const amp   = (W / 2 - SIDE_PAD - INIT_W / 2) * 0.7;
+        const px    = W / 2 - INIT_W / 2 + Math.sin(t2 * 1.4) * amp;
+        drawBlock(ctx, W / 2 - INIT_W / 2, baseY,           INIT_W, bCol(0), false);
+        drawBlock(ctx, px,                  baseY - BLOCK_H, INIT_W, bCol(1), true);
       }
 
       rafRef.current = requestAnimationFrame(loop);
@@ -349,8 +351,8 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     gs.speed = INIT_SPEED + gs.score * SPEED_STEP;
     gs.flashUntil = Date.now() + 120;
 
-    // Camera: keep tower top visible
-    gs.camTarget = Math.max(0, (idx + 2) * BLOCK_H - canvas.height * 0.62);
+    // Camera: keep tower top visible (account for BOTTOM_PAD offset)
+    gs.camTarget = Math.max(0, BOTTOM_PAD + (idx + 2) * BLOCK_H - canvas.height * 0.62);
 
     // Next moving block from OPPOSITE wall
     const center = newX + newW / 2;
