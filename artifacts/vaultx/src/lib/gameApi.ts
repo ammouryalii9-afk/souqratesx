@@ -296,12 +296,3 @@ export function creditStackTower(score: number): Promise<{ credited: number }> {
 export function createStackContinueInvoice(): Promise<{ invoiceUrl: string; priceStars: number }> {
   return apiFetch("/games/stack/continue-invoice", { method: "POST" });
 }
-
-// ── Zigzag Driver ─────────────────────────────────────────────────────────────
-export function creditZigzag(score: number): Promise<{ credited: number }> {
-  return apiFetch("/games/zigzag/credit", { method: "POST", body: JSON.stringify({ score }) });
-}
-
-export function createZigzagContinueInvoice(): Promise<{ invoiceUrl: string; priceStars: number }> {
-  return apiFetch("/games/zigzag/continue-invoice", { method: "POST" });
-}
