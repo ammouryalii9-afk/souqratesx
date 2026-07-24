@@ -126,6 +126,8 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
   const rafRef     = useRef<number>(0);
   const prevTRef   = useRef<number>(0);
   const cntdwnRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Prevents placing a block in the same frame that the game started
+  const tapLockRef = useRef<boolean>(false);
 
   // UI state (React-side, for overlay rendering)
   const [phase,      setPhase]      = useState<GS['phase']>('idle');
@@ -223,10 +225,14 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const gs = freshGS();
     gs.phase  = 'playing';
     gs.blocks = [{ x: W / 2 - INIT_W / 2, w: INIT_W, idx: 0, perfect: false }];
-    gs.curX   = SIDE_PAD;          // start at left wall, sweeps right over the base
+    // Moving block starts from left wall, sweeps right across the base
+    gs.curX   = SIDE_PAD;
     gs.curW   = INIT_W;
     gs.dir    = 1;
     gsRef.current = gs;
+    // Lock taps for 350 ms so the start-tap cannot also place a block
+    tapLockRef.current = true;
+    setTimeout(() => { tapLockRef.current = false; }, 350);
     setPhase('playing');
     setScore(0);
     setReward(0);
@@ -237,10 +243,12 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const gs     = gsRef.current;
     const canvas = canvasRef.current;
     if (gs.phase !== 'playing' || !canvas) return;
+    if (tapLockRef.current) return; // ignore tap fired in the same instant as startGame
 
-    const last     = gs.blocks[gs.blocks.length - 1];
-    const oL       = Math.max(gs.curX, last.x);
-    const oR       = Math.min(gs.curX + gs.curW, last.x + last.w);
+    const W    = canvas.width;
+    const last = gs.blocks[gs.blocks.length - 1];
+    const oL   = Math.max(gs.curX, last.x);
+    const oR   = Math.min(gs.curX + gs.curW, last.x + last.w);
     const overlapW = oR - oL;
 
     const handleMiss = () => {
@@ -254,10 +262,7 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const newW      = isPerfect ? last.w : overlapW;
     const newX      = isPerfect ? last.x : oL;
 
-    // Don't kill the game on the very first placement — give the player a
-    // chance even if they clipped the edge. MIN_W only enforced from floor 2+.
-    const isFirstPlacement = gs.blocks.length === 1;
-    if (!isPerfect && newW < MIN_W && !isFirstPlacement) { handleMiss(); return; }
+    if (!isPerfect && newW < MIN_W) { handleMiss(); return; }
 
     const idx = gs.blocks.length;
     gs.blocks.push({ x: newX, w: newW, idx, perfect: isPerfect });
@@ -275,11 +280,20 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
       haptic('light');
     }
 
-    // Next moving block
-    gs.curX  = newX;
+    // ── Next moving block: always start from the wall OPPOSITE to the
+    // placed block's center so it sweeps visibly across toward the player.
     gs.curW  = newW;
-    gs.dir   = (Math.random() < 0.5 ? 1 : -1) as 1 | -1;
     gs.speed = INIT_SPEED + gs.score * SPEED_STEP;
+    const placedCenter = newX + newW / 2;
+    if (placedCenter <= W / 2) {
+      // placed block is on left half → new block sweeps in from right wall
+      gs.curX = W - SIDE_PAD - newW;
+      gs.dir  = -1;
+    } else {
+      // placed block is on right half → new block sweeps in from left wall
+      gs.curX = SIDE_PAD;
+      gs.dir  = 1;
+    }
 
     // Scroll camera to keep moving block at ~38% from top
     const H = canvas.height;
