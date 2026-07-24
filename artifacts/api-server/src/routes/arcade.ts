@@ -1178,7 +1178,10 @@ router.post("/games/stack/credit", rateLimit("stack-credit", 10, 30_000), async 
   if (pts > 0) {
     await db
       .update(vaultUsersTable)
-      .set({ state: creditedStateSql(pts, {}) })
+      .set({
+        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${pts}::bigint`,
+        state: creditedStateSql(pts, {}),
+      })
       .where(eq(vaultUsersTable.telegramId, telegramId));
 
     await logUserActivity(telegramId, "stack_tower_credit", { score, pts });
