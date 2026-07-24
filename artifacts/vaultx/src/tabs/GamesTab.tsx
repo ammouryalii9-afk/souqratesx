@@ -3,7 +3,9 @@ import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, PlayCircle, Tv, Trophy, Clock, Users } from 'lucide-react';
+import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, PlayCircle, Tv, Trophy, Clock, Users, Layers } from 'lucide-react';
+import { StackGame }  from '../games/StackGame';
+import { ZigzagGame } from '../games/ZigzagGame';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { watchRewardedAdWithFallback, isNoFillError } from '../lib/adFallback';
@@ -130,7 +132,7 @@ function CompetitionsSection() {
 }
 
 type GameState = 'idle' | 'playing' | 'gameover';
-type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel';
+type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'stack' | 'zigzag';
 
 // ---- Daily plays system ----
 const FREE_PLAYS_PER_DAY = 3;
@@ -365,12 +367,68 @@ export const GamesTab = () => {
     }
   };
 
-  if (activeGame === 'speed-tap') return <SpeedTapGame onBack={() => setActiveGame(null)} plays={speedTapPlays} />;
+  if (activeGame === 'speed-tap')    return <SpeedTapGame    onBack={() => setActiveGame(null)} plays={speedTapPlays} />;
   if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} plays={memoryMatchPlays} />;
-  if (activeGame === 'lucky-wheel') return <LuckyWheelGame onBack={() => setActiveGame(null)} plays={luckyWheelPlays} />;
+  if (activeGame === 'lucky-wheel')  return <LuckyWheelGame  onBack={() => setActiveGame(null)} plays={luckyWheelPlays} />;
+  if (activeGame === 'stack')        return <StackGame        onBack={() => setActiveGame(null)} />;
+  if (activeGame === 'zigzag')       return <ZigzagGame       onBack={() => setActiveGame(null)} />;
 
   return (
     <div className="flex flex-col pb-24 animate-in fade-in duration-500">
+
+      {/* ── Mini Games ── */}
+      <div className="px-4 pt-1">
+        <div className="flex items-center gap-2 mb-3">
+          <Layers className="w-3.5 h-3.5 text-purple-400/60" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-purple-400/60">Mini Games</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-purple-400/20 to-transparent" />
+        </div>
+        <div className="flex flex-col gap-3">
+          {/* Stack */}
+          <button
+            onClick={() => { haptic('select'); setActiveGame('stack'); }}
+            className="w-full rounded-[18px] p-4 flex items-center gap-4 active:scale-[0.98] transition-transform relative overflow-hidden"
+            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.18)' }}
+          >
+            <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(52,211,153,0.07)' }} />
+            <div className="w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 text-2xl" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.22)' }}>
+              🧱
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-white leading-tight">Stack</p>
+              <p className="text-[11px] text-white/40 mt-0.5">Slide blocks — place them perfectly</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[9px] font-bold text-[#34d399] bg-[#34d399]/10 border border-[#34d399]/15 px-2 py-0.5 rounded-full">
+                  🎯 +18 SKP per floor
+                </span>
+              </div>
+            </div>
+            <div className="text-white/20 shrink-0 text-lg">›</div>
+          </button>
+
+          {/* Zigzag Driver */}
+          <button
+            onClick={() => { haptic('select'); setActiveGame('zigzag'); }}
+            className="w-full rounded-[18px] p-4 flex items-center gap-4 active:scale-[0.98] transition-transform relative overflow-hidden"
+            style={{ background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.18)' }}
+          >
+            <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(129,140,248,0.07)' }} />
+            <div className="w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 text-2xl" style={{ background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.22)' }}>
+              ⚡
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-white leading-tight">Zigzag Driver</p>
+              <p className="text-[11px] text-white/40 mt-0.5">Tap to turn — don't fall off the path</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[9px] font-bold text-[#818cf8] bg-[#818cf8]/10 border border-[#818cf8]/15 px-2 py-0.5 rounded-full">
+                  🎯 +4 SKP per tile
+                </span>
+              </div>
+            </div>
+            <div className="text-white/20 shrink-0 text-lg">›</div>
+          </button>
+        </div>
+      </div>
 
       {/* ── Passive Income Cards ── */}
       <div className="px-4 mt-7">

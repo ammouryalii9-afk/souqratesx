@@ -1190,4 +1190,30 @@ router.post("/games/stack/credit", rateLimit("stack-credit", 10, 30_000), async 
   res.json({ credited: pts });
 });
 
+// ── Zigzag Driver: credit score ───────────────────────────────────────────────
+const ZIGZAG_PTS_PER_TILE = 4;
+const ZIGZAG_MAX_SCORE    = 500;
+
+router.post("/games/zigzag/credit", rateLimit("zigzag-credit", 10, 30_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const score = Math.max(0, Math.min(ZIGZAG_MAX_SCORE, Number((req.body as { score?: unknown }).score) | 0));
+  const pts   = score * ZIGZAG_PTS_PER_TILE;
+
+  if (pts > 0) {
+    await db
+      .update(vaultUsersTable)
+      .set({
+        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${pts}::bigint`,
+        state: creditedStateSql(pts, {}),
+      })
+      .where(eq(vaultUsersTable.telegramId, telegramId));
+
+    await logUserActivity(telegramId, "zigzag_credit", { score, pts });
+  }
+
+  res.json({ credited: pts });
+});
+
 export default router;
