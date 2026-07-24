@@ -1164,4 +1164,27 @@ router.delete("/arcade/admin/sessions/:id", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
+// ── Stack Tower: credit score ─────────────────────────────────────────────────
+const STACK_PTS_PER_BLOCK = 18;
+const STACK_MAX_SCORE     = 120; // clamp to prevent abuse
+
+router.post("/games/stack/credit", rateLimit("stack-credit", 10, 30_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const score   = Math.max(0, Math.min(STACK_MAX_SCORE, Number((req.body as { score?: unknown }).score) | 0));
+  const pts     = score * STACK_PTS_PER_BLOCK;
+
+  if (pts > 0) {
+    await db
+      .update(vaultUsersTable)
+      .set({ state: creditedStateSql(pts, {}) })
+      .where(eq(vaultUsersTable.telegramId, telegramId));
+
+    await logUserActivity(telegramId, "stack_tower_credit", { score, pts });
+  }
+
+  res.json({ credited: pts });
+});
+
 export default router;

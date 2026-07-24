@@ -3,10 +3,9 @@ import { useLanguage } from '../lib/i18n';
 import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
-import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Sword, Layers, PlayCircle, Tv, Trophy, Clock, Users } from 'lucide-react';
+import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, Layers, PlayCircle, Tv, Trophy, Clock, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { KnifeHitGame } from '../games/KnifeHitGame';
 import { StackTowerGame } from '../games/StackTowerGame';
 import { watchRewardedAdWithFallback, isNoFillError } from '../lib/adFallback';
 import { getPublicConfig, type PublicConfig } from '../lib/gameApi';
@@ -132,7 +131,7 @@ function CompetitionsSection() {
 }
 
 type GameState = 'idle' | 'playing' | 'gameover';
-type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'knife-hit' | 'stack-tower';
+type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'stack-tower';
 
 // ---- Daily plays system ----
 const FREE_PLAYS_PER_DAY = 3;
@@ -370,7 +369,6 @@ export const GamesTab = () => {
   if (activeGame === 'speed-tap') return <SpeedTapGame onBack={() => setActiveGame(null)} plays={speedTapPlays} />;
   if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} plays={memoryMatchPlays} />;
   if (activeGame === 'lucky-wheel') return <LuckyWheelGame onBack={() => setActiveGame(null)} plays={luckyWheelPlays} />;
-  if (activeGame === 'knife-hit') return <KnifeHitGame onBack={() => setActiveGame(null)} />;
   if (activeGame === 'stack-tower') return <StackTowerGame onBack={() => setActiveGame(null)} />;
 
   return (
@@ -383,43 +381,26 @@ export const GamesTab = () => {
           <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-purple-400/60">Mini Games</span>
           <div className="flex-1 h-px bg-gradient-to-r from-purple-400/20 to-transparent" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => { haptic('select'); setActiveGame('stack-tower'); }}
-            className="rounded-[18px] p-4 flex flex-col items-start gap-2 active:scale-95 transition-transform relative overflow-hidden"
-            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.18)' }}
-          >
-            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(52,211,153,0.08)' }} />
-            <div className="w-11 h-11 rounded-[14px] flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)' }}>
-              <Layers className="w-5 h-5 text-primary" />
+        <button
+          onClick={() => { haptic('select'); setActiveGame('stack-tower'); }}
+          className="w-full rounded-[18px] p-4 flex items-center gap-4 active:scale-[0.98] transition-transform relative overflow-hidden"
+          style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.18)' }}
+        >
+          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(52,211,153,0.07)' }} />
+          <div className="w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.22)' }}>
+            <Layers className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-white leading-tight">Stack Tower</p>
+            <p className="text-[11px] text-white/40 mt-0.5">ابنِ برجاً — كل طبقة تزيد السرعة</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/15 px-2 py-0.5 rounded-full">
+                🎯 +18 SKP لكل طبقة
+              </span>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white leading-tight">Stack Tower</p>
-              <p className="text-[10px] text-white/40 mt-0.5">ابنِ برجاً، اكسب النقاط</p>
-            </div>
-            <div className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/15 px-2 py-0.5 rounded-full">
-              🎯 الهدف: 15 مكعباً
-            </div>
-          </button>
-
-          <button
-            onClick={() => { haptic('select'); setActiveGame('knife-hit'); }}
-            className="rounded-[18px] p-4 flex flex-col items-start gap-2 active:scale-95 transition-transform relative overflow-hidden"
-            style={{ background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.18)' }}
-          >
-            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(251,146,60,0.08)' }} />
-            <div className="w-11 h-11 rounded-[14px] flex items-center justify-center" style={{ background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.2)' }}>
-              <Sword className="w-5 h-5 text-orange-400" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white leading-tight">Knife Hit</p>
-              <p className="text-[10px] text-white/40 mt-0.5">ارمِ السكاكين، لا تصطدم</p>
-            </div>
-            <div className="text-[9px] font-bold text-orange-400 bg-orange-400/10 border border-orange-400/15 px-2 py-0.5 rounded-full">
-              🗡️ +30 لكل إصابة
-            </div>
-          </button>
-        </div>
+          </div>
+          <div className="text-white/20 shrink-0">›</div>
+        </button>
       </div>
 
       {/* ── Passive Income Cards ── */}
