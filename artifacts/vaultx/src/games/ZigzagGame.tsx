@@ -34,9 +34,9 @@ import { watchRewardedAdWithFallback } from '../lib/adFallback';
 import { ContinueOverlay, DeadOverlay } from './StackGame';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const HALF_W      = 46;    // screen half-width of a diamond tile
-const HALF_H      = 26;    // screen half-height
-const BALL_R      = 13;    // ball radius (px)
+const HALF_W      = 36;    // screen half-width of a diamond tile
+const HALF_H      = 20;    // screen half-height
+const BALL_R      = 10;    // ball radius (px)
 const INIT_SPEED  = 5.0;   // tiles / second
 const MAX_SPEED   = 12.0;
 const SPEED_INC   = 0.15;  // tiles/s added per second of play
