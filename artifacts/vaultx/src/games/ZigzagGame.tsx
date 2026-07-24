@@ -18,7 +18,7 @@
  *     sx = canvas_cx + (gx − gy) × HALF_W
  *     sy = (gx + gy) × HALF_H − camY
  *   Camera keeps ball at ~35% from top:
- *     camY = (ball.gx + ball.gy) × HALF_H − H × 0.35
+ *     camY = (ball.gx + ball.gy) × HALF_H − H × 0.20
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -294,7 +294,7 @@ export function ZigzagGame({ onBack }: { onBack: () => void }) {
       }
 
       // ── Camera ────────────────────────────────────────────────────────────
-      const camY   = (gs.bx + gs.by) * HALF_H - H * 0.35;
+      const camY   = (gs.bx + gs.by) * HALF_H - H * 0.20;
       const cx     = W / 2;
 
       // ── Draw background ───────────────────────────────────────────────────
@@ -354,7 +354,7 @@ export function ZigzagGame({ onBack }: { onBack: () => void }) {
           [4,1],[4,2],[4,3],
           [5,3],[6,3],[7,3],
         ];
-        const idleCamY = 7 * HALF_H - H * 0.35;
+        const idleCamY = 7 * HALF_H - H * 0.20;
         for (const [tgx, tgy] of sampleTiles) {
           const { sx, sy } = toScreen(tgx!, tgy!, cx, idleCamY);
           drawTile(ctx, sx, sy, 'rgba(52,211,153,0.18)', 'rgba(52,211,153,0.55)');
