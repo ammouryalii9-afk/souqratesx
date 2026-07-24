@@ -459,7 +459,7 @@ export function formatSkpShort(n: number): string {
 // Which tab/feature each level gates
 export const FEATURE_LEVEL_REQUIRED: Record<string, number> = {
   friends: 2,
-  games:   4,
+  games:   1,
   tasks:   6,
   squad:   10,
   pixels:  15,
