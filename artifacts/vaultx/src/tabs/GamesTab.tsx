@@ -392,10 +392,10 @@ export const GamesTab = () => {
           </div>
           <div className="flex-1 text-left">
             <p className="text-sm font-bold text-white leading-tight">Stack Tower</p>
-            <p className="text-[11px] text-white/40 mt-0.5">ابنِ برجاً — كل طبقة تزيد السرعة</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Build a tower — each floor increases speed</p>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/15 px-2 py-0.5 rounded-full">
-                🎯 +18 SKP لكل طبقة
+                🎯 +18 SKP per floor
               </span>
             </div>
           </div>

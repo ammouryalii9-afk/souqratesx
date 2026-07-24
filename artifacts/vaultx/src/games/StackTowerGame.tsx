@@ -223,8 +223,9 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const gs = freshGS();
     gs.phase  = 'playing';
     gs.blocks = [{ x: W / 2 - INIT_W / 2, w: INIT_W, idx: 0, perfect: false }];
-    gs.curX   = W / 2 - INIT_W / 2 + 65;
+    gs.curX   = SIDE_PAD;          // start at left wall, sweeps right over the base
     gs.curW   = INIT_W;
+    gs.dir    = 1;
     gsRef.current = gs;
     setPhase('playing');
     setScore(0);
@@ -253,7 +254,10 @@ export function StackTowerGame({ onBack }: { onBack: () => void }) {
     const newW      = isPerfect ? last.w : overlapW;
     const newX      = isPerfect ? last.x : oL;
 
-    if (!isPerfect && newW < MIN_W) { handleMiss(); return; }
+    // Don't kill the game on the very first placement — give the player a
+    // chance even if they clipped the edge. MIN_W only enforced from floor 2+.
+    const isFirstPlacement = gs.blocks.length === 1;
+    if (!isPerfect && newW < MIN_W && !isFirstPlacement) { handleMiss(); return; }
 
     const idx = gs.blocks.length;
     gs.blocks.push({ x: newX, w: newW, idx, perfect: isPerfect });
