@@ -79,4 +79,35 @@ router.post("/stars/invoice", async (req, res): Promise<void> => {
   }
 });
 
+// ── Stack Tower game continue invoice ────────────────────────────────────────
+const STACK_CONTINUE_STARS = 3;
+
+router.post("/games/stack/continue-invoice", async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  if (!isTelegramBotConfigured()) {
+    res.status(400).json({ error: "Telegram Stars purchases are not configured" });
+    return;
+  }
+
+  const payload = JSON.stringify({ telegramId, type: "stack-continue" });
+
+  try {
+    const invoiceUrl = await createStarsInvoiceLink({
+      title: "Game Continue",
+      description: "Continue your Stack Tower game from where you left off",
+      payload,
+      amountStars: STACK_CONTINUE_STARS,
+    });
+    res.json({ invoiceUrl, priceStars: STACK_CONTINUE_STARS });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create stack continue invoice");
+    res.status(400).json({ error: "Failed to create invoice, check TELEGRAM_BOT_TOKEN" });
+  }
+});
+
 export default router;

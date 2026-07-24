@@ -574,8 +574,56 @@ export const GamesTab = () => {
         </div>
       </div>
 
-      {/* ── Daily Games ── */}
+      {/* ── Mini Games ── */}
       <div className="px-4 mt-7">
+        <div className="flex items-center gap-2 mb-3">
+          <Layers className="w-3.5 h-3.5 text-purple-400/60" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-purple-400/60">Mini Games</span>
+          <div className="flex-1 h-px bg-gradient-to-r from-purple-400/20 to-transparent" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Stack Tower */}
+          <button
+            onClick={() => { haptic('select'); setActiveGame('stack-tower'); }}
+            className="rounded-[18px] p-4 flex flex-col items-start gap-2 active:scale-95 transition-transform relative overflow-hidden"
+            style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.18)' }}
+          >
+            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-primary/8 blur-2xl pointer-events-none" />
+            <div className="w-11 h-11 rounded-[14px] flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <Layers className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">Stack Tower</p>
+              <p className="text-[10px] text-white/40 mt-0.5">ابنِ برجاً، اكسب النقاط</p>
+            </div>
+            <div className="flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/10 border border-primary/15 px-2 py-0.5 rounded-full">
+              🎯 الهدف: 15 مكعباً
+            </div>
+          </button>
+
+          {/* Knife Hit */}
+          <button
+            onClick={() => { haptic('select'); setActiveGame('knife-hit'); }}
+            className="rounded-[18px] p-4 flex flex-col items-start gap-2 active:scale-95 transition-transform relative overflow-hidden"
+            style={{ background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.18)' }}
+          >
+            <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-orange-400/8 blur-2xl pointer-events-none" />
+            <div className="w-11 h-11 rounded-[14px] flex items-center justify-center" style={{ background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.2)' }}>
+              <Sword className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">Knife Hit</p>
+              <p className="text-[10px] text-white/40 mt-0.5">ارمِ السكاكين، لا تصطدم</p>
+            </div>
+            <div className="flex items-center gap-1 text-[9px] font-bold text-orange-400 bg-orange-400/10 border border-orange-400/15 px-2 py-0.5 rounded-full">
+              🗡️ +30 لكل إصابة
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Daily Games ── */}
+      <div className="px-4 mt-6">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-3.5 h-3.5 text-pink-400/60" />
           <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-pink-400/60">Daily Games</span>
