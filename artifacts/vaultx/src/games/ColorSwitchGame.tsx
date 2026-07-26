@@ -255,12 +255,6 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // ── Score ──
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.font      = 'bold 38px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(String(gs.score), W / 2, ringCY - ringR - 32);
-
     // ── Idle hint ──
     if (gs.phase === 'idle') {
       ctx.fillStyle = 'rgba(255,255,255,0.38)';
