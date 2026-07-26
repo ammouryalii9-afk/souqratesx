@@ -536,7 +536,10 @@ export function DeadOverlay({
         <p className="text-6xl mb-3">💥</p>
         <p className="text-2xl font-black text-white mb-1">Game Over</p>
         <p className="text-sm text-white/40 mb-6">
-          {score === 0 ? 'No score' : `${gameName === 'Stack' ? `Floor ${score}` : `${score} tiles`}`}
+          {score === 0 ? 'No score'
+            : gameName === 'Stack'       ? `Floor ${score}`
+            : gameName === 'ColorSwitch' ? `${score} rings`
+            : `Score: ${score}`}
         </p>
         {reward > 0 && (
           <div className="mb-6 px-5 py-4 rounded-2xl"

@@ -296,3 +296,11 @@ export function creditStackTower(score: number): Promise<{ credited: number }> {
 export function createStackContinueInvoice(): Promise<{ invoiceUrl: string; priceStars: number }> {
   return apiFetch("/games/stack/continue-invoice", { method: "POST" });
 }
+
+// ── Color Switch ──────────────────────────────────────────────────────────────
+export function creditColorSwitch(score: number): Promise<{ credited: number }> {
+  return apiFetch("/games/colorswitch/credit", { method: "POST", body: JSON.stringify({ score }) });
+}
+export function createColorSwitchContinueInvoice(): Promise<{ invoiceUrl: string; priceStars: number }> {
+  return apiFetch("/games/colorswitch/continue-invoice", { method: "POST" });
+}

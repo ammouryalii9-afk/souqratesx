@@ -4,7 +4,8 @@ import { useVault } from '../context/VaultContext';
 import { useToast } from '@/hooks/use-toast';
 import { haptic } from '../lib/telegram';
 import { Battery, Zap, Gamepad2, TrendingUp, Pickaxe, Sun, Wind, Server, Cpu, Timer, Brain, Sparkles, ArrowLeft, PlayCircle, Tv, Trophy, Clock, Users, Layers } from 'lucide-react';
-import { StackGame }  from '../games/StackGame';
+import { StackGame }        from '../games/StackGame';
+import { ColorSwitchGame }  from '../games/ColorSwitchGame';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { watchRewardedAdWithFallback, isNoFillError } from '../lib/adFallback';
@@ -131,7 +132,7 @@ function CompetitionsSection() {
 }
 
 type GameState = 'idle' | 'playing' | 'gameover';
-type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'stack';
+type GameId = 'speed-tap' | 'memory-match' | 'lucky-wheel' | 'stack' | 'colorswitch';
 
 // ---- Daily plays system ----
 const FREE_PLAYS_PER_DAY = 3;
@@ -370,6 +371,7 @@ export const GamesTab = () => {
   if (activeGame === 'memory-match') return <MemoryMatchGame onBack={() => setActiveGame(null)} plays={memoryMatchPlays} />;
   if (activeGame === 'lucky-wheel')  return <LuckyWheelGame  onBack={() => setActiveGame(null)} plays={luckyWheelPlays} />;
   if (activeGame === 'stack')        return <StackGame        onBack={() => setActiveGame(null)} />;
+  if (activeGame === 'colorswitch')  return <ColorSwitchGame  onBack={() => setActiveGame(null)} />;
 
 
   return (
@@ -383,6 +385,28 @@ export const GamesTab = () => {
           <div className="flex-1 h-px bg-gradient-to-r from-purple-400/20 to-transparent" />
         </div>
         <div className="flex flex-col gap-3">
+          {/* Color Switch */}
+          <button
+            onClick={() => { haptic('select'); setActiveGame('colorswitch'); }}
+            className="w-full rounded-[18px] p-4 flex items-center gap-4 active:scale-[0.98] transition-transform relative overflow-hidden"
+            style={{ background: 'rgba(244,114,182,0.06)', border: '1px solid rgba(244,114,182,0.18)' }}
+          >
+            <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(244,114,182,0.07)' }} />
+            <div className="w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0 text-2xl" style={{ background: 'rgba(244,114,182,0.12)', border: '1px solid rgba(244,114,182,0.22)' }}>
+              🎨
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-white leading-tight">Color Switch</p>
+              <p className="text-[11px] text-white/40 mt-0.5">Jump through the matching color ring</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[9px] font-bold text-[#f472b6] bg-[#f472b6]/10 border border-[#f472b6]/15 px-2 py-0.5 rounded-full">
+                  🎯 +12 SKP per ring
+                </span>
+              </div>
+            </div>
+            <div className="text-white/20 shrink-0 text-lg">›</div>
+          </button>
+
           {/* Stack */}
           <button
             onClick={() => { haptic('select'); setActiveGame('stack'); }}

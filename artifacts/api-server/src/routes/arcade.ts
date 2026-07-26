@@ -1190,4 +1190,30 @@ router.post("/games/stack/credit", rateLimit("stack-credit", 10, 30_000), async 
   res.json({ credited: pts });
 });
 
+// ── Color Switch: credit score ────────────────────────────────────────────────
+const CS_PTS_PER_RING = 12;
+const CS_MAX_SCORE    = 300;
+
+router.post("/games/colorswitch/credit", rateLimit("colorswitch-credit", 10, 30_000), async (req, res): Promise<void> => {
+  const telegramId = getSessionTelegramId(req);
+  if (!telegramId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const score = Math.max(0, Math.min(CS_MAX_SCORE, Number((req.body as { score?: unknown }).score) | 0));
+  const pts   = score * CS_PTS_PER_RING;
+
+  if (pts > 0) {
+    await db
+      .update(vaultUsersTable)
+      .set({
+        lifetimePoints: sql`${vaultUsersTable.lifetimePoints} + ${pts}::bigint`,
+        state: creditedStateSql(pts, {}),
+      })
+      .where(eq(vaultUsersTable.telegramId, telegramId));
+
+    await logUserActivity(telegramId, "colorswitch_credit", { score, pts });
+  }
+
+  res.json({ credited: pts });
+});
+
 export default router;
