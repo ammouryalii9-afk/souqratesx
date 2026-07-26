@@ -1,19 +1,16 @@
 /**
- * Color Switch — tap when the rotating ring shows your ball's color at the pointer.
+ * Color Switch — classic bounce-through-ring mechanic.
  *
  * Mechanic:
- *  • A 4-colored ring rotates around a central colored ball.
- *  • A fixed pointer sits at the top (12 o'clock).
- *  • Tap when the COLOR under the pointer matches the ball's color → score++.
- *  • After each correct tap: ball gets a new color, ring REVERSES direction, speed ↑.
- *  • Wrong color under pointer on tap → Continue? or Game Over.
- *  • Tapping when a gap is under the pointer → safe, nothing happens.
- *  • Reward: score × 12 SKP.
- *
- * Canvas conventions:
- *  • Pointer fixed at canvas angle −π/2 (12 o'clock / top).
- *  • ring.rotation accumulates; color at pointer =
- *      COLORS[⌊((−π/2 − rotation + 100π) / (π/2))⌋ % 4]
+ *  • A 4-coloured ring rotates in the upper area.
+ *  • A coloured ball sits BELOW the ring (gravity holds it down).
+ *  • Tap → ball launches upward.
+ *  • Ball rises and passes through the ring from the BOTTOM (6 o'clock).
+ *  • Colour at the bottom of the ring must match the ball's colour → pass!
+ *      score++, ball gets a new colour, ring speed ↑.
+ *  • Wrong colour at bottom on entry → die (continue or game over).
+ *  • After passing, ball rises above the ring, then falls back below safely.
+ *  • Reward: credited × 1 SKP per ring (server caps at 300 SKP).
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -26,108 +23,119 @@ import {
   type PublicConfig,
 } from '../lib/gameApi';
 import { watchRewardedAdWithFallback } from '../lib/adFallback';
-import { ContinueOverlay, DeadOverlay } from './StackGame';
+import { ContinueOverlay, DeadOverlay, Spin } from './StackGame';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const COLORS = ['#34d399', '#818cf8', '#f472b6', '#facc15'] as const;
-type Color = (typeof COLORS)[number];
-
-const POINTER_ANGLE = -Math.PI / 2;   // 12 o'clock in canvas coords
-const SEC_PER_COLOR = Math.PI / 2;    // 90° per sector
-const GAP_ANGLE     = 0.09;           // radians gap between sectors (cosmetic)
-const ARC_SPAN      = SEC_PER_COLOR - GAP_ANGLE;
-
-const BASE_SPEED    = 1.0;            // rad / s
-const SPEED_INC     = 0.09;           // added per correct tap
-const MAX_SPEED     = 5.0;            // rad / s cap
-const REWARD_PER    = 12;             // SKP per ring
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type Phase = 'idle' | 'playing' | 'continue' | 'dead';
-
-interface Particle {
-  x: number; y: number;
-  vx: number; vy: number;
-  color: string; life: number;
-}
-
-interface GS {
-  phase:        Phase;
-  rotation:     number;       // ring rotation in radians
-  rotSpeed:     number;       // rad / s (always positive; direction from rotDir)
-  rotDir:       1 | -1;       // +1 = clockwise, −1 = counter-clockwise
-  ballColor:    Color;
-  score:        number;
-  hasContinued: boolean;
-  particles:    Particle[];
-  flash:        number;       // 0..1 — brief white flash on correct tap
-  flashColor:   string;
-}
+const COLORS     = ['#34d399', '#818cf8', '#f472b6', '#facc15'] as const;
+const GRAVITY    = 1400;   // px/s²
+const TAP_VY     = -840;   // px/s upward impulse
+const RING_STROKE= 15;     // px ring arc width
+const BALL_R     = 13;     // px ball radius
+const GAP_ANGLE  = 0.10;   // radians gap between sectors (cosmetic only)
+const SEC_ANGLE  = Math.PI / 2; // 90° per sector
+const ARC_SPAN   = SEC_ANGLE - GAP_ANGLE;
+const BASE_SPEED = 1.1;    // rad/s
+const SPEED_INC  = 0.09;   // rad/s per score
+const MAX_SPEED  = 4.5;    // rad/s
+const CONT_SECS  = 10;     // seconds to decide Continue
+const REWARD_PER = 12;     // SKP per ring (must match server)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fresh(): GS {
+function mod(x: number, m: number) { return ((x % m) + m) % m; }
+
+/** Index of the colour sector currently at the BOTTOM (6 o'clock = +π/2) */
+function sectorAtAngle(rot: number, angle: number): number {
+  const rel = mod(angle - rot, 2 * Math.PI);
+  return Math.floor(rel / SEC_ANGLE) % 4;
+}
+
+/** True if `angle` falls inside a visual gap between sectors */
+function isGap(rot: number, angle: number): boolean {
+  const rel        = mod(angle - rot, 2 * Math.PI);
+  const posInSec   = rel % SEC_ANGLE;
+  return posInSec > ARC_SPAN;
+}
+
+// ─── Game state (mutable, lives in ref) ──────────────────────────────────────
+type Phase = 'idle' | 'playing' | 'dying' | 'continue' | 'dead';
+type BallSide = 'below' | 'inside' | 'above';
+
+interface GS {
+  phase:      Phase;
+  score:      number;
+  hasContinued: boolean;
+  // ball
+  ballY:      number;
+  ballVY:     number;
+  colorIdx:   number;      // ball's current colour index (target)
+  // ring geometry (computed from canvas size)
+  ringCX:     number;
+  ringCY:     number;
+  ringR:      number;
+  // ring animation
+  rot:        number;      // current rotation (radians)
+  rotSpeed:   number;      // rad/s
+  rotDir:     number;      // +1 clockwise / -1 counter-clockwise
+  // crossing state
+  ballSide:   BallSide;
+  checked:    boolean;     // already checked colour this crossing?
+}
+
+function makeGS(W: number, H: number, keepScore = 0): GS {
+  const ringCY = H * 0.36;
+  const ringR  = Math.min(W, H) * 0.26;
   return {
-    phase: 'idle',
-    rotation: 0, rotSpeed: BASE_SPEED, rotDir: 1,
-    ballColor: COLORS[Math.floor(Math.random() * 4)]!,
-    score: 0, hasContinued: false,
-    particles: [], flash: 0, flashColor: '#fff',
+    phase:        keepScore > 0 ? 'playing' : 'idle',
+    score:        keepScore,
+    hasContinued: false,
+    ballY:        ringCY + ringR + BALL_R + 36,
+    ballVY:       0,
+    colorIdx:     Math.floor(Math.random() * 4),
+    ringCX:       W / 2,
+    ringCY,
+    ringR,
+    rot:          0,
+    rotSpeed:     Math.min(BASE_SPEED + SPEED_INC * keepScore, MAX_SPEED),
+    rotDir:       1,
+    ballSide:     'below',
+    checked:      false,
   };
-}
-
-/** Returns the Color at the pointer, or null if a gap is there. */
-function colorAtPointer(rotation: number): Color | null {
-  const rel = ((POINTER_ANGLE - rotation) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-  const posInSector = rel % SEC_PER_COLOR;
-  if (posInSector > ARC_SPAN) return null;                 // in a gap
-  return COLORS[Math.floor(rel / SEC_PER_COLOR) % 4]!;
-}
-
-function spawnParticles(gs: GS, cx: number, cy: number, R: number, color: string) {
-  // Burst from the pointer position (top of ring)
-  const px = cx + Math.cos(POINTER_ANGLE) * R;
-  const py = cy + Math.sin(POINTER_ANGLE) * R;
-  for (let i = 0; i < 14; i++) {
-    const a = (i / 14) * Math.PI * 2 + Math.random() * 0.4;
-    const s = 60 + Math.random() * 140;
-    gs.particles.push({ x: px, y: py, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color, life: 1 });
-  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const gsRef        = useRef<GS>(fresh());
-  const rafRef       = useRef(0);
-  const prevTRef     = useRef(0);
-  const cdRef        = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tapLockUntil = useRef(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const gsRef     = useRef<GS | null>(null);
+  const rafRef    = useRef(0);
+  const prevTRef  = useRef(0);
+  const cdRef     = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [phase,       setPhase]       = useState<Phase>('idle');
   const [score,       setScore]       = useState(0);
   const [reward,      setReward]      = useState(0);
-  const [countdown,   setCountdown]   = useState(10);
+  const [countdown,   setCountdown]   = useState(CONT_SECS);
   const [adLoading,   setAdLoading]   = useState(false);
   const [starLoading, setStarLoading] = useState(false);
   const [adConfig,    setAdConfig]    = useState<PublicConfig | null>(null);
 
   useEffect(() => { getPublicConfig().then(setAdConfig).catch(() => {}); }, []);
 
+  // ── countdown for Continue overlay ─────────────────────────────────────────
   const clearCd = () => { if (cdRef.current) { clearInterval(cdRef.current); cdRef.current = null; } };
 
-  // ── Countdown ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== 'continue') return;
-    setCountdown(10);
+    setCountdown(CONT_SECS);
     cdRef.current = setInterval(() => {
       setCountdown(p => {
         if (p <= 1) {
           clearCd();
           const gs = gsRef.current;
-          if (gs.phase === 'continue') {
+          if (gs && gs.phase === 'continue') {
             gs.phase = 'dead';
-            if (gs.score > 0) creditColorSwitch(gs.score).catch(() => {});
-            setPhase('dead'); setReward(gs.score * REWARD_PER);
+            creditColorSwitch(gs.score).catch(() => {});
+            setPhase('dead');
+            setReward(gs.score * REWARD_PER);
           }
           return 0;
         }
@@ -137,9 +145,10 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
     return clearCd;
   }, [phase]);
 
+  // ── Die / Continue ──────────────────────────────────────────────────────────
   const triggerDead = useCallback((gs: GS) => {
     clearCd(); gs.phase = 'dead'; haptic('error');
-    if (gs.score > 0) creditColorSwitch(gs.score).catch(() => {});
+    creditColorSwitch(gs.score).catch(() => {});
     setPhase('dead'); setScore(gs.score); setReward(gs.score * REWARD_PER);
   }, []);
 
@@ -148,64 +157,46 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
     setPhase('continue'); setScore(gs.score); setReward(gs.score * REWARD_PER);
   }, []);
 
-  const startGame = useCallback(() => {
-    clearCd();
-    const gs = fresh();
-    gs.phase = 'playing';
-    gsRef.current = gs;
-    tapLockUntil.current = Date.now() + 320;
-    setPhase('playing'); setScore(0); setReward(0);
-  }, []);
-
-  // ── Tap: the core judgment ────────────────────────────────────────────────
-  const doTap = useCallback(() => {
-    if (Date.now() < tapLockUntil.current) return;
-    const gs = gsRef.current;
-    if (gs.phase !== 'playing') return;
-
-    const hit = colorAtPointer(gs.rotation);
-    if (hit === null) return;          // tapped on a gap → safe, ignore
-
-    if (hit === gs.ballColor) {
-      // ✓ Correct
-      gs.score++;
-      const others = COLORS.filter(c => c !== gs.ballColor);
-      const newColor = others[Math.floor(Math.random() * others.length)]!;
-      gs.ballColor  = newColor;
-      gs.rotDir     = gs.rotDir === 1 ? -1 : 1;   // reverse!
-      gs.rotSpeed   = Math.min(MAX_SPEED, gs.rotSpeed + SPEED_INC);
-      gs.flash      = 1;
-      gs.flashColor = hit;
-
-      const W   = canvasRef.current?.width  ?? 390;
-      const H   = canvasRef.current?.height ?? 700;
-      const R   = Math.min(W, H) * 0.30;
-      spawnParticles(gs, W / 2, H * 0.48, R, hit);
-
-      haptic('medium');
-      setScore(gs.score);
-    } else {
-      // ✗ Wrong
-      if (!gs.hasContinued) triggerContinue(gs);
-      else                   triggerDead(gs);
-    }
-  }, [triggerContinue, triggerDead]);
-
+  // ── Continue game (after ad/stars) ─────────────────────────────────────────
   const continueGame = useCallback(() => {
     clearCd();
+    const canvas = canvasRef.current;
+    if (!canvas || !gsRef.current) return;
     const gs = gsRef.current;
     gs.hasContinued = true;
-    gs.phase        = 'playing';
+    gs.phase   = 'playing';
+    // reset ball below ring, keep score & speed
+    gs.ballY  = gs.ringCY + gs.ringR + BALL_R + 36;
+    gs.ballVY = 0;
+    gs.ballSide = 'below';
+    gs.checked  = false;
     haptic('success');
     setPhase('playing');
-    tapLockUntil.current = Date.now() + 280;
   }, []);
+
+  // ── Restart ─────────────────────────────────────────────────────────────────
+  const restartGame = useCallback(() => {
+    clearCd();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    gsRef.current = makeGS(canvas.width, canvas.height);
+    gsRef.current.phase = 'idle';
+    prevTRef.current = 0;
+    setPhase('idle'); setScore(0); setReward(0);
+  }, []);
+
+  // ── Ad / Stars ───────────────────────────────────────────────────────────────
+  const adReady = !!(
+    (adConfig?.adsgram?.enabled  && adConfig.adsgram.blockId)  ||
+    (adConfig?.monetag?.enabled  && adConfig.monetag.zoneId)   ||
+    (adConfig?.onclicka?.enabled && adConfig.onclicka.spotId)
+  );
 
   const handleAd = useCallback(async () => {
     if (adLoading || starLoading) return;
     setAdLoading(true);
-    try { await watchRewardedAdWithFallback(adConfig); continueGame(); }
-    catch { }
+    try   { await watchRewardedAdWithFallback(adConfig); continueGame(); }
+    catch { /* dismissed */ }
     finally { setAdLoading(false); }
   }, [adConfig, adLoading, starLoading, continueGame]);
 
@@ -221,193 +212,195 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
     } catch { setStarLoading(false); }
   }, [adLoading, starLoading, continueGame]);
 
-  // ── Draw loop ─────────────────────────────────────────────────────────────
+  // ── Draw ────────────────────────────────────────────────────────────────────
+  const draw = useCallback((canvas: HTMLCanvasElement, gs: GS) => {
+    const ctx = canvas.getContext('2d')!;
+    const W   = canvas.width;
+    const H   = canvas.height;
+    const { ringCX, ringCY, ringR, rot, ballY, colorIdx } = gs;
+
+    // background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Ring ──
+    ctx.lineWidth = RING_STROKE;
+    ctx.lineCap   = 'butt';
+    for (let i = 0; i < 4; i++) {
+      const startA = rot + i * SEC_ANGLE + GAP_ANGLE / 2;
+      const endA   = startA + ARC_SPAN;
+      ctx.strokeStyle = COLORS[i];
+      ctx.beginPath();
+      ctx.arc(ringCX, ringCY, ringR, startA, endA);
+      ctx.stroke();
+    }
+
+    // small triangle arrow at bottom of ring (entry guide)
+    const arrowTipY  = ringCY + ringR + RING_STROKE / 2 + 10;
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.moveTo(ringCX,     arrowTipY + 9);
+    ctx.lineTo(ringCX - 6, arrowTipY);
+    ctx.lineTo(ringCX + 6, arrowTipY);
+    ctx.closePath();
+    ctx.fill();
+
+    // ── Ball ──
+    const ballColor = COLORS[colorIdx];
+    ctx.shadowColor = ballColor;
+    ctx.shadowBlur  = 20;
+    ctx.fillStyle   = ballColor;
+    ctx.beginPath();
+    ctx.arc(ringCX, ballY, BALL_R, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // ── Score ──
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font      = 'bold 38px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(gs.score), W / 2, ringCY - ringR - 32);
+
+    // ── Idle hint ──
+    if (gs.phase === 'idle') {
+      ctx.fillStyle = 'rgba(255,255,255,0.38)';
+      ctx.font      = '16px system-ui, sans-serif';
+      ctx.fillText('اضغط للبدء', W / 2, H * 0.80);
+    }
+  }, []);
+
+  // ── Game loop ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    const cv = canvasRef.current!;
+    const canvas = canvasRef.current!;
 
     const loop = (t: number) => {
       const dt = prevTRef.current ? Math.min((t - prevTRef.current) / 1000, 0.05) : 0;
       prevTRef.current = t;
-      const gs  = gsRef.current;
-      const W   = cv.width;
-      const H   = cv.height;
-      const ctx = cv.getContext('2d')!;
-      const cx  = W / 2;
-      const cy  = H * 0.48;
-      const R   = Math.min(W, H) * 0.30;   // ring outer radius
-      const RW  = 26;                        // ring arc width
-      const RI  = R - RW;                    // ring inner radius
-      const BR  = 30;                        // ball radius
+      const gs = gsRef.current!;
 
-      // ── Physics ───────────────────────────────────────────────────────────
-      if (gs.phase === 'playing') {
-        gs.rotation += gs.rotSpeed * gs.rotDir * dt;
-        gs.flash     = Math.max(0, gs.flash - dt * 4);
+      if (gs.phase === 'playing' || gs.phase === 'dying') {
+        // ── Physics ──
+        gs.ballVY += GRAVITY * dt;
+        gs.ballY  += gs.ballVY * dt;
 
-        // Particles
-        for (const p of gs.particles) {
-          p.x += p.vx * dt; p.y += p.vy * dt;
-          p.vy += 180 * dt;
-          p.life -= dt * 1.8;
-        }
-        gs.particles = gs.particles.filter(p => p.life > 0);
-      }
+        // Floor: ball rests below ring (can't fall off screen)
+        const floorY = canvas.height - BALL_R - 16;
+        if (gs.ballY > floorY) { gs.ballY = floorY; gs.ballVY = 0; }
 
-      // ── Background ────────────────────────────────────────────────────────
-      ctx.fillStyle = '#040b17';
-      ctx.fillRect(0, 0, W, H);
+        // ── Ring rotation ──
+        gs.rot += gs.rotDir * gs.rotSpeed * dt;
 
-      // Ambient glow from ball color
-      const grd = ctx.createRadialGradient(cx, cy, 10, cx, cy, R * 1.6);
-      grd.addColorStop(0, `${gs.ballColor}1a`);
-      grd.addColorStop(1, 'transparent');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, W, H);
+        if (gs.phase === 'playing') {
+          // ── Crossing detection ──
+          const outerEdge = gs.ringCY + gs.ringR;
+          const innerEdge = gs.ringCY - gs.ringR;
 
-      // Flash overlay on correct tap
-      if (gs.flash > 0) {
-        ctx.globalAlpha = gs.flash * 0.12;
-        ctx.fillStyle   = gs.flashColor;
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = 1;
-      }
+          // Determine ball side relative to ring
+          if (gs.ballY >= outerEdge + BALL_R * 0.6) {
+            // fully below
+            if (gs.ballSide !== 'below') {
+              gs.ballSide = 'below';
+              gs.checked  = false;
+            }
+          } else if (gs.ballY <= innerEdge - BALL_R * 0.6) {
+            // fully above
+            if (gs.ballSide !== 'above') {
+              gs.ballSide = 'above';
+              gs.checked  = false;
+            }
+          } else {
+            // overlapping ring — only check colour when entering from below (moving upward)
+            if (gs.ballSide === 'below' && !gs.checked && gs.ballVY < 0) {
+              gs.checked  = true;
+              gs.ballSide = 'inside';
 
-      // ── Draw ring (idle or playing) ────────────────────────────────────────
-      const ringRotation = gs.phase === 'idle'
-        ? (t / 1000) * 0.7     // slow idle spin
-        : gs.rotation;
-
-      for (let i = 0; i < 4; i++) {
-        const start = ringRotation + i * SEC_PER_COLOR + GAP_ANGLE / 2;
-        const end   = start + ARC_SPAN;
-        const color = COLORS[i]!;
-
-        ctx.shadowColor = color;
-        ctx.shadowBlur  = 14;
-        ctx.beginPath();
-        ctx.arc(cx, cy, R,  start, end);
-        ctx.arc(cx, cy, RI, end, start, true);
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.fill();
-      }
-      ctx.shadowBlur = 0;
-
-      // ── Pointer at 12 o'clock ─────────────────────────────────────────────
-      const px = cx + Math.cos(POINTER_ANGLE) * R;
-      const py = cy + Math.sin(POINTER_ANGLE) * R;
-      // Outer triangle pointing inward
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(POINTER_ANGLE + Math.PI / 2);
-      ctx.beginPath();
-      ctx.moveTo(0, -(RW * 0.5 + 10));
-      ctx.lineTo(-7, -(RW * 0.5 + 22));
-      ctx.lineTo( 7, -(RW * 0.5 + 22));
-      ctx.closePath();
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#fff';
-      ctx.shadowBlur  = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.restore();
-
-      // ── Central ball ─────────────────────────────────────────────────────
-      // Pulsing ring around ball to indicate "this is your color"
-      if (gs.phase === 'playing' || gs.phase === 'continue') {
-        const pulse = 0.6 + 0.4 * Math.sin(t / 300);
-        ctx.globalAlpha = pulse * 0.4;
-        ctx.strokeStyle = gs.ballColor;
-        ctx.lineWidth   = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy, BR + 10, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-
-      ctx.shadowColor = gs.ballColor;
-      ctx.shadowBlur  = gs.phase === 'idle' ? 10 : 20;
-      const ballGrd = ctx.createRadialGradient(cx - 6, cy - 6, 4, cx, cy, BR);
-      ballGrd.addColorStop(0, '#ffffff');
-      ballGrd.addColorStop(0.4, gs.ballColor);
-      ballGrd.addColorStop(1,   gs.ballColor + 'aa');
-      ctx.beginPath();
-      ctx.arc(cx, cy, BR, 0, Math.PI * 2);
-      ctx.fillStyle = ballGrd;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // ── Particles ─────────────────────────────────────────────────────────
-      for (const p of gs.particles) {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle   = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur  = 6;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4 * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-
-      // ── Score in ring center ──────────────────────────────────────────────
-      if (gs.score > 0 && (gs.phase === 'playing' || gs.phase === 'continue')) {
-        ctx.save();
-        ctx.font         = `bold ${Math.min(52, 28 + gs.score)}px system-ui`;
-        ctx.fillStyle    = 'rgba(255,255,255,0.08)';
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(gs.score), cx, cy + BR + 22);
-        ctx.restore();
-      }
-
-      // ── Speed indicator dots ──────────────────────────────────────────────
-      if (gs.phase === 'playing') {
-        const dotsTotal = 10;
-        const dotsFill  = Math.round((gs.rotSpeed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED) * dotsTotal);
-        for (let i = 0; i < dotsTotal; i++) {
-          ctx.beginPath();
-          ctx.arc(cx - (dotsTotal / 2 - 0.5) * 14 + i * 14, cy + BR + 54, 4, 0, Math.PI * 2);
-          ctx.fillStyle = i < dotsFill ? gs.ballColor : 'rgba(255,255,255,0.12)';
-          ctx.fill();
+              const BOTTOM = Math.PI / 2; // 6 o'clock
+              if (!isGap(gs.rot, BOTTOM)) {
+                const sec = sectorAtAngle(gs.rot, BOTTOM);
+                if (sec === gs.colorIdx) {
+                  // ✅ Correct colour!
+                  gs.score++;
+                  // pick a different colour for next round
+                  gs.colorIdx  = (gs.colorIdx + 1 + Math.floor(Math.random() * 3)) % 4;
+                  gs.rotDir   *= -1;
+                  gs.rotSpeed  = Math.min(gs.rotSpeed + SPEED_INC, MAX_SPEED);
+                  haptic('light');
+                  setScore(gs.score);
+                } else {
+                  // ❌ Wrong colour
+                  gs.phase = 'dying';
+                  haptic('error');
+                  setTimeout(() => {
+                    const g = gsRef.current;
+                    if (!g || g.phase !== 'dying') return;
+                    if (!g.hasContinued) triggerContinue(g);
+                    else                  triggerDead(g);
+                  }, 350);
+                }
+              }
+              // gap → safe, no action
+            } else if (gs.ballSide === 'above') {
+              gs.ballSide = 'inside'; // passing back down through ring safely
+            }
+          }
         }
       }
 
+      draw(canvas, gs);
       rafRef.current = requestAnimationFrame(loop);
     };
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [triggerContinue, triggerDead]);
+  }, [draw, triggerContinue, triggerDead]);
 
-  // ── Resize ────────────────────────────────────────────────────────────────
+  // ── Canvas resize ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const cv = canvasRef.current!;
-    const sync = () => { cv.width = cv.offsetWidth || 390; cv.height = cv.offsetHeight || 700; };
+    const canvas = canvasRef.current!;
+    const sync = () => {
+      canvas.width  = canvas.offsetWidth  || 390;
+      canvas.height = canvas.offsetHeight || 700;
+      // recompute ring geometry on resize
+      if (gsRef.current) {
+        gsRef.current.ringCX = canvas.width  / 2;
+        gsRef.current.ringCY = canvas.height * 0.36;
+        gsRef.current.ringR  = Math.min(canvas.width, canvas.height) * 0.26;
+      }
+    };
     const ro = new ResizeObserver(sync);
-    ro.observe(cv); sync();
+    ro.observe(canvas);
+    sync();
+    gsRef.current = makeGS(canvas.width, canvas.height);
     return () => ro.disconnect();
   }, []);
 
+  // ── Tap ─────────────────────────────────────────────────────────────────────
   const onTap = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    const p = gsRef.current.phase;
-    if (p === 'idle')    { startGame(); return; }
-    if (p === 'playing') { doTap();    return; }
-  }, [startGame, doTap]);
+    const gs = gsRef.current;
+    if (!gs) return;
+    if (gs.phase === 'idle') {
+      gs.phase  = 'playing';
+      gs.ballVY = TAP_VY;
+      setPhase('playing');
+      return;
+    }
+    if (gs.phase !== 'playing') return;
+    // only let ball jump again when it's resting below the ring
+    if (gs.ballSide !== 'below') return;
+    gs.ballVY = TAP_VY;
+    haptic('light');
+  }, []);
 
-  const adReady = !!(
-    (adConfig?.adsgram.enabled  && adConfig.adsgram.blockId)  ||
-    (adConfig?.monetag.enabled  && adConfig.monetag.zoneId)   ||
-    (adConfig?.onclicka.enabled && adConfig.onclicka.spotId)
-  );
-
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 100, background: '#040b17' }}>
-
+    <div className="fixed inset-0 flex flex-col bg-[#0f172a]" style={{ zIndex: 100 }}>
       {/* Header */}
       <div className="shrink-0 h-16 flex items-center justify-between px-4">
-        <button onClick={onBack}
-          className="p-2.5 rounded-full bg-white/5 border border-white/8 active:scale-90 transition-all">
+        <button
+          onClick={onBack}
+          className="p-2.5 rounded-full bg-white/5 border border-white/8 active:scale-90 transition-all"
+        >
           <ArrowLeft className="w-4 h-4 text-white" />
         </button>
         <div className="text-center">
@@ -428,23 +421,24 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
           onPointerDown={phase === 'idle' || phase === 'playing' ? onTap : undefined}
         />
 
-        {/* Idle hint */}
-        {phase === 'idle' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-end pb-20 pointer-events-none">
-            <p className="text-4xl font-black text-white tracking-tight drop-shadow-2xl">Color Switch</p>
-            <p className="text-sm text-white/40 mt-2 mb-10">Tap when the pointer matches the ball color</p>
-            <div className="text-3xl animate-bounce">👆</div>
-          </div>
-        )}
-
         <ContinueOverlay
-          show={phase === 'continue'} score={score} countdown={countdown}
-          adReady={adReady} adLoading={adLoading} starLoading={starLoading}
-          onAd={handleAd} onStars={handleStars} onGiveUp={() => triggerDead(gsRef.current)}
+          show={phase === 'continue'}
+          score={score}
+          countdown={countdown}
+          adReady={adReady}
+          adLoading={adLoading}
+          starLoading={starLoading}
+          onAd={handleAd}
+          onStars={handleStars}
+          onGiveUp={() => triggerDead(gsRef.current!)}
         />
         <DeadOverlay
-          show={phase === 'dead'} score={score} reward={reward}
-          gameName="ColorSwitch" onReplay={startGame} onBack={onBack}
+          show={phase === 'dead'}
+          score={score}
+          reward={reward}
+          gameName="ColorSwitch"
+          onReplay={restartGame}
+          onBack={onBack}
         />
       </div>
     </div>
