@@ -259,7 +259,7 @@ export function ColorSwitchGame({ onBack }: { onBack: () => void }) {
     if (gs.phase === 'idle') {
       ctx.fillStyle = 'rgba(255,255,255,0.38)';
       ctx.font      = '16px system-ui, sans-serif';
-      ctx.fillText('اضغط للبدء', W / 2, H * 0.80);
+      ctx.fillText('Tap to start', W / 2, H * 0.80);
     }
   }, []);
 
