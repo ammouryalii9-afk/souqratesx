@@ -462,6 +462,6 @@ export const FEATURE_LEVEL_REQUIRED: Record<string, number> = {
   games:   1,
   tasks:   6,
   squad:   10,
-  pixels:  15,
+  pixels:  0,
   stars:   1,
 };
