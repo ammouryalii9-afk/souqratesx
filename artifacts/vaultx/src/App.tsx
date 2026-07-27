@@ -288,7 +288,7 @@ function MainLayout() {
           {mountedTabs.has('games')   && <div className={activeTab !== 'games'   ? 'hidden' : ''}><LevelGate feature="games"   onUnlockClick={() => setActiveTab('vault')}><GamesTab /></LevelGate></div>}
           {mountedTabs.has('tasks')   && <div className={activeTab !== 'tasks'   ? 'hidden' : ''}><LevelGate feature="tasks"   onUnlockClick={() => setActiveTab('vault')}><TasksTab /></LevelGate></div>}
           {mountedTabs.has('squad')   && <div className={activeTab !== 'squad'   ? 'hidden' : ''}><LevelGate feature="squad"   onUnlockClick={() => setActiveTab('vault')}><SquadTab /></LevelGate></div>}
-          {mountedTabs.has('pixels')  && <div className={activeTab !== 'pixels'  ? 'hidden' : ''}><LevelGate feature="pixels"  onUnlockClick={() => setActiveTab('vault')}><PixelsTab /></LevelGate></div>}
+          {mountedTabs.has('pixels')  && <div className={activeTab !== 'pixels'  ? 'hidden' : ''}><PixelsTab /></div>}
           {mountedTabs.has('friends') && <div className={activeTab !== 'friends' ? 'hidden' : ''}><LevelGate feature="friends" onUnlockClick={() => setActiveTab('vault')}><FriendsTab /></LevelGate></div>}
           {mountedTabs.has('stars')   && <div className={activeTab !== 'stars'   ? 'hidden' : ''}><StarsTab /></div>}
         </div>
