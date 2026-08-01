@@ -287,6 +287,26 @@ export type PixelCyclesData = {
   cycles: PixelCycleRow[];
 };
 
+export type PixelHolder = {
+  telegramId: string;
+  username: string | null;
+  firstName: string | null;
+  pixels: number;
+  pixelUsdCents: number;
+};
+
+export type PixelHoldersData = {
+  cycleId: number | null;
+  holders: PixelHolder[];
+};
+
+export type PixelCreditResult = {
+  ok: boolean;
+  usersCredited: number;
+  totalUsdCents: number;
+  cycleId: number;
+};
+
 // ─── Provider Report types ────────────────────────────────────────────────────
 
 export type ProviderSummary = { key: string; name: string; type: string; enabled: boolean; priority: number };
@@ -365,6 +385,12 @@ export const adminApi = {
   pixelCycles: () => adminFetch<PixelCyclesData>("/admin/pixels/cycles"),
   closePixelCycle: () => adminFetch<{ ok: boolean }>("/admin/pixels/cycles/close", { method: "POST" }),
   startPixelCycle: () => adminFetch<{ ok: boolean; cycleId: number }>("/admin/pixels/cycles/start", { method: "POST" }),
+  pixelHolders: () => adminFetch<PixelHoldersData>("/admin/pixels/holders"),
+  creditPerPixel: (usdPerPixel: number) =>
+    adminFetch<PixelCreditResult>("/admin/pixels/credit-per-pixel", {
+      method: "POST",
+      body: JSON.stringify({ usdPerPixel }),
+    }),
   sendReminders: (inactiveDays: number, message?: string) =>
     adminFetch<{ ok: boolean; total: number; sent: number; failed: number }>("/admin/reminders/send", {
       method: "POST",

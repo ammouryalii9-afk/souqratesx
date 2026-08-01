@@ -392,6 +392,128 @@ router.post("/admin/pixels/cycles/start", async (req, res): Promise<void> => {
   res.json({ ok: true, cycleId: created?.id });
 });
 
+/** GET /api/admin/pixels/holders — all users with pixels, sorted by USD balance desc */
+router.get("/admin/pixels/holders", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "Not admin" }); return; }
+
+  // Use active cycle first; fall back to most recently completed cycle
+  const [activeCycle] = await db
+    .select({ id: pixelCyclesTable.id })
+    .from(pixelCyclesTable)
+    .where(eq(pixelCyclesTable.status, "active"))
+    .limit(1);
+
+  const [latestCycle] = activeCycle
+    ? [activeCycle]
+    : await db
+        .select({ id: pixelCyclesTable.id })
+        .from(pixelCyclesTable)
+        .orderBy(desc(pixelCyclesTable.id))
+        .limit(1);
+
+  if (!latestCycle) { res.json({ holders: [], cycleId: null }); return; }
+
+  const rows = await db
+    .select({
+      telegramId: pixelsTable.telegramId,
+      pixels: sql<string>`COALESCE(SUM(${pixelsTable.quantity}), 0)`,
+      username: vaultUsersTable.username,
+      firstName: vaultUsersTable.firstName,
+      pixelUsdCents: vaultUsersTable.pixelUsdCents,
+    })
+    .from(pixelsTable)
+    .leftJoin(vaultUsersTable, eq(pixelsTable.telegramId, vaultUsersTable.telegramId))
+    .where(eq(pixelsTable.cycleId, latestCycle.id))
+    .groupBy(
+      pixelsTable.telegramId,
+      vaultUsersTable.username,
+      vaultUsersTable.firstName,
+      vaultUsersTable.pixelUsdCents,
+    )
+    .orderBy(desc(vaultUsersTable.pixelUsdCents));
+
+  res.json({
+    cycleId: latestCycle.id,
+    holders: rows.map((r) => ({
+      telegramId: r.telegramId,
+      username:   r.username ?? null,
+      firstName:  r.firstName ?? null,
+      pixels:     Number(r.pixels),
+      pixelUsdCents: r.pixelUsdCents ?? 0,
+    })),
+  });
+});
+
+/**
+ * POST /api/admin/pixels/credit-per-pixel
+ * Body: { usdPerPixel: number }  e.g. 0.006
+ * Multiplies usdPerPixel × each holder's pixel count and credits pixelUsdCents.
+ * Uses the active cycle; falls back to the most recently completed one.
+ */
+router.post("/admin/pixels/credit-per-pixel", async (req, res): Promise<void> => {
+  if (!isAdminSession(req as never)) { res.status(401).json({ error: "Not admin" }); return; }
+
+  const usdPerPixel = Number(req.body?.usdPerPixel);
+  if (!isFinite(usdPerPixel) || usdPerPixel <= 0) {
+    res.status(400).json({ error: "usdPerPixel must be a positive number" });
+    return;
+  }
+
+  // Resolve cycle
+  const [activeCycle] = await db
+    .select({ id: pixelCyclesTable.id })
+    .from(pixelCyclesTable)
+    .where(eq(pixelCyclesTable.status, "active"))
+    .limit(1);
+
+  const [targetCycle] = activeCycle
+    ? [activeCycle]
+    : await db
+        .select({ id: pixelCyclesTable.id })
+        .from(pixelCyclesTable)
+        .orderBy(desc(pixelCyclesTable.id))
+        .limit(1);
+
+  if (!targetCycle) {
+    res.status(404).json({ error: "No cycle found" });
+    return;
+  }
+
+  // Aggregate pixels per user in this cycle
+  const holders = await db
+    .select({
+      telegramId: pixelsTable.telegramId,
+      pixels: sql<string>`COALESCE(SUM(${pixelsTable.quantity}), 0)`,
+    })
+    .from(pixelsTable)
+    .where(eq(pixelsTable.cycleId, targetCycle.id))
+    .groupBy(pixelsTable.telegramId);
+
+  if (holders.length === 0) {
+    res.json({ ok: true, usersCredited: 0, totalUsdCents: 0, cycleId: targetCycle.id });
+    return;
+  }
+
+  let totalUsdCents = 0;
+  // Credit each holder individually (keeps it simple and auditable)
+  for (const h of holders) {
+    const qty   = Number(h.pixels);
+    const cents = Math.round(qty * usdPerPixel * 100);
+    if (cents <= 0) continue;
+    totalUsdCents += cents;
+    await db
+      .update(vaultUsersTable)
+      .set({ pixelUsdCents: sql`${vaultUsersTable.pixelUsdCents} + ${cents}::bigint` })
+      .where(eq(vaultUsersTable.telegramId, h.telegramId));
+  }
+
+  req.log.info(
+    { cycleId: targetCycle.id, usdPerPixel, usersCredited: holders.length, totalUsdCents },
+    "admin credited pixel USD per-pixel",
+  );
+  res.json({ ok: true, usersCredited: holders.length, totalUsdCents, cycleId: targetCycle.id });
+});
+
 /** POST /api/admin/pixels/cycles/close — force-close the active cycle and distribute now */
 router.post("/admin/pixels/cycles/close", async (req, res): Promise<void> => {
   if (!isAdminSession(req as never)) {
